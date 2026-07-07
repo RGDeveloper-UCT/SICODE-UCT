@@ -1,3 +1,4 @@
+import os
 from werkzeug.security import generate_password_hash
 from app import create_app, db
 from app.models.usuario import Usuario
@@ -31,7 +32,10 @@ usuarios_iniciales = [
     },
 ]
 
-password_temporal = "Sicode2026*"
+password_temporal = os.getenv("SEED_PASSWORD")
+
+if not password_temporal:
+    raise RuntimeError("Debe configurar SEED_PASSWORD en el archivo .env")
 
 with app.app_context():
     for item in usuarios_iniciales:
@@ -55,4 +59,4 @@ with app.app_context():
 
     db.session.commit()
     print("Carga inicial finalizada.")
-    print("Contraseña temporal de desarrollo:", password_temporal)
+    print("Contraseña temporal cargada desde .env")
