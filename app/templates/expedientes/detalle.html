@@ -10,7 +10,7 @@
             <p>Consulta de metadatos administrativos y ubicación física.</p>
         </div>
 
-        <a class="boton-secundario" href="{{ url_for('expedientes.listado') }}">Volver al listado</a>
+        <div class="acciones-detalle">\n            <a class="boton-secundario" href="{{ url_for('expedientes.editar', expediente_id=expediente.id) }}">Editar expediente</a>\n            <a class="boton-cancelar" href="{{ url_for('expedientes.listado') }}">Volver al listado</a>\n        </div>
     </div>
 
     <div class="grid">

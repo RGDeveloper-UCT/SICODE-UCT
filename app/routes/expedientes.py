@@ -111,3 +111,92 @@ def detalle(expediente_id):
         expediente=expediente,
         ubicacion=ubicacion,
     )
+
+@expedientes_bp.route("/expedientes/<int:expediente_id>/editar", methods=["GET", "POST"])
+@login_required
+def editar(expediente_id):
+    expediente = Expediente.query.get_or_404(expediente_id)
+
+    ubicacion = (
+        UbicacionFisica.query
+        .filter_by(expediente_id=expediente.id)
+        .order_by(UbicacionFisica.creado_en.desc())
+        .first()
+    )
+
+    form = ExpedienteForm()
+    form.submit.label.text = "Actualizar expediente"
+
+    if form.validate_on_submit():
+        codigo_interno = form.codigo_interno.data.strip()
+        no_sp = form.no_sp.data.strip()
+
+        existe_codigo = (
+            Expediente.query
+            .filter(Expediente.codigo_interno == codigo_interno, Expediente.id != expediente.id)
+            .first()
+        )
+
+        existe_sp = (
+            Expediente.query
+            .filter(Expediente.no_sp == no_sp, Expediente.id != expediente.id)
+            .first()
+        )
+
+        if existe_codigo:
+            flash("Ya existe otro expediente con ese código interno.", "danger")
+            return render_template("expedientes/formulario.html", form=form, modo="Editar")
+
+        if existe_sp:
+            flash("Ya existe otro expediente con ese No. de SP.", "danger")
+            return render_template("expedientes/formulario.html", form=form, modo="Editar")
+
+        expediente.codigo_interno = codigo_interno
+        expediente.no_sp = no_sp
+        expediente.nombre_referencia = form.nombre_referencia.data.strip() if form.nombre_referencia.data else None
+        expediente.estado_administrativo = form.estado_administrativo.data
+        expediente.estado_fisico_documental = form.estado_fisico_documental.data
+        expediente.observaciones = form.observaciones.data
+
+        if not ubicacion:
+            ubicacion = UbicacionFisica(expediente_id=expediente.id)
+            db.session.add(ubicacion)
+
+        ubicacion.archivador = form.archivador.data
+        ubicacion.sicoin = form.sicoin.data
+        ubicacion.estante = form.estante.data
+        ubicacion.caja = form.caja.data
+        ubicacion.modulo = form.modulo.data
+        ubicacion.posicion = form.posicion.data
+        ubicacion.observaciones = form.observaciones.data
+
+        db.session.commit()
+
+        registrar_bitacora(
+            accion="EDITAR_EXPEDIENTE",
+            modulo="Expedientes",
+            descripcion=f"Se actualizó el expediente con No. de SP {expediente.no_sp} y código interno {expediente.codigo_interno}.",
+            usuario_id=current_user.id,
+            expediente_id=expediente.id,
+        )
+
+        flash("Expediente actualizado correctamente.", "success")
+        return redirect(url_for("expedientes.detalle", expediente_id=expediente.id))
+
+    if request.method == "GET":
+        form.codigo_interno.data = expediente.codigo_interno
+        form.no_sp.data = expediente.no_sp
+        form.nombre_referencia.data = expediente.nombre_referencia
+        form.estado_administrativo.data = expediente.estado_administrativo
+        form.estado_fisico_documental.data = expediente.estado_fisico_documental
+        form.observaciones.data = expediente.observaciones
+
+        if ubicacion:
+            form.archivador.data = ubicacion.archivador
+            form.sicoin.data = ubicacion.sicoin
+            form.estante.data = ubicacion.estante
+            form.caja.data = ubicacion.caja
+            form.modulo.data = ubicacion.modulo
+            form.posicion.data = ubicacion.posicion
+
+    return render_template("expedientes/formulario.html", form=form, modo="Editar")

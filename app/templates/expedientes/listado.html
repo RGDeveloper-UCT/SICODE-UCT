@@ -40,7 +40,7 @@
                     <td>{{ expediente.estado_administrativo }}</td>
                     <td>{{ expediente.estado_fisico_documental }}</td>
                     <td>
-                        <a href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Ver</a>
+                        <a href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Ver</a> | <a href="{{ url_for('expedientes.editar', expediente_id=expediente.id) }}">Editar</a>
                     </td>
                 </tr>
                 {% else %}
