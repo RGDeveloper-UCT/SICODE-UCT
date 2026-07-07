@@ -1,11 +1,13 @@
-from flask import Flask
+from flask import Flask, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from flask_login import LoginManager
 from sqlalchemy import text
 from config import Config
 
 db = SQLAlchemy()
 migrate = Migrate()
+login_manager = LoginManager()
 
 def create_app():
     app = Flask(__name__)
@@ -14,11 +16,24 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
 
+    login_manager.init_app(app)
+    login_manager.login_view = "auth.login"
+    login_manager.login_message = "Debe iniciar sesión para acceder al sistema."
+    login_manager.login_message_category = "warning"
+
     from app.models import Usuario, Expediente, UbicacionFisica, Bitacora
+
+    @login_manager.user_loader
+    def load_user(usuario_id):
+        return Usuario.query.get(int(usuario_id))
+
+    from app.routes import auth_bp, dashboard_bp
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(dashboard_bp)
 
     @app.route("/")
     def inicio():
-        return "SICODE-UCT funcionando correctamente"
+        return redirect(url_for("auth.login"))
 
     @app.route("/health/db")
     def health_db():

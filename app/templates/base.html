@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}SICODE-UCT{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/estilos.css') }}">
+</head>
+<body>
+    <header class="topbar">
+        <div>
+            <strong>SICODE-UCT</strong>
+            <span>Sistema de Control y Ordenamiento de Expedientes</span>
+        </div>
+
+        {% if current_user.is_authenticated %}
+        <nav>
+            <a href="{{ url_for('dashboard.inicio') }}">Dashboard</a>
+            <a href="{{ url_for('auth.logout') }}">Cerrar sesión</a>
+        </nav>
+        {% endif %}
+    </header>
+
+    <main class="contenedor">
+        {% with mensajes = get_flashed_messages(with_categories=true) %}
+            {% if mensajes %}
+                <div class="mensajes">
+                    {% for categoria, mensaje in mensajes %}
+                        <div class="alerta alerta-{{ categoria }}">{{ mensaje }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

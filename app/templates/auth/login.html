@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Login — SICODE-UCT{% endblock %}
+
+{% block content %}
+<section class="login-card">
+    <h1>Acceso al sistema</h1>
+    <p class="subtitulo">Ingrese sus credenciales autorizadas.</p>
+
+    <form method="POST">
+        {{ form.hidden_tag() }}
+
+        <div class="campo">
+            {{ form.usuario.label }}
+            {{ form.usuario(placeholder="Usuario") }}
+            {% for error in form.usuario.errors %}
+                <small class="error">{{ error }}</small>
+            {% endfor %}
+        </div>
+
+        <div class="campo">
+            {{ form.password.label }}
+            {{ form.password(placeholder="Contraseña") }}
+            {% for error in form.password.errors %}
+                <small class="error">{{ error }}</small>
+            {% endfor %}
+        </div>
+
+        {{ form.submit(class="boton") }}
+    </form>
+
+    <p class="nota">
+        Sistema interno de uso autorizado. No cargar documentos sensibles ni copias completas de expedientes.
+    </p>
+</section>
+{% endblock %}

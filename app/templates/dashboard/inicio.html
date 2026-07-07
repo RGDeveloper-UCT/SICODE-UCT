@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — SICODE-UCT{% endblock %}
+
+{% block content %}
+<section class="panel">
+    <h1>Dashboard inicial</h1>
+    <p>Bienvenido, <strong>{{ usuario.nombre }}</strong>.</p>
+
+    <div class="grid">
+        <div class="tarjeta">
+            <h2>Rol</h2>
+            <p>{{ usuario.rol }}</p>
+        </div>
+
+        <div class="tarjeta">
+            <h2>Estado de usuario</h2>
+            <p>{% if usuario.activo %}Activo{% else %}Inactivo{% endif %}</p>
+        </div>
+
+        <div class="tarjeta">
+            <h2>Base técnica</h2>
+            <p>Login, sesión y dashboard funcionando.</p>
+        </div>
+    </div>
+
+    <div class="aviso">
+        <strong>Nota institucional:</strong>
+        SICODE-UCT registrará únicamente metadatos administrativos, ubicación, foliación, observaciones, préstamos, alertas, reportes y bitácora.
+    </div>
+</section>
+{% endblock %}
