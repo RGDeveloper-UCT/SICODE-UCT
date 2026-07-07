@@ -7,6 +7,8 @@
     <h1>Dashboard inicial</h1>
     <p>Bienvenido, <strong>{{ usuario.nombre }}</strong>.</p>
 
+    <h2>Resumen de expedientes</h2>
+
     <div class="grid">
         <div class="tarjeta indicador">
             <h2>Total de expedientes</h2>
@@ -38,6 +40,43 @@
         <div class="tarjeta indicador">
             <h2>Con observaciones</h2>
             <p class="numero-indicador">{{ expedientes_con_observaciones }}</p>
+        </div>
+    </div>
+
+    <h2>Resumen de alertas</h2>
+
+    <div class="grid">
+        <div class="tarjeta indicador">
+            <h2>Alertas abiertas</h2>
+            <p class="numero-indicador indicador-alerta">{{ alertas_abiertas }}</p>
+        </div>
+
+        <div class="tarjeta indicador">
+            <h2>En revisión</h2>
+            <p class="numero-indicador">{{ alertas_en_revision }}</p>
+        </div>
+
+        <div class="tarjeta indicador">
+            <h2>Gravedad alta</h2>
+            <p class="numero-indicador indicador-peligro">{{ alertas_alta }}</p>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="tarjeta indicador">
+            <h2>Corregidas</h2>
+            <p class="numero-indicador">{{ alertas_corregidas }}</p>
+        </div>
+
+        <div class="tarjeta indicador">
+            <h2>Cerradas</h2>
+            <p class="numero-indicador">{{ alertas_cerradas }}</p>
+        </div>
+
+        <div class="tarjeta">
+            <h2>Alertas e incidentes</h2>
+            <p>Revisar alertas generadas por expedientes, foliación, anexos u observaciones.</p>
+            <a href="{{ url_for('alertas.listado') }}">Ver alertas</a>
         </div>
     </div>
 
@@ -98,6 +137,51 @@
                 {% else %}
                 <tr>
                     <td colspan="6">No hay expedientes registrados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h2>Últimas alertas</h2>
+
+    <div class="tabla-contenedor">
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Gravedad</th>
+                    <th>Estado</th>
+                    <th>Tipo</th>
+                    <th>Expediente</th>
+                    <th>Título</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for alerta in ultimas_alertas %}
+                <tr>
+                    <td>{{ alerta.creado_en.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td>
+                        {% if alerta.gravedad == "Alta" %}
+                            <span class="badge badge-inactivo">Alta</span>
+                        {% elif alerta.gravedad == "Media" %}
+                            <span class="badge badge-advertencia">Media</span>
+                        {% else %}
+                            <span class="badge badge-activo">Baja</span>
+                        {% endif %}
+                    </td>
+                    <td><span class="badge badge-neutral">{{ alerta.estado }}</span></td>
+                    <td>{{ alerta.tipo_alerta }}</td>
+                    <td>
+                        <a href="{{ url_for('expedientes.detalle', expediente_id=alerta.expediente.id) }}">
+                            {{ alerta.expediente.no_sp }}
+                        </a>
+                    </td>
+                    <td>{{ alerta.titulo }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6">No hay alertas registradas.</td>
                 </tr>
                 {% endfor %}
             </tbody>

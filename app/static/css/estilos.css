@@ -502,3 +502,11 @@ td a {
     cursor: pointer;
     width: 100%;
 }
+
+.indicador-alerta {
+    color: #92400e;
+}
+
+.indicador-peligro {
+    color: #991b1b;
+}
