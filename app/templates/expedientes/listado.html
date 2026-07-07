@@ -28,6 +28,7 @@
                     <th>Nombre referencia</th>
                     <th>Estado administrativo</th>
                     <th>Estado físico/documental</th>
+                    <th>Activo</th>
                     <th>Acción</th>
                 </tr>
             </thead>
@@ -39,13 +40,14 @@
                     <td>{{ expediente.nombre_referencia or "Sin dato" }}</td>
                     <td>{{ expediente.estado_administrativo }}</td>
                     <td>{{ expediente.estado_fisico_documental }}</td>
+                    <td>{% if expediente.activo %}Sí{% else %}No{% endif %}</td>
                     <td>
                         <a href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Ver</a> | <a href="{{ url_for('expedientes.editar', expediente_id=expediente.id) }}">Editar</a>
                     </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="6">No hay expedientes registrados.</td>
+                    <td colspan="7">No hay expedientes registrados.</td>
                 </tr>
                 {% endfor %}
             </tbody>

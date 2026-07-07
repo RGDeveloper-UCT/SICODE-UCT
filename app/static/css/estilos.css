@@ -308,3 +308,67 @@ td a {
         text-align: center;
     }
 }
+
+.acciones-detalle {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.form-inline {
+    display: inline-block;
+    margin: 0;
+}
+
+.boton-peligro,
+.boton-exito {
+    display: inline-block;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.boton-peligro {
+    background: #991b1b;
+    color: white;
+}
+
+.boton-exito {
+    background: #166534;
+    color: white;
+}
+
+.acciones-detalle {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.form-inline {
+    display: inline-block;
+    margin: 0;
+}
+
+.boton-peligro,
+.boton-exito {
+    display: inline-block;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.boton-peligro {
+    background: #991b1b;
+    color: white;
+}
+
+.boton-exito {
+    background: #166534;
+    color: white;
+}

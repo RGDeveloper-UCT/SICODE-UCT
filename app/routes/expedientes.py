@@ -200,3 +200,49 @@ def editar(expediente_id):
             form.posicion.data = ubicacion.posicion
 
     return render_template("expedientes/formulario.html", form=form, modo="Editar")
+
+@expedientes_bp.route("/expedientes/<int:expediente_id>/desactivar", methods=["POST"])
+@login_required
+def desactivar(expediente_id):
+    expediente = Expediente.query.get_or_404(expediente_id)
+
+    if not expediente.activo:
+        flash("El expediente ya se encuentra desactivado.", "warning")
+        return redirect(url_for("expedientes.detalle", expediente_id=expediente.id))
+
+    expediente.activo = False
+    db.session.commit()
+
+    registrar_bitacora(
+        accion="DESACTIVAR_EXPEDIENTE",
+        modulo="Expedientes",
+        descripcion=f"Se desactivó el expediente con No. de SP {expediente.no_sp} y código interno {expediente.codigo_interno}.",
+        usuario_id=current_user.id,
+        expediente_id=expediente.id,
+    )
+
+    flash("Expediente desactivado correctamente. El registro se conserva para trazabilidad.", "info")
+    return redirect(url_for("expedientes.detalle", expediente_id=expediente.id))
+
+@expedientes_bp.route("/expedientes/<int:expediente_id>/reactivar", methods=["POST"])
+@login_required
+def reactivar(expediente_id):
+    expediente = Expediente.query.get_or_404(expediente_id)
+
+    if expediente.activo:
+        flash("El expediente ya se encuentra activo.", "warning")
+        return redirect(url_for("expedientes.detalle", expediente_id=expediente.id))
+
+    expediente.activo = True
+    db.session.commit()
+
+    registrar_bitacora(
+        accion="REACTIVAR_EXPEDIENTE",
+        modulo="Expedientes",
+        descripcion=f"Se reactivó el expediente con No. de SP {expediente.no_sp} y código interno {expediente.codigo_interno}.",
+        usuario_id=current_user.id,
+        expediente_id=expediente.id,
+    )
+
+    flash("Expediente reactivado correctamente.", "success")
+    return redirect(url_for("expedientes.detalle", expediente_id=expediente.id))

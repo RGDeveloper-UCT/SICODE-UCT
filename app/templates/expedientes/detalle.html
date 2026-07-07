@@ -10,7 +10,29 @@
             <p>Consulta de metadatos administrativos y ubicación física.</p>
         </div>
 
-        <div class="acciones-detalle">\n            <a class="boton-secundario" href="{{ url_for('expedientes.editar', expediente_id=expediente.id) }}">Editar expediente</a>\n            <a class="boton-cancelar" href="{{ url_for('expedientes.listado') }}">Volver al listado</a>\n        </div>
+        <div class="acciones-detalle">
+            <a class="boton-secundario" href="{{ url_for('expedientes.editar', expediente_id=expediente.id) }}">
+                Editar expediente
+            </a>
+
+            <a class="boton-cancelar" href="{{ url_for('expedientes.listado') }}">
+                Volver al listado
+            </a>
+
+            {% if expediente.activo %}
+            <form method="POST" action="{{ url_for('expedientes.desactivar', expediente_id=expediente.id) }}" class="form-inline">
+                <button type="submit" class="boton-peligro" onclick="return confirm('¿Desea desactivar este expediente? El registro no se eliminará, solo quedará inactivo.');">
+                    Desactivar
+                </button>
+            </form>
+            {% else %}
+            <form method="POST" action="{{ url_for('expedientes.reactivar', expediente_id=expediente.id) }}" class="form-inline">
+                <button type="submit" class="boton-exito">
+                    Reactivar
+                </button>
+            </form>
+            {% endif %}
+        </div>
     </div>
 
     <div class="grid">
