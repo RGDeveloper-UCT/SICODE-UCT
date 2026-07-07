@@ -27,10 +27,11 @@ def create_app():
     def load_user(usuario_id):
         return Usuario.query.get(int(usuario_id))
 
-    from app.routes import auth_bp, dashboard_bp, expedientes_bp
+    from app.routes import auth_bp, dashboard_bp, expedientes_bp, bitacora_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(expedientes_bp)
+    app.register_blueprint(bitacora_bp)
 
     @app.route("/")
     def inicio():

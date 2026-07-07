@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Bitácora — SICODE-UCT{% endblock %}
+
+{% block content %}
+<section class="panel">
+    <div class="encabezado-modulo">
+        <div>
+            <h1>Bitácora / Auditoría</h1>
+            <p>Consulta de eventos registrados en el sistema.</p>
+        </div>
+
+        <a class="boton-secundario" href="{{ url_for('dashboard.inicio') }}">Volver al dashboard</a>
+    </div>
+
+    <form method="GET" class="filtros-expedientes">
+        <div class="campo-filtro campo-filtro-grande">
+            <label>Buscar</label>
+            <input type="text" name="q" value="{{ busqueda }}" placeholder="Buscar por descripción, usuario, acción, No. de SP o código interno">
+        </div>
+
+        <div class="campo-filtro">
+            <label>Acción</label>
+            <select name="accion">
+                <option value="">Todas</option>
+                {% for accion in acciones %}
+                    <option value="{{ accion }}" {% if filtro_accion == accion %}selected{% endif %}>{{ accion }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="campo-filtro">
+            <label>Módulo</label>
+            <select name="modulo">
+                <option value="">Todos</option>
+                {% for modulo in modulos %}
+                    <option value="{{ modulo }}" {% if filtro_modulo == modulo %}selected{% endif %}>{{ modulo }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="campo-filtro">
+            <label>Usuario</label>
+            <select name="usuario">
+                <option value="">Todos</option>
+                {% for usuario in usuarios %}
+                    <option value="{{ usuario.usuario }}" {% if filtro_usuario == usuario.usuario %}selected{% endif %}>
+                        {{ usuario.nombre }} / {{ usuario.usuario }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="acciones-filtro">
+            <button type="submit">Aplicar filtros</button>
+            <a href="{{ url_for('bitacora.listado') }}">Limpiar</a>
+        </div>
+    </form>
+
+    <p class="contador-resultados">
+        Eventos mostrados: <strong>{{ eventos|length }}</strong>
+        <span class="nota-mini">Se muestran máximo los últimos 100 eventos según los filtros aplicados.</span>
+    </p>
+
+    <div class="tabla-contenedor">
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Usuario</th>
+                    <th>Acción</th>
+                    <th>Módulo</th>
+                    <th>Expediente</th>
+                    <th>IP origen</th>
+                    <th>Descripción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for evento in eventos %}
+                <tr>
+                    <td>{{ evento.creado_en.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+                    <td>
+                        {% if evento.usuario %}
+                            {{ evento.usuario.nombre }}<br>
+                            <small>{{ evento.usuario.usuario }}</small>
+                        {% else %}
+                            Sin usuario
+                        {% endif %}
+                    </td>
+                    <td><span class="badge badge-neutral">{{ evento.accion }}</span></td>
+                    <td>{{ evento.modulo }}</td>
+                    <td>
+                        {% if evento.expediente %}
+                            <a href="{{ url_for('expedientes.detalle', expediente_id=evento.expediente.id) }}">
+                                {{ evento.expediente.no_sp }}
+                            </a>
+                            <br>
+                            <small>{{ evento.expediente.codigo_interno }}</small>
+                        {% else %}
+                            No aplica
+                        {% endif %}
+                    </td>
+                    <td>{{ evento.ip_origen or "Sin dato" }}</td>
+                    <td>{{ evento.descripcion or "Sin descripción" }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7">No hay eventos registrados con los filtros seleccionados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

@@ -468,3 +468,15 @@ td a {
     margin: 10px 0 0 0;
     color: #17233c;
 }
+
+.nota-mini {
+    display: block;
+    margin-top: 4px;
+    font-size: 13px;
+    color: #64748b;
+}
+
+.badge-neutral {
+    background: #e2e8f0;
+    color: #334155;
+}
