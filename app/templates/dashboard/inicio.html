@@ -8,19 +8,36 @@
     <p>Bienvenido, <strong>{{ usuario.nombre }}</strong>.</p>
 
     <div class="grid">
-        <div class="tarjeta">
-            <h2>Rol</h2>
-            <p>{{ usuario.rol }}</p>
+        <div class="tarjeta indicador">
+            <h2>Total de expedientes</h2>
+            <p class="numero-indicador">{{ total_expedientes }}</p>
         </div>
 
-        <div class="tarjeta">
-            <h2>Estado de usuario</h2>
-            <p>{% if usuario.activo %}Activo{% else %}Inactivo{% endif %}</p>
+        <div class="tarjeta indicador">
+            <h2>Expedientes activos</h2>
+            <p class="numero-indicador">{{ expedientes_activos }}</p>
         </div>
 
-        <div class="tarjeta">
-            <h2>Base técnica</h2>
-            <p>Login, sesión, dashboard y bitácora funcionando.</p>
+        <div class="tarjeta indicador">
+            <h2>Expedientes inactivos</h2>
+            <p class="numero-indicador">{{ expedientes_inactivos }}</p>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="tarjeta indicador">
+            <h2>Pendientes de verificación</h2>
+            <p class="numero-indicador">{{ pendientes_verificacion }}</p>
+        </div>
+
+        <div class="tarjeta indicador">
+            <h2>Verificados</h2>
+            <p class="numero-indicador">{{ expedientes_verificados }}</p>
+        </div>
+
+        <div class="tarjeta indicador">
+            <h2>Con observaciones</h2>
+            <p class="numero-indicador">{{ expedientes_con_observaciones }}</p>
         </div>
     </div>
 
@@ -29,7 +46,7 @@
     <div class="grid">
         <div class="tarjeta">
             <h2>Expedientes</h2>
-            <p>Registrar, buscar y consultar expedientes físicos.</p>
+            <p>Registrar, buscar, consultar y editar expedientes físicos.</p>
             <a href="{{ url_for('expedientes.listado') }}">Ir a expedientes</a>
         </div>
 
@@ -44,6 +61,76 @@
             <p>Registro técnico de acciones principales del sistema.</p>
             <span>Activo</span>
         </div>
+    </div>
+
+    <h2>Últimos expedientes registrados</h2>
+
+    <div class="tabla-contenedor">
+        <table>
+            <thead>
+                <tr>
+                    <th>Código interno</th>
+                    <th>No. de SP</th>
+                    <th>Nombre referencia</th>
+                    <th>Estado físico/documental</th>
+                    <th>Activo</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for expediente in ultimos_expedientes %}
+                <tr>
+                    <td>{{ expediente.codigo_interno }}</td>
+                    <td>{{ expediente.no_sp }}</td>
+                    <td>{{ expediente.nombre_referencia or "Sin dato" }}</td>
+                    <td>{{ expediente.estado_fisico_documental }}</td>
+                    <td>
+                        {% if expediente.activo %}
+                            <span class="badge badge-activo">Sí</span>
+                        {% else %}
+                            <span class="badge badge-inactivo">No</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Ver</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6">No hay expedientes registrados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h2>Últimos eventos de bitácora</h2>
+
+    <div class="tabla-contenedor">
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Acción</th>
+                    <th>Módulo</th>
+                    <th>Descripción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for evento in ultimos_eventos %}
+                <tr>
+                    <td>{{ evento.creado_en.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td>{{ evento.accion }}</td>
+                    <td>{{ evento.modulo }}</td>
+                    <td>{{ evento.descripcion or "Sin descripción" }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4">No hay eventos registrados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 
     <div class="aviso">
