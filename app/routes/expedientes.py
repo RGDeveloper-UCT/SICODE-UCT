@@ -1,6 +1,9 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from io import BytesIO
+from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file
 from flask_login import login_required, current_user
 from sqlalchemy import or_
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment
 
 from app import db
 from app.forms.expediente_form import ExpedienteForm
@@ -281,3 +284,132 @@ def reactivar(expediente_id):
 
     flash("Expediente reactivado correctamente.", "success")
     return redirect(url_for("expedientes.detalle", expediente_id=expediente.id))
+
+@expedientes_bp.route("/expedientes/exportar/excel")
+@login_required
+def exportar_excel():
+    busqueda = request.args.get("q", "").strip()
+    filtro_activo = request.args.get("activo", "").strip()
+    filtro_estado_admin = request.args.get("estado_administrativo", "").strip()
+    filtro_estado_fisico = request.args.get("estado_fisico_documental", "").strip()
+
+    consulta = Expediente.query
+
+    if busqueda:
+        filtro = f"%{busqueda}%"
+        consulta = consulta.filter(
+            or_(
+                Expediente.no_sp.ilike(filtro),
+                Expediente.codigo_interno.ilike(filtro),
+                Expediente.nombre_referencia.ilike(filtro),
+            )
+        )
+
+    if filtro_activo == "si":
+        consulta = consulta.filter(Expediente.activo == True)
+    elif filtro_activo == "no":
+        consulta = consulta.filter(Expediente.activo == False)
+
+    if filtro_estado_admin:
+        consulta = consulta.filter(Expediente.estado_administrativo == filtro_estado_admin)
+
+    if filtro_estado_fisico:
+        consulta = consulta.filter(Expediente.estado_fisico_documental == filtro_estado_fisico)
+
+    expedientes = consulta.order_by(Expediente.creado_en.desc()).all()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Expedientes"
+
+    encabezados = [
+        "ID",
+        "Código interno",
+        "No. de SP",
+        "Nombre referencia",
+        "Estado administrativo",
+        "Estado físico/documental",
+        "Activo",
+        "Archivador",
+        "SICOIN",
+        "Estante",
+        "Caja",
+        "Módulo",
+        "Posición",
+        "Observaciones",
+        "Fecha creación",
+    ]
+
+    ws.append(encabezados)
+
+    for celda in ws[1]:
+        celda.font = Font(bold=True)
+        celda.alignment = Alignment(horizontal="center")
+
+    for expediente in expedientes:
+        ubicacion = (
+            UbicacionFisica.query
+            .filter_by(expediente_id=expediente.id)
+            .order_by(UbicacionFisica.creado_en.desc())
+            .first()
+        )
+
+        ws.append([
+            expediente.id,
+            expediente.codigo_interno,
+            expediente.no_sp,
+            expediente.nombre_referencia or "",
+            expediente.estado_administrativo,
+            expediente.estado_fisico_documental,
+            "Sí" if expediente.activo else "No",
+            ubicacion.archivador if ubicacion else "",
+            ubicacion.sicoin if ubicacion else "",
+            ubicacion.estante if ubicacion else "",
+            ubicacion.caja if ubicacion else "",
+            ubicacion.modulo if ubicacion else "",
+            ubicacion.posicion if ubicacion else "",
+            expediente.observaciones or "",
+            expediente.creado_en.strftime("%d/%m/%Y %H:%M") if expediente.creado_en else "",
+        ])
+
+    anchos = {
+        "A": 8,
+        "B": 22,
+        "C": 16,
+        "D": 28,
+        "E": 24,
+        "F": 28,
+        "G": 12,
+        "H": 16,
+        "I": 16,
+        "J": 16,
+        "K": 16,
+        "L": 16,
+        "M": 16,
+        "N": 40,
+        "O": 22,
+    }
+
+    for columna, ancho in anchos.items():
+        ws.column_dimensions[columna].width = ancho
+
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = ws.dimensions
+
+    registrar_bitacora(
+        accion="EXPORTAR_EXPEDIENTES_EXCEL",
+        modulo="Reportes",
+        descripcion=f"Se exportó listado de expedientes a Excel. Registros exportados: {len(expedientes)}.",
+        usuario_id=current_user.id,
+    )
+
+    archivo_excel = BytesIO()
+    wb.save(archivo_excel)
+    archivo_excel.seek(0)
+
+    return send_file(
+        archivo_excel,
+        as_attachment=True,
+        download_name="reporte_expedientes_sicode_uct.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )

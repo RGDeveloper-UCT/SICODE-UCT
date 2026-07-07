@@ -10,7 +10,17 @@
             <p>Registro, búsqueda y control básico de expedientes físicos.</p>
         </div>
 
-        <a class="boton-secundario" href="{{ url_for('expedientes.nuevo') }}">Nuevo expediente</a>
+        <div class="acciones-detalle">
+            <a class="boton-secundario" href="{{ url_for('expedientes.nuevo') }}">Nuevo expediente</a>
+
+            <a class="boton-exito" href="{{ url_for(
+                'expedientes.exportar_excel',
+                q=busqueda,
+                activo=filtro_activo,
+                estado_administrativo=filtro_estado_admin,
+                estado_fisico_documental=filtro_estado_fisico
+            ) }}">Exportar Excel</a>
+        </div>
     </div>
 
     <form method="GET" class="filtros-expedientes">
