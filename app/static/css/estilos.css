@@ -480,3 +480,25 @@ td a {
     background: #e2e8f0;
     color: #334155;
 }
+
+.badge-advertencia {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.acciones-alerta {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.boton-mini {
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: none;
+    background: #e2e8f0;
+    color: #17233c;
+    font-weight: bold;
+    cursor: pointer;
+    width: 100%;
+}

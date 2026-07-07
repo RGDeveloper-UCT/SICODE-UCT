@@ -6,6 +6,7 @@ from app.forms.indice_documental_form import IndiceDocumentalForm
 from app.models.expediente import Expediente
 from app.models.documento_expediente import DocumentoExpediente
 from app.services.bitacora_service import registrar_bitacora
+from app.services.alertas_service import crear_alerta_si_no_existe
 
 indice_documental_bp = Blueprint("indice_documental", __name__)
 
@@ -71,6 +72,22 @@ def listado(expediente_id):
             usuario_id=current_user.id,
             expediente_id=expediente.id,
         )
+
+        if documento.estado_revision in ["Mal foliado", "Anexo pendiente", "Con observaciones"]:
+            gravedad = "Alta" if documento.estado_revision == "Mal foliado" else "Media"
+
+            crear_alerta_si_no_existe(
+                expediente_id=expediente.id,
+                documento_id=documento.id,
+                tipo_alerta="REVISION_INDICE_DOCUMENTAL",
+                titulo=f"Revisión documental requerida: {documento.nombre_documento}",
+                descripcion=(
+                    f"El documento '{documento.nombre_documento}' fue registrado con estado "
+                    f"'{documento.estado_revision}' en los folios {documento.folio_inicio}-{documento.folio_fin}."
+                ),
+                gravedad=gravedad,
+                usuario_id=current_user.id,
+            )
 
         flash("Documento agregado al índice correctamente.", "success")
         return redirect(url_for("indice_documental.listado", expediente_id=expediente.id))

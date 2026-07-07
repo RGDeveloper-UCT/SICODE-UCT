@@ -17,6 +17,7 @@ from app.forms.expediente_form import ExpedienteForm
 from app.models.expediente import Expediente
 from app.models.ubicacion import UbicacionFisica
 from app.services.bitacora_service import registrar_bitacora
+from app.services.alertas_service import crear_alerta_si_no_existe
 
 expedientes_bp = Blueprint("expedientes", __name__)
 
@@ -135,6 +136,16 @@ def nuevo():
             expediente_id=expediente.id,
         )
 
+        if expediente.estado_fisico_documental in ["Con observaciones", "Incompleto", "No localizado"]:
+            crear_alerta_si_no_existe(
+                expediente_id=expediente.id,
+                tipo_alerta="REVISION_EXPEDIENTE",
+                titulo=f"Expediente requiere revisión: {expediente.no_sp}",
+                descripcion=f"El expediente fue registrado con estado físico/documental: {expediente.estado_fisico_documental}.",
+                gravedad="Alta" if expediente.estado_fisico_documental == "No localizado" else "Media",
+                usuario_id=current_user.id,
+            )
+
         flash("Expediente creado correctamente.", "success")
         return redirect(url_for("expedientes.detalle", expediente_id=expediente.id))
 
@@ -224,6 +235,16 @@ def editar(expediente_id):
             usuario_id=current_user.id,
             expediente_id=expediente.id,
         )
+
+        if expediente.estado_fisico_documental in ["Con observaciones", "Incompleto", "No localizado"]:
+            crear_alerta_si_no_existe(
+                expediente_id=expediente.id,
+                tipo_alerta="REVISION_EXPEDIENTE",
+                titulo=f"Expediente requiere revisión: {expediente.no_sp}",
+                descripcion=f"El expediente fue actualizado con estado físico/documental: {expediente.estado_fisico_documental}.",
+                gravedad="Alta" if expediente.estado_fisico_documental == "No localizado" else "Media",
+                usuario_id=current_user.id,
+            )
 
         flash("Expediente actualizado correctamente.", "success")
         return redirect(url_for("expedientes.detalle", expediente_id=expediente.id))
