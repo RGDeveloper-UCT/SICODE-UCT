@@ -15,6 +15,10 @@
                 Editar expediente
             </a>
 
+            <a class="boton-exito" href="{{ url_for('expedientes.exportar_pdf', expediente_id=expediente.id) }}">
+                Exportar PDF
+            </a>
+
             <a class="boton-cancelar" href="{{ url_for('expedientes.listado') }}">
                 Volver al listado
             </a>

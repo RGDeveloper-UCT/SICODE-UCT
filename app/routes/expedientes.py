@@ -1,9 +1,16 @@
+from xml.sax.saxutils import escape
 from io import BytesIO
 from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file
 from flask_login import login_required, current_user
 from sqlalchemy import or_
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+
 
 from app import db
 from app.forms.expediente_form import ExpedienteForm
@@ -412,4 +419,132 @@ def exportar_excel():
         as_attachment=True,
         download_name="reporte_expedientes_sicode_uct.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+@expedientes_bp.route("/expedientes/<int:expediente_id>/exportar/pdf")
+@login_required
+def exportar_pdf(expediente_id):
+    expediente = Expediente.query.get_or_404(expediente_id)
+
+    ubicacion = (
+        UbicacionFisica.query
+        .filter_by(expediente_id=expediente.id)
+        .order_by(UbicacionFisica.creado_en.desc())
+        .first()
+    )
+
+    def valor_pdf(valor):
+        if valor is None or valor == "":
+            return "Sin dato"
+        return escape(str(valor))
+
+    archivo_pdf = BytesIO()
+
+    doc = SimpleDocTemplate(
+        archivo_pdf,
+        pagesize=letter,
+        rightMargin=36,
+        leftMargin=36,
+        topMargin=36,
+        bottomMargin=36,
+    )
+
+    estilos = getSampleStyleSheet()
+    elementos = []
+
+    titulo = Paragraph("SICODE-UCT", estilos["Title"])
+    subtitulo = Paragraph("Reporte individual de expediente", estilos["Heading2"])
+    nota = Paragraph(
+        "Reporte administrativo generado con metadatos de control, ubicación física y observaciones. "
+        "Este reporte no contiene documentos sensibles ni copias completas del expediente físico.",
+        estilos["Normal"],
+    )
+
+    elementos.append(titulo)
+    elementos.append(subtitulo)
+    elementos.append(Spacer(1, 12))
+    elementos.append(nota)
+    elementos.append(Spacer(1, 18))
+
+    datos_principales = [
+        ["Campo", "Valor"],
+        ["Código interno", valor_pdf(expediente.codigo_interno)],
+        ["No. de SP", valor_pdf(expediente.no_sp)],
+        ["Nombre referencia", valor_pdf(expediente.nombre_referencia)],
+        ["Estado administrativo", valor_pdf(expediente.estado_administrativo)],
+        ["Estado físico/documental", valor_pdf(expediente.estado_fisico_documental)],
+        ["Activo", "Sí" if expediente.activo else "No"],
+        [
+            "Fecha de creación",
+            expediente.creado_en.strftime("%d/%m/%Y %H:%M") if expediente.creado_en else "Sin dato",
+        ],
+    ]
+
+    tabla_principal = Table(datos_principales, colWidths=[2.2 * inch, 4.8 * inch])
+    tabla_principal.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#17233c")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTNAME", (0, 1), (0, -1), "Helvetica-Bold"),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("PADDING", (0, 0), (-1, -1), 8),
+    ]))
+
+    elementos.append(Paragraph("Datos principales", estilos["Heading3"]))
+    elementos.append(tabla_principal)
+    elementos.append(Spacer(1, 18))
+
+    datos_ubicacion = [
+        ["Campo", "Valor"],
+        ["Archivador", valor_pdf(ubicacion.archivador if ubicacion else None)],
+        ["SICOIN", valor_pdf(ubicacion.sicoin if ubicacion else None)],
+        ["Estante", valor_pdf(ubicacion.estante if ubicacion else None)],
+        ["Caja", valor_pdf(ubicacion.caja if ubicacion else None)],
+        ["Módulo", valor_pdf(ubicacion.modulo if ubicacion else None)],
+        ["Posición", valor_pdf(ubicacion.posicion if ubicacion else None)],
+    ]
+
+    tabla_ubicacion = Table(datos_ubicacion, colWidths=[2.2 * inch, 4.8 * inch])
+    tabla_ubicacion.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#17233c")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTNAME", (0, 1), (0, -1), "Helvetica-Bold"),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("PADDING", (0, 0), (-1, -1), 8),
+    ]))
+
+    elementos.append(Paragraph("Ubicación física", estilos["Heading3"]))
+    elementos.append(tabla_ubicacion)
+    elementos.append(Spacer(1, 18))
+
+    elementos.append(Paragraph("Observaciones", estilos["Heading3"]))
+    elementos.append(Paragraph(valor_pdf(expediente.observaciones), estilos["Normal"]))
+    elementos.append(Spacer(1, 18))
+
+    elementos.append(Paragraph(
+        "Generado desde SICODE-UCT para control interno institucional.",
+        estilos["Italic"],
+    ))
+
+    doc.build(elementos)
+    archivo_pdf.seek(0)
+
+    registrar_bitacora(
+        accion="EXPORTAR_EXPEDIENTE_PDF",
+        modulo="Reportes",
+        descripcion=f"Se exportó PDF del expediente No. de SP {expediente.no_sp} y código interno {expediente.codigo_interno}.",
+        usuario_id=current_user.id,
+        expediente_id=expediente.id,
+    )
+
+    nombre_archivo = f"expediente_{expediente.no_sp}_sicode_uct.pdf".replace(" ", "_")
+
+    return send_file(
+        archivo_pdf,
+        as_attachment=True,
+        download_name=nombre_archivo,
+        mimetype="application/pdf",
     )
