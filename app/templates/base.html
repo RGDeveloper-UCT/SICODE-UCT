@@ -15,6 +15,7 @@
         {% if current_user.is_authenticated %}
         <nav>
             <a href="{{ url_for('dashboard.inicio') }}">Dashboard</a>
+            <a href="{{ url_for('expedientes.listado') }}">Expedientes</a>
             <a href="{{ url_for('auth.logout') }}">Cerrar sesión</a>
         </nav>
         {% endif %}

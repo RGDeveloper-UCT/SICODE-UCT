@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}{{ modo }} expediente — SICODE-UCT{% endblock %}
+
+{% block content %}
+<section class="panel">
+    <h1>{{ modo }} expediente</h1>
+    <p>Registre únicamente metadatos administrativos y ubicación física. No cargue documentos sensibles.</p>
+
+    <form method="POST" class="formulario">
+        {{ form.hidden_tag() }}
+
+        <h2>Datos principales</h2>
+
+        <div class="grid-form">
+            <div class="campo">
+                {{ form.codigo_interno.label }}
+                {{ form.codigo_interno(placeholder="Ej. SICODE-UCT-0001") }}
+                {% for error in form.codigo_interno.errors %}
+                    <small class="error">{{ error }}</small>
+                {% endfor %}
+            </div>
+
+            <div class="campo">
+                {{ form.no_sp.label }}
+                {{ form.no_sp(placeholder="Ej. SP-001") }}
+                {% for error in form.no_sp.errors %}
+                    <small class="error">{{ error }}</small>
+                {% endfor %}
+            </div>
+
+            <div class="campo">
+                {{ form.nombre_referencia.label }}
+                {{ form.nombre_referencia(placeholder="Referencia administrativa") }}
+            </div>
+
+            <div class="campo">
+                {{ form.estado_administrativo.label }}
+                {{ form.estado_administrativo() }}
+            </div>
+
+            <div class="campo">
+                {{ form.estado_fisico_documental.label }}
+                {{ form.estado_fisico_documental() }}
+            </div>
+        </div>
+
+        <h2>Ubicación física</h2>
+
+        <div class="grid-form">
+            <div class="campo">
+                {{ form.archivador.label }}
+                {{ form.archivador() }}
+            </div>
+
+            <div class="campo">
+                {{ form.sicoin.label }}
+                {{ form.sicoin() }}
+            </div>
+
+            <div class="campo">
+                {{ form.estante.label }}
+                {{ form.estante() }}
+            </div>
+
+            <div class="campo">
+                {{ form.caja.label }}
+                {{ form.caja() }}
+            </div>
+
+            <div class="campo">
+                {{ form.modulo.label }}
+                {{ form.modulo() }}
+            </div>
+
+            <div class="campo">
+                {{ form.posicion.label }}
+                {{ form.posicion() }}
+            </div>
+        </div>
+
+        <div class="campo">
+            {{ form.observaciones.label }}
+            {{ form.observaciones(rows="4", placeholder="Observaciones administrativas o de ubicación") }}
+        </div>
+
+        <div class="acciones">
+            {{ form.submit(class="boton") }}
+            <a class="boton-cancelar" href="{{ url_for('expedientes.listado') }}">Cancelar</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

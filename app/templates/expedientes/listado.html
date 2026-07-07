@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Expedientes — SICODE-UCT{% endblock %}
+
+{% block content %}
+<section class="panel">
+    <div class="encabezado-modulo">
+        <div>
+            <h1>Expedientes</h1>
+            <p>Registro, búsqueda y control básico de expedientes físicos.</p>
+        </div>
+
+        <a class="boton-secundario" href="{{ url_for('expedientes.nuevo') }}">Nuevo expediente</a>
+    </div>
+
+    <form method="GET" class="busqueda">
+        <input type="text" name="q" value="{{ busqueda }}" placeholder="Buscar por No. de SP, código interno o nombre">
+        <button type="submit">Buscar</button>
+        <a href="{{ url_for('expedientes.listado') }}">Limpiar</a>
+    </form>
+
+    <div class="tabla-contenedor">
+        <table>
+            <thead>
+                <tr>
+                    <th>Código interno</th>
+                    <th>No. de SP</th>
+                    <th>Nombre referencia</th>
+                    <th>Estado administrativo</th>
+                    <th>Estado físico/documental</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for expediente in expedientes %}
+                <tr>
+                    <td>{{ expediente.codigo_interno }}</td>
+                    <td>{{ expediente.no_sp }}</td>
+                    <td>{{ expediente.nombre_referencia or "Sin dato" }}</td>
+                    <td>{{ expediente.estado_administrativo }}</td>
+                    <td>{{ expediente.estado_fisico_documental }}</td>
+                    <td>
+                        <a href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Ver</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6">No hay expedientes registrados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

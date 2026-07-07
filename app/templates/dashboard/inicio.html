@@ -20,7 +20,29 @@
 
         <div class="tarjeta">
             <h2>Base técnica</h2>
-            <p>Login, sesión y dashboard funcionando.</p>
+            <p>Login, sesión, dashboard y bitácora funcionando.</p>
+        </div>
+    </div>
+
+    <h2>Módulos disponibles</h2>
+
+    <div class="grid">
+        <div class="tarjeta">
+            <h2>Expedientes</h2>
+            <p>Registrar, buscar y consultar expedientes físicos.</p>
+            <a href="{{ url_for('expedientes.listado') }}">Ir a expedientes</a>
+        </div>
+
+        <div class="tarjeta">
+            <h2>Ubicación física</h2>
+            <p>Registrar archivador, SICOIN, estante, caja, módulo y posición.</p>
+            <a href="{{ url_for('expedientes.nuevo') }}">Registrar expediente</a>
+        </div>
+
+        <div class="tarjeta">
+            <h2>Bitácora</h2>
+            <p>Registro técnico de acciones principales del sistema.</p>
+            <span>Activo</span>
         </div>
     </div>
 

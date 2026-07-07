@@ -179,3 +179,132 @@ body {
         gap: 12px;
     }
 }
+
+.encabezado-modulo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.boton-secundario,
+.boton-cancelar {
+    display: inline-block;
+    padding: 10px 14px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.boton-secundario {
+    background: #17233c;
+    color: white;
+}
+
+.boton-cancelar {
+    background: #e5e7eb;
+    color: #1f2933;
+    margin-left: 10px;
+}
+
+.busqueda {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.busqueda input {
+    flex: 1;
+    padding: 12px;
+    border: 1px solid #ccd3dc;
+    border-radius: 8px;
+}
+
+.busqueda button {
+    padding: 12px 18px;
+    background: #17233c;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.busqueda a {
+    padding: 12px 14px;
+    color: #17233c;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.tabla-contenedor {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+}
+
+th,
+td {
+    padding: 12px;
+    border-bottom: 1px solid #e5e7eb;
+    text-align: left;
+}
+
+th {
+    background: #f8fafc;
+    color: #334155;
+}
+
+td a {
+    font-weight: bold;
+    color: #17233c;
+}
+
+.formulario h2 {
+    margin-top: 28px;
+}
+
+.grid-form {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+}
+
+.campo select,
+.campo textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccd3dc;
+    border-radius: 8px;
+    font-size: 15px;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.acciones {
+    margin-top: 24px;
+    display: flex;
+    align-items: center;
+}
+
+@media (max-width: 800px) {
+    .encabezado-modulo,
+    .busqueda,
+    .acciones {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .grid-form {
+        grid-template-columns: 1fr;
+    }
+
+    .boton-cancelar {
+        margin-left: 0;
+        text-align: center;
+    }
+}

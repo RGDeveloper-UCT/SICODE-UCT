@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Detalle expediente — SICODE-UCT{% endblock %}
+
+{% block content %}
+<section class="panel">
+    <div class="encabezado-modulo">
+        <div>
+            <h1>Detalle del expediente</h1>
+            <p>Consulta de metadatos administrativos y ubicación física.</p>
+        </div>
+
+        <a class="boton-secundario" href="{{ url_for('expedientes.listado') }}">Volver al listado</a>
+    </div>
+
+    <div class="grid">
+        <div class="tarjeta">
+            <h2>Código interno</h2>
+            <p>{{ expediente.codigo_interno }}</p>
+        </div>
+
+        <div class="tarjeta">
+            <h2>No. de SP</h2>
+            <p>{{ expediente.no_sp }}</p>
+        </div>
+
+        <div class="tarjeta">
+            <h2>Nombre referencia</h2>
+            <p>{{ expediente.nombre_referencia or "Sin dato" }}</p>
+        </div>
+    </div>
+
+    <h2>Estado</h2>
+
+    <div class="grid">
+        <div class="tarjeta">
+            <h2>Administrativo</h2>
+            <p>{{ expediente.estado_administrativo }}</p>
+        </div>
+
+        <div class="tarjeta">
+            <h2>Físico/documental</h2>
+            <p>{{ expediente.estado_fisico_documental }}</p>
+        </div>
+
+        <div class="tarjeta">
+            <h2>Activo</h2>
+            <p>{% if expediente.activo %}Sí{% else %}No{% endif %}</p>
+        </div>
+    </div>
+
+    <h2>Ubicación física</h2>
+
+    {% if ubicacion %}
+    <div class="tabla-contenedor">
+        <table>
+            <tbody>
+                <tr><th>Archivador</th><td>{{ ubicacion.archivador or "Sin dato" }}</td></tr>
+                <tr><th>SICOIN</th><td>{{ ubicacion.sicoin or "Sin dato" }}</td></tr>
+                <tr><th>Estante</th><td>{{ ubicacion.estante or "Sin dato" }}</td></tr>
+                <tr><th>Caja</th><td>{{ ubicacion.caja or "Sin dato" }}</td></tr>
+                <tr><th>Módulo</th><td>{{ ubicacion.modulo or "Sin dato" }}</td></tr>
+                <tr><th>Posición</th><td>{{ ubicacion.posicion or "Sin dato" }}</td></tr>
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p>No hay ubicación física registrada.</p>
+    {% endif %}
+
+    <h2>Observaciones</h2>
+    <p>{{ expediente.observaciones or "Sin observaciones registradas." }}</p>
+</section>
+{% endblock %}
