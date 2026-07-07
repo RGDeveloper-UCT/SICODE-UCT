@@ -14,6 +14,9 @@ expedientes_bp = Blueprint("expedientes", __name__)
 @login_required
 def listado():
     busqueda = request.args.get("q", "").strip()
+    filtro_activo = request.args.get("activo", "").strip()
+    filtro_estado_admin = request.args.get("estado_administrativo", "").strip()
+    filtro_estado_fisico = request.args.get("estado_fisico_documental", "").strip()
 
     consulta = Expediente.query
 
@@ -27,12 +30,44 @@ def listado():
             )
         )
 
+    if filtro_activo == "si":
+        consulta = consulta.filter(Expediente.activo == True)
+    elif filtro_activo == "no":
+        consulta = consulta.filter(Expediente.activo == False)
+
+    if filtro_estado_admin:
+        consulta = consulta.filter(Expediente.estado_administrativo == filtro_estado_admin)
+
+    if filtro_estado_fisico:
+        consulta = consulta.filter(Expediente.estado_fisico_documental == filtro_estado_fisico)
+
     expedientes = consulta.order_by(Expediente.creado_en.desc()).all()
+
+    estados_administrativos = [
+        "Activo",
+        "En revisión",
+        "En préstamo",
+        "Devuelto",
+        "Cerrado",
+    ]
+
+    estados_fisicos = [
+        "Pendiente de verificación",
+        "Verificado",
+        "Con observaciones",
+        "Incompleto",
+        "No localizado",
+    ]
 
     return render_template(
         "expedientes/listado.html",
         expedientes=expedientes,
         busqueda=busqueda,
+        filtro_activo=filtro_activo,
+        filtro_estado_admin=filtro_estado_admin,
+        filtro_estado_fisico=filtro_estado_fisico,
+        estados_administrativos=estados_administrativos,
+        estados_fisicos=estados_fisicos,
     )
 
 @expedientes_bp.route("/expedientes/nuevo", methods=["GET", "POST"])

@@ -372,3 +372,88 @@ td a {
     background: #166534;
     color: white;
 }
+
+.filtros-expedientes {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr auto;
+    gap: 14px;
+    align-items: end;
+    margin-bottom: 18px;
+    background: #f8fafc;
+    padding: 16px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+}
+
+.campo-filtro label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 6px;
+    color: #334155;
+}
+
+.campo-filtro input,
+.campo-filtro select {
+    width: 100%;
+    padding: 11px;
+    border: 1px solid #ccd3dc;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.acciones-filtro {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.acciones-filtro button {
+    padding: 11px 14px;
+    background: #17233c;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.acciones-filtro a {
+    padding: 11px 10px;
+    color: #17233c;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.contador-resultados {
+    color: #475569;
+    margin-bottom: 16px;
+}
+
+.badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.badge-activo {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.badge-inactivo {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+@media (max-width: 1000px) {
+    .filtros-expedientes {
+        grid-template-columns: 1fr;
+    }
+
+    .acciones-filtro {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
