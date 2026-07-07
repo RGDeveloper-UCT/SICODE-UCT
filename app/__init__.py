@@ -21,17 +21,18 @@ def create_app():
     login_manager.login_message = "Debe iniciar sesión para acceder al sistema."
     login_manager.login_message_category = "warning"
 
-    from app.models import Usuario, Expediente, UbicacionFisica, Bitacora
+    from app.models import Usuario, Expediente, UbicacionFisica, Bitacora, DocumentoExpediente
 
     @login_manager.user_loader
     def load_user(usuario_id):
         return Usuario.query.get(int(usuario_id))
 
-    from app.routes import auth_bp, dashboard_bp, expedientes_bp, bitacora_bp
+    from app.routes import auth_bp, dashboard_bp, expedientes_bp, bitacora_bp, indice_documental_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(expedientes_bp)
     app.register_blueprint(bitacora_bp)
+    app.register_blueprint(indice_documental_bp)
 
     @app.route("/")
     def inicio():

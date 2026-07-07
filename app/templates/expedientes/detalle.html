@@ -19,6 +19,10 @@
                 Exportar PDF
             </a>
 
+            <a class="boton-secundario" href="{{ url_for('indice_documental.listado', expediente_id=expediente.id) }}">
+                Índice documental
+            </a>
+
             <a class="boton-cancelar" href="{{ url_for('expedientes.listado') }}">
                 Volver al listado
             </a>
