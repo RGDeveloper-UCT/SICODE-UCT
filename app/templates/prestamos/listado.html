@@ -10,7 +10,15 @@
             <p>Control de movimientos físicos de expedientes.</p>
         </div>
 
-        <a class="boton-secundario" href="{{ url_for('expedientes.listado') }}">Buscar expediente</a>
+        <div class="acciones-detalle">
+            <a class="boton-secundario" href="{{ url_for('expedientes.listado') }}">Buscar expediente</a>
+
+            <a class="boton-exito" href="{{ url_for(
+                'prestamos.exportar_excel',
+                q=busqueda,
+                estado=filtro_estado
+            ) }}">Exportar Excel</a>
+        </div>
     </div>
 
     <div class="filtros-rapidos">

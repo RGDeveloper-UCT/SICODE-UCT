@@ -6,6 +6,8 @@ import re
 from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file
 from flask_login import login_required, current_user
 from sqlalchemy import or_
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
@@ -354,4 +356,137 @@ def comprobante_pdf(prestamo_id):
         as_attachment=True,
         download_name=nombre_archivo,
         mimetype="application/pdf",
+    )
+
+@prestamos_bp.route("/prestamos/exportar/excel")
+@login_required
+def exportar_excel():
+    busqueda = request.args.get("q", "").strip()
+    filtro_estado = request.args.get("estado", "").strip()
+
+    consulta = PrestamoExpediente.query.join(Expediente)
+
+    if busqueda:
+        filtro = f"%{busqueda}%"
+        consulta = consulta.filter(
+            or_(
+                PrestamoExpediente.numero_control.ilike(filtro),
+                PrestamoExpediente.solicitante.ilike(filtro),
+                PrestamoExpediente.persona_entrega.ilike(filtro),
+                PrestamoExpediente.persona_recibe.ilike(filtro),
+                Expediente.no_sp.ilike(filtro),
+                Expediente.codigo_interno.ilike(filtro),
+            )
+        )
+
+    if filtro_estado == "En préstamo":
+        consulta = consulta.filter(PrestamoExpediente.estado == "En préstamo")
+
+    elif filtro_estado == "Devuelto":
+        consulta = consulta.filter(PrestamoExpediente.estado == "Devuelto")
+
+    elif filtro_estado == "Vencidos":
+        consulta = consulta.filter(
+            PrestamoExpediente.estado == "En préstamo",
+            PrestamoExpediente.fecha_estimada_devolucion != None,
+            PrestamoExpediente.fecha_estimada_devolucion < date.today(),
+        )
+
+    prestamos = consulta.order_by(PrestamoExpediente.fecha_prestamo.desc()).all()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Prestamos"
+
+    encabezados = [
+        "ID",
+        "Número de control",
+        "No. de SP",
+        "Código interno",
+        "Nombre referencia",
+        "Solicitante",
+        "Persona que entrega",
+        "Persona que recibe",
+        "Fecha préstamo",
+        "Fecha estimada devolución",
+        "Fecha real devolución",
+        "Estado préstamo",
+        "Estado administrativo expediente",
+        "Persona que devuelve",
+        "Persona que recibe devolución",
+        "Observaciones préstamo",
+        "Observaciones devolución",
+    ]
+
+    ws.append(encabezados)
+
+    for celda in ws[1]:
+        celda.font = Font(bold=True)
+        celda.alignment = Alignment(horizontal="center")
+
+    for prestamo in prestamos:
+        expediente = prestamo.expediente
+
+        ws.append([
+            prestamo.id,
+            prestamo.numero_control,
+            expediente.no_sp,
+            expediente.codigo_interno,
+            expediente.nombre_referencia or "",
+            prestamo.solicitante,
+            prestamo.persona_entrega,
+            prestamo.persona_recibe,
+            prestamo.fecha_prestamo.strftime("%d/%m/%Y %H:%M") if prestamo.fecha_prestamo else "",
+            prestamo.fecha_estimada_devolucion.strftime("%d/%m/%Y") if prestamo.fecha_estimada_devolucion else "",
+            prestamo.fecha_real_devolucion.strftime("%d/%m/%Y %H:%M") if prestamo.fecha_real_devolucion else "",
+            prestamo.estado,
+            expediente.estado_administrativo,
+            prestamo.persona_devuelve or "",
+            prestamo.persona_recibe_devolucion or "",
+            prestamo.observaciones or "",
+            prestamo.observaciones_devolucion or "",
+        ])
+
+    anchos = {
+        "A": 8,
+        "B": 32,
+        "C": 16,
+        "D": 22,
+        "E": 28,
+        "F": 26,
+        "G": 26,
+        "H": 26,
+        "I": 22,
+        "J": 24,
+        "K": 24,
+        "L": 18,
+        "M": 28,
+        "N": 26,
+        "O": 30,
+        "P": 40,
+        "Q": 40,
+    }
+
+    for columna, ancho in anchos.items():
+        ws.column_dimensions[columna].width = ancho
+
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = ws.dimensions
+
+    registrar_bitacora(
+        accion="EXPORTAR_PRESTAMOS_EXCEL",
+        modulo="Reportes",
+        descripcion=f"Se exportó listado de préstamos a Excel. Registros exportados: {len(prestamos)}.",
+        usuario_id=current_user.id,
+    )
+
+    archivo_excel = BytesIO()
+    wb.save(archivo_excel)
+    archivo_excel.seek(0)
+
+    return send_file(
+        archivo_excel,
+        as_attachment=True,
+        download_name="reporte_prestamos_sicode_uct.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
