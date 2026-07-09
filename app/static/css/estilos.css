@@ -593,3 +593,11 @@ td a {
 .fila-vencida {
     background: #fff7ed;
 }
+
+.boton-tabla-neutral {
+    background: #475569;
+}
+
+.boton-tabla-neutral:hover {
+    background: #334155;
+}

@@ -84,7 +84,9 @@
 
                 <tr class="{% if esta_vencido %}fila-vencida{% endif %}">
                     <td>
-                        <strong>{{ prestamo.numero_control }}</strong>
+                        <a href="{{ url_for('prestamos.detalle', prestamo_id=prestamo.id) }}">
+                            <strong>{{ prestamo.numero_control }}</strong>
+                        </a>
                     </td>
 
                     <td>
@@ -132,6 +134,11 @@
                     </td>
 
                     <td class="columna-accion">
+                        <a class="boton-tabla boton-tabla-neutral" href="{{ url_for('prestamos.detalle', prestamo_id=prestamo.id) }}">
+                            Ver detalle
+                        </a>
+                        <br><br>
+
                         {% if prestamo.estado == "En préstamo" %}
                             <a class="boton-tabla" href="{{ url_for('prestamos.devolver', prestamo_id=prestamo.id) }}">
                                 Registrar devolución

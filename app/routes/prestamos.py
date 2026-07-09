@@ -490,3 +490,15 @@ def exportar_excel():
         download_name="reporte_prestamos_sicode_uct.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+@prestamos_bp.route("/prestamos/<int:prestamo_id>")
+@login_required
+def detalle(prestamo_id):
+    prestamo = PrestamoExpediente.query.get_or_404(prestamo_id)
+    expediente = prestamo.expediente
+
+    return render_template(
+        "prestamos/detalle.html",
+        prestamo=prestamo,
+        expediente=expediente,
+    )

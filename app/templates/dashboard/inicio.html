@@ -180,7 +180,11 @@
             <tbody>
                 {% for prestamo in ultimos_prestamos %}
                 <tr>
-                    <td>{{ prestamo.numero_control }}</td>
+                    <td>
+                        <a href="{{ url_for('prestamos.detalle', prestamo_id=prestamo.id) }}">
+                            {{ prestamo.numero_control }}
+                        </a>
+                    </td>
                     <td>
                         <a href="{{ url_for('expedientes.detalle', expediente_id=prestamo.expediente.id) }}">
                             {{ prestamo.expediente.no_sp }}
@@ -203,7 +207,7 @@
                         {% endif %}
                     </td>
                     <td>
-                        <a href="{{ url_for('prestamos.listado') }}">Ver préstamos</a>
+                        <a href="{{ url_for('prestamos.detalle', prestamo_id=prestamo.id) }}">Ver detalle</a>
                     </td>
                 </tr>
                 {% else %}

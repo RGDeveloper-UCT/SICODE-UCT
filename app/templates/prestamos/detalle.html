@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}Detalle préstamo — SICODE-UCT{% endblock %}
+
+{% block content %}
+<section class="panel">
+    <div class="encabezado-modulo">
+        <div>
+            <h1>Detalle del préstamo</h1>
+            <p>Control administrativo del movimiento físico del expediente.</p>
+        </div>
+
+        <div class="acciones-detalle">
+            <a class="boton-secundario" href="{{ url_for('prestamos.listado') }}">
+                Volver a préstamos
+            </a>
+
+            <a class="boton-cancelar" href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">
+                Ver expediente
+            </a>
+
+            <a class="boton-exito" href="{{ url_for('prestamos.comprobante_pdf', prestamo_id=prestamo.id) }}">
+                Comprobante PDF
+            </a>
+
+            {% if prestamo.estado == "En préstamo" %}
+            <a class="boton-secundario" href="{{ url_for('prestamos.devolver', prestamo_id=prestamo.id) }}">
+                Registrar devolución
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="aviso">
+        <strong>Nota institucional:</strong>
+        Este registro controla el movimiento físico del expediente. No contiene documentos sensibles ni copias completas.
+    </div>
+
+    <h2>Datos de control</h2>
+
+    <div class="grid">
+        <div class="tarjeta">
+            <h2>Número de control</h2>
+            <p>{{ prestamo.numero_control }}</p>
+        </div>
+
+        <div class="tarjeta">
+            <h2>Estado del préstamo</h2>
+            <p>
+                {% if prestamo.estado == "En préstamo" %}
+                    <span class="badge badge-advertencia">En préstamo</span>
+                {% else %}
+                    <span class="badge badge-activo">Devuelto</span>
+                {% endif %}
+            </p>
+        </div>
+
+        <div class="tarjeta">
+            <h2>Estado administrativo del expediente</h2>
+            <p>{{ expediente.estado_administrativo }}</p>
+        </div>
+    </div>
+
+    <h2>Datos del expediente</h2>
+
+    <div class="grid">
+        <div class="tarjeta">
+            <h2>No. de SP</h2>
+            <p>{{ expediente.no_sp }}</p>
+        </div>
+
+        <div class="tarjeta">
+            <h2>Código interno</h2>
+            <p>{{ expediente.codigo_interno }}</p>
+        </div>
+
+        <div class="tarjeta">
+            <h2>Nombre referencia</h2>
+            <p>{{ expediente.nombre_referencia or "Sin dato" }}</p>
+        </div>
+    </div>
+
+    <h2>Personas relacionadas</h2>
+
+    <div class="tabla-contenedor">
+        <table>
+            <tbody>
+                <tr>
+                    <th>Solicitante</th>
+                    <td>{{ prestamo.solicitante }}</td>
+                </tr>
+                <tr>
+                    <th>Persona que entrega</th>
+                    <td>{{ prestamo.persona_entrega }}</td>
+                </tr>
+                <tr>
+                    <th>Persona que recibe</th>
+                    <td>{{ prestamo.persona_recibe }}</td>
+                </tr>
+                <tr>
+                    <th>Persona que devuelve</th>
+                    <td>{{ prestamo.persona_devuelve or "Pendiente" }}</td>
+                </tr>
+                <tr>
+                    <th>Persona que recibe devolución</th>
+                    <td>{{ prestamo.persona_recibe_devolucion or "Pendiente" }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h2>Fechas</h2>
+
+    <div class="tabla-contenedor">
+        <table>
+            <tbody>
+                <tr>
+                    <th>Fecha de préstamo</th>
+                    <td>{{ prestamo.fecha_prestamo.strftime('%d/%m/%Y %H:%M') if prestamo.fecha_prestamo else "Sin dato" }}</td>
+                </tr>
+                <tr>
+                    <th>Fecha estimada de devolución</th>
+                    <td>
+                        {% if prestamo.fecha_estimada_devolucion %}
+                            {{ prestamo.fecha_estimada_devolucion.strftime('%d/%m/%Y') }}
+                        {% else %}
+                            Sin dato
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Fecha real de devolución</th>
+                    <td>
+                        {% if prestamo.fecha_real_devolucion %}
+                            {{ prestamo.fecha_real_devolucion.strftime('%d/%m/%Y %H:%M') }}
+                        {% else %}
+                            Pendiente
+                        {% endif %}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h2>Observaciones</h2>
+
+    <div class="grid">
+        <div class="tarjeta">
+            <h2>Observaciones del préstamo</h2>
+            <p>{{ prestamo.observaciones or "Sin observaciones registradas." }}</p>
+        </div>
+
+        <div class="tarjeta">
+            <h2>Observaciones de devolución</h2>
+            <p>{{ prestamo.observaciones_devolucion or "Sin observaciones registradas." }}</p>
+        </div>
+
+        <div class="tarjeta">
+            <h2>Activo</h2>
+            <p>{% if prestamo.activo %}Sí{% else %}No{% endif %}</p>
+        </div>
+    </div>
+</section>
+{% endblock %}
