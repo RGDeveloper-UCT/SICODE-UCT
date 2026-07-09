@@ -13,6 +13,18 @@
         <a class="boton-secundario" href="{{ url_for('dashboard.inicio') }}">Volver al dashboard</a>
     </div>
 
+        <div class="acciones-detalle">
+            <a class="boton-exito" href="{{ url_for(
+                'bitacora.exportar_excel',
+                q=busqueda,
+                accion=filtro_accion,
+                modulo=filtro_modulo,
+                usuario=filtro_usuario
+            ) }}">
+                Exportar Excel
+            </a>
+        </div>
+
     <form method="GET" class="filtros-expedientes">
         <div class="campo-filtro campo-filtro-grande">
             <label>Buscar</label>
