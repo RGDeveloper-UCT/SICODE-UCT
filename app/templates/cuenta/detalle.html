@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Mi cuenta — SICODE-UCT{% endblock %}
+
+{% block content %}
+<section class="panel">
+    <div class="encabezado-modulo">
+        <div>
+            <h1>Mi cuenta</h1>
+            <p>Información de la cuenta actualmente autenticada.</p>
+        </div>
+
+        <a class="boton-secundario" href="{{ url_for('cuenta.cambiar_password') }}">
+            Cambiar contraseña
+        </a>
+    </div>
+
+    <div class="grid">
+        <div class="tarjeta">
+            <h2>Nombre</h2>
+            <p>{{ current_user.nombre }}</p>
+        </div>
+
+        <div class="tarjeta">
+            <h2>Usuario</h2>
+            <p>{{ current_user.usuario }}</p>
+        </div>
+
+        <div class="tarjeta">
+            <h2>Rol</h2>
+            <p>{{ current_user.rol }}</p>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="tarjeta">
+            <h2>Correo</h2>
+            <p>{{ current_user.correo or "Sin dato" }}</p>
+        </div>
+
+        <div class="tarjeta">
+            <h2>Estado</h2>
+            <p>
+                {% if current_user.activo %}
+                    <span class="badge badge-activo">Activo</span>
+                {% else %}
+                    <span class="badge badge-inactivo">Inactivo</span>
+                {% endif %}
+            </p>
+        </div>
+
+        <div class="tarjeta">
+            <h2>Fecha de creación</h2>
+            <p>{{ current_user.creado_en.strftime('%d/%m/%Y %H:%M') if current_user.creado_en else "Sin dato" }}</p>
+        </div>
+    </div>
+
+    <div class="aviso">
+        <strong>Nota:</strong>
+        Mantenga su contraseña protegida. Si sospecha que otra persona conoce su contraseña, cámbiela de inmediato.
+    </div>
+</section>
+{% endblock %}
