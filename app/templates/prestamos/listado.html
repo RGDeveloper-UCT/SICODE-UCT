@@ -3,7 +3,7 @@
 {% block title %}Préstamos — SICODE-UCT{% endblock %}
 
 {% block content %}
-<section class="panel">
+<section class="panel panel-ancho">
     <div class="encabezado-modulo">
         <div>
             <h1>Préstamos y devoluciones</h1>
@@ -13,7 +13,7 @@
         <a class="boton-secundario" href="{{ url_for('expedientes.listado') }}">Buscar expediente</a>
     </div>
 
-    <form method="GET" class="filtros-expedientes">
+    <form method="GET" class="filtros-expedientes filtros-prestamos">
         <div class="campo-filtro campo-filtro-grande">
             <label>Buscar</label>
             <input type="text" name="q" value="{{ busqueda }}" placeholder="No. de SP, código interno, número de control o solicitante">
@@ -40,25 +40,25 @@
     </p>
 
     <div class="tabla-contenedor">
-        <table>
+        <table class="tabla-prestamos">
             <thead>
                 <tr>
                     <th>Número control</th>
                     <th>Expediente</th>
                     <th>Solicitante</th>
-                    <th>Entrega</th>
-                    <th>Recibe</th>
-                    <th>Fecha préstamo</th>
-                    <th>Fecha estimada devolución</th>
-                    <th>Fecha real devolución</th>
+                    <th>Movimiento</th>
+                    <th>Fechas</th>
                     <th>Estado</th>
-                    <th>Acción</th>
+                    <th class="columna-accion">Acción</th>
                 </tr>
             </thead>
             <tbody>
                 {% for prestamo in prestamos %}
                 <tr>
-                    <td>{{ prestamo.numero_control }}</td>
+                    <td>
+                        <strong>{{ prestamo.numero_control }}</strong>
+                    </td>
+
                     <td>
                         <a href="{{ url_for('expedientes.detalle', expediente_id=prestamo.expediente.id) }}">
                             {{ prestamo.expediente.no_sp }}
@@ -66,24 +66,33 @@
                         <br>
                         <small>{{ prestamo.expediente.codigo_interno }}</small>
                     </td>
+
                     <td>{{ prestamo.solicitante }}</td>
-                    <td>{{ prestamo.persona_entrega }}</td>
-                    <td>{{ prestamo.persona_recibe }}</td>
-                    <td>{{ prestamo.fecha_prestamo.strftime('%d/%m/%Y %H:%M') }}</td>
+
                     <td>
+                        <strong>Entrega:</strong> {{ prestamo.persona_entrega }}<br>
+                        <strong>Recibe:</strong> {{ prestamo.persona_recibe }}
+                    </td>
+
+                    <td>
+                        <strong>Préstamo:</strong> {{ prestamo.fecha_prestamo.strftime('%d/%m/%Y %H:%M') }}<br>
+
+                        <strong>Estimada:</strong>
                         {% if prestamo.fecha_estimada_devolucion %}
                             {{ prestamo.fecha_estimada_devolucion.strftime('%d/%m/%Y') }}
                         {% else %}
                             Sin dato
                         {% endif %}
-                    </td>
-                    <td>
+                        <br>
+
+                        <strong>Real:</strong>
                         {% if prestamo.fecha_real_devolucion %}
                             {{ prestamo.fecha_real_devolucion.strftime('%d/%m/%Y %H:%M') }}
                         {% else %}
                             Pendiente
                         {% endif %}
                     </td>
+
                     <td>
                         {% if prestamo.estado == "En préstamo" %}
                             <span class="badge badge-advertencia">En préstamo</span>
@@ -91,17 +100,20 @@
                             <span class="badge badge-activo">Devuelto</span>
                         {% endif %}
                     </td>
-                    <td>
+
+                    <td class="columna-accion">
                         {% if prestamo.estado == "En préstamo" %}
-                            <a href="{{ url_for('prestamos.devolver', prestamo_id=prestamo.id) }}">Registrar devolución</a>
+                            <a class="boton-tabla" href="{{ url_for('prestamos.devolver', prestamo_id=prestamo.id) }}">
+                                Registrar devolución
+                            </a>
                         {% else %}
-                            Finalizado
+                            <span class="badge badge-activo">Finalizado</span>
                         {% endif %}
                     </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="10">No hay préstamos registrados.</td>
+                    <td colspan="7">No hay préstamos registrados.</td>
                 </tr>
                 {% endfor %}
             </tbody>

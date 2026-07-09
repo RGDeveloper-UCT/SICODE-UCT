@@ -510,3 +510,47 @@ td a {
 .indicador-peligro {
     color: #991b1b;
 }
+
+.panel-ancho {
+    max-width: 1250px;
+}
+
+.filtros-prestamos {
+    grid-template-columns: 2fr 1fr auto;
+}
+
+.tabla-prestamos th,
+.tabla-prestamos td {
+    vertical-align: top;
+}
+
+.columna-accion {
+    min-width: 170px;
+    white-space: normal;
+}
+
+.boton-tabla {
+    display: inline-block;
+    padding: 9px 12px;
+    background: #17233c;
+    color: white !important;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: bold;
+    text-align: center;
+    line-height: 1.2;
+}
+
+.boton-tabla:hover {
+    background: #24385f;
+}
+
+@media (max-width: 900px) {
+    .filtros-prestamos {
+        grid-template-columns: 1fr;
+    }
+
+    .columna-accion {
+        min-width: 140px;
+    }
+}
