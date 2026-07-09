@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Registrar devolución — SICODE-UCT{% endblock %}
+
+{% block content %}
+<section class="panel">
+    <div class="encabezado-modulo">
+        <div>
+            <h1>Registrar devolución</h1>
+            <p>
+                Expediente:
+                <strong>{{ expediente.no_sp }}</strong> /
+                {{ expediente.codigo_interno }}
+            </p>
+        </div>
+
+        <a class="boton-cancelar" href="{{ url_for('prestamos.listado') }}">Volver a préstamos</a>
+    </div>
+
+    <div class="grid">
+        <div class="tarjeta">
+            <h2>Número de control</h2>
+            <p>{{ prestamo.numero_control }}</p>
+        </div>
+
+        <div class="tarjeta">
+            <h2>Solicitante</h2>
+            <p>{{ prestamo.solicitante }}</p>
+        </div>
+
+        <div class="tarjeta">
+            <h2>Fecha préstamo</h2>
+            <p>{{ prestamo.fecha_prestamo.strftime('%d/%m/%Y %H:%M') }}</p>
+        </div>
+    </div>
+
+    <form method="POST" class="formulario">
+        {{ form.hidden_tag() }}
+
+        <div class="grid-form">
+            <div class="campo">
+                {{ form.persona_devuelve.label }}
+                {{ form.persona_devuelve(placeholder="Persona que devuelve el expediente") }}
+                {% for error in form.persona_devuelve.errors %}
+                    <small class="error">{{ error }}</small>
+                {% endfor %}
+            </div>
+
+            <div class="campo">
+                {{ form.persona_recibe_devolucion.label }}
+                {{ form.persona_recibe_devolucion(placeholder="Persona que recibe la devolución") }}
+                {% for error in form.persona_recibe_devolucion.errors %}
+                    <small class="error">{{ error }}</small>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="campo">
+            {{ form.observaciones_devolucion.label }}
+            {{ form.observaciones_devolucion(rows="4", placeholder="Observaciones de devolución") }}
+        </div>
+
+        <div class="acciones">
+            {{ form.submit(class="boton") }}
+            <a class="boton-cancelar" href="{{ url_for('prestamos.listado') }}">Cancelar</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Préstamos — SICODE-UCT{% endblock %}
+
+{% block content %}
+<section class="panel">
+    <div class="encabezado-modulo">
+        <div>
+            <h1>Préstamos y devoluciones</h1>
+            <p>Control de movimientos físicos de expedientes.</p>
+        </div>
+
+        <a class="boton-secundario" href="{{ url_for('expedientes.listado') }}">Buscar expediente</a>
+    </div>
+
+    <form method="GET" class="filtros-expedientes">
+        <div class="campo-filtro campo-filtro-grande">
+            <label>Buscar</label>
+            <input type="text" name="q" value="{{ busqueda }}" placeholder="No. de SP, código interno, número de control o solicitante">
+        </div>
+
+        <div class="campo-filtro">
+            <label>Estado</label>
+            <select name="estado">
+                <option value="">Todos</option>
+                {% for estado in estados %}
+                    <option value="{{ estado }}" {% if filtro_estado == estado %}selected{% endif %}>{{ estado }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="acciones-filtro">
+            <button type="submit">Aplicar filtros</button>
+            <a href="{{ url_for('prestamos.listado') }}">Limpiar</a>
+        </div>
+    </form>
+
+    <p class="contador-resultados">
+        Registros encontrados: <strong>{{ prestamos|length }}</strong>
+    </p>
+
+    <div class="tabla-contenedor">
+        <table>
+            <thead>
+                <tr>
+                    <th>Número control</th>
+                    <th>Expediente</th>
+                    <th>Solicitante</th>
+                    <th>Entrega</th>
+                    <th>Recibe</th>
+                    <th>Fecha préstamo</th>
+                    <th>Fecha estimada devolución</th>
+                    <th>Fecha real devolución</th>
+                    <th>Estado</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for prestamo in prestamos %}
+                <tr>
+                    <td>{{ prestamo.numero_control }}</td>
+                    <td>
+                        <a href="{{ url_for('expedientes.detalle', expediente_id=prestamo.expediente.id) }}">
+                            {{ prestamo.expediente.no_sp }}
+                        </a>
+                        <br>
+                        <small>{{ prestamo.expediente.codigo_interno }}</small>
+                    </td>
+                    <td>{{ prestamo.solicitante }}</td>
+                    <td>{{ prestamo.persona_entrega }}</td>
+                    <td>{{ prestamo.persona_recibe }}</td>
+                    <td>{{ prestamo.fecha_prestamo.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td>
+                        {% if prestamo.fecha_estimada_devolucion %}
+                            {{ prestamo.fecha_estimada_devolucion.strftime('%d/%m/%Y') }}
+                        {% else %}
+                            Sin dato
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if prestamo.fecha_real_devolucion %}
+                            {{ prestamo.fecha_real_devolucion.strftime('%d/%m/%Y %H:%M') }}
+                        {% else %}
+                            Pendiente
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if prestamo.estado == "En préstamo" %}
+                            <span class="badge badge-advertencia">En préstamo</span>
+                        {% else %}
+                            <span class="badge badge-activo">Devuelto</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if prestamo.estado == "En préstamo" %}
+                            <a href="{{ url_for('prestamos.devolver', prestamo_id=prestamo.id) }}">Registrar devolución</a>
+                        {% else %}
+                            Finalizado
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="10">No hay préstamos registrados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

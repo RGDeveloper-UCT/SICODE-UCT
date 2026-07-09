@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Registrar préstamo — SICODE-UCT{% endblock %}
+
+{% block content %}
+<section class="panel">
+    <div class="encabezado-modulo">
+        <div>
+            <h1>Registrar préstamo</h1>
+            <p>
+                Expediente:
+                <strong>{{ expediente.no_sp }}</strong> /
+                {{ expediente.codigo_interno }}
+            </p>
+        </div>
+
+        <a class="boton-cancelar" href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Volver al expediente</a>
+    </div>
+
+    <div class="aviso">
+        <strong>Nota:</strong>
+        Este registro controla el movimiento físico del expediente. No adjunte documentos sensibles.
+    </div>
+
+    <form method="POST" class="formulario">
+        {{ form.hidden_tag() }}
+
+        <div class="grid-form">
+            <div class="campo">
+                {{ form.solicitante.label }}
+                {{ form.solicitante(placeholder="Nombre de la persona solicitante") }}
+                {% for error in form.solicitante.errors %}
+                    <small class="error">{{ error }}</small>
+                {% endfor %}
+            </div>
+
+            <div class="campo">
+                {{ form.persona_entrega.label }}
+                {{ form.persona_entrega(placeholder="Persona que entrega el expediente") }}
+                {% for error in form.persona_entrega.errors %}
+                    <small class="error">{{ error }}</small>
+                {% endfor %}
+            </div>
+
+            <div class="campo">
+                {{ form.persona_recibe.label }}
+                {{ form.persona_recibe(placeholder="Persona que recibe el expediente") }}
+                {% for error in form.persona_recibe.errors %}
+                    <small class="error">{{ error }}</small>
+                {% endfor %}
+            </div>
+
+            <div class="campo">
+                {{ form.fecha_estimada_devolucion.label }}
+                {{ form.fecha_estimada_devolucion(type="date") }}
+                {% for error in form.fecha_estimada_devolucion.errors %}
+                    <small class="error">{{ error }}</small>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="campo">
+            {{ form.observaciones.label }}
+            {{ form.observaciones(rows="4", placeholder="Observaciones del préstamo") }}
+        </div>
+
+        <div class="acciones">
+            {{ form.submit(class="boton") }}
+            <a class="boton-cancelar" href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Cancelar</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

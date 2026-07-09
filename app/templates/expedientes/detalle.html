@@ -23,6 +23,10 @@
                 Índice documental
             </a>
 
+            <a class="boton-secundario" href="{{ url_for('prestamos.nuevo', expediente_id=expediente.id) }}">
+                Registrar préstamo
+            </a>
+
             <a class="boton-cancelar" href="{{ url_for('expedientes.listado') }}">
                 Volver al listado
             </a>
