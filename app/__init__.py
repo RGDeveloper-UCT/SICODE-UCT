@@ -27,7 +27,7 @@ def create_app():
     def load_user(usuario_id):
         return Usuario.query.get(int(usuario_id))
 
-    from app.routes import auth_bp, dashboard_bp, expedientes_bp, bitacora_bp, indice_documental_bp, alertas_bp, prestamos_bp
+    from app.routes import auth_bp, dashboard_bp, expedientes_bp, bitacora_bp, indice_documental_bp, alertas_bp, prestamos_bp, admin_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(expedientes_bp)
@@ -35,6 +35,7 @@ def create_app():
     app.register_blueprint(indice_documental_bp)
     app.register_blueprint(alertas_bp)
     app.register_blueprint(prestamos_bp)
+    app.register_blueprint(admin_bp)
 
     @app.route("/")
     def inicio():

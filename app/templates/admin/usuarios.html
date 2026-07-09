@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Administración de usuarios — SICODE-UCT{% endblock %}
+
+{% block content %}
+<section class="panel panel-ancho">
+    <div class="encabezado-modulo">
+        <div>
+            <h1>Administración de usuarios</h1>
+            <p>Gestión de cuentas autorizadas para acceder al sistema.</p>
+        </div>
+
+        <a class="boton-secundario" href="{{ url_for('admin.nuevo_usuario') }}">
+            Nuevo usuario
+        </a>
+    </div>
+
+    <form method="GET" class="filtros-expedientes">
+        <div class="campo-filtro campo-filtro-grande">
+            <label>Buscar</label>
+            <input type="text" name="q" value="{{ busqueda }}" placeholder="Nombre, usuario o correo">
+        </div>
+
+        <div class="campo-filtro">
+            <label>Rol</label>
+            <select name="rol">
+                <option value="">Todos</option>
+                <option value="administrador" {% if filtro_rol == "administrador" %}selected{% endif %}>Administrador</option>
+                <option value="usuario_autorizado" {% if filtro_rol == "usuario_autorizado" %}selected{% endif %}>Usuario autorizado</option>
+            </select>
+        </div>
+
+        <div class="campo-filtro">
+            <label>Estado</label>
+            <select name="activo">
+                <option value="">Todos</option>
+                <option value="activo" {% if filtro_activo == "activo" %}selected{% endif %}>Activos</option>
+                <option value="inactivo" {% if filtro_activo == "inactivo" %}selected{% endif %}>Inactivos</option>
+            </select>
+        </div>
+
+        <div class="acciones-filtro">
+            <button type="submit">Aplicar filtros</button>
+            <a href="{{ url_for('admin.usuarios') }}">Limpiar</a>
+        </div>
+    </form>
+
+    <p class="contador-resultados">
+        Usuarios encontrados: <strong>{{ usuarios|length }}</strong>
+    </p>
+
+    <div class="tabla-contenedor">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Usuario</th>
+                    <th>Correo</th>
+                    <th>Rol</th>
+                    <th>Estado</th>
+                    <th>Creado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for usuario in usuarios %}
+                <tr>
+                    <td>{{ usuario.nombre }}</td>
+                    <td><strong>{{ usuario.usuario }}</strong></td>
+                    <td>{{ usuario.correo or "Sin dato" }}</td>
+                    <td>{{ usuario.rol }}</td>
+                    <td>
+                        {% if usuario.activo %}
+                            <span class="badge badge-activo">Activo</span>
+                        {% else %}
+                            <span class="badge badge-inactivo">Inactivo</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ usuario.creado_en.strftime('%d/%m/%Y %H:%M') if usuario.creado_en else "Sin dato" }}</td>
+                    <td class="columna-accion">
+                        <a class="boton-tabla boton-tabla-neutral" href="{{ url_for('admin.editar_usuario', usuario_id=usuario.id) }}">
+                            Editar
+                        </a>
+
+                        <br><br>
+
+                        <a class="boton-tabla boton-tabla-secundario" href="{{ url_for('admin.cambiar_password_usuario', usuario_id=usuario.id) }}">
+                            Cambiar contraseña
+                        </a>
+
+                        <br><br>
+
+                        {% if usuario.activo %}
+                            {% if usuario.id != current_user.id %}
+                            <form method="POST" action="{{ url_for('admin.desactivar_usuario', usuario_id=usuario.id) }}" onsubmit="return confirm('¿Desea desactivar este usuario?');">
+                                <button class="boton-tabla boton-tabla-peligro" type="submit">Desactivar</button>
+                            </form>
+                            {% else %}
+                                <span class="badge badge-neutral">Usuario actual</span>
+                            {% endif %}
+                        {% else %}
+                            <form method="POST" action="{{ url_for('admin.reactivar_usuario', usuario_id=usuario.id) }}">
+                                <button class="boton-tabla" type="submit">Reactivar</button>
+                            </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7">No hay usuarios registrados con los filtros seleccionados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

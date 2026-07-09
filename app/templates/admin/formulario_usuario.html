@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {% if modo == "crear" %}Nuevo usuario{% else %}Editar usuario{% endif %} — SICODE-UCT
+{% endblock %}
+
+{% block content %}
+<section class="panel">
+    <div class="encabezado-modulo">
+        <div>
+            <h1>{% if modo == "crear" %}Nuevo usuario{% else %}Editar usuario{% endif %}</h1>
+            <p>Administración de cuenta de acceso al sistema.</p>
+        </div>
+
+        <a class="boton-cancelar" href="{{ url_for('admin.usuarios') }}">
+            Volver a usuarios
+        </a>
+    </div>
+
+    <form method="POST" class="formulario">
+        {{ form.hidden_tag() }}
+
+        <div class="grid-form">
+            <div class="campo">
+                {{ form.nombre.label }}
+                {{ form.nombre(placeholder="Nombre completo") }}
+                {% for error in form.nombre.errors %}
+                    <small class="error">{{ error }}</small>
+                {% endfor %}
+            </div>
+
+            <div class="campo">
+                {{ form.usuario.label }}
+                {{ form.usuario(placeholder="Nombre de usuario") }}
+                {% for error in form.usuario.errors %}
+                    <small class="error">{{ error }}</small>
+                {% endfor %}
+            </div>
+
+            <div class="campo">
+                {{ form.correo.label }}
+                {{ form.correo(placeholder="correo@institucion.gob") }}
+                {% for error in form.correo.errors %}
+                    <small class="error">{{ error }}</small>
+                {% endfor %}
+            </div>
+
+            <div class="campo">
+                {{ form.rol.label }}
+                {{ form.rol() }}
+                {% for error in form.rol.errors %}
+                    <small class="error">{{ error }}</small>
+                {% endfor %}
+            </div>
+
+            {% if modo == "crear" %}
+            <div class="campo">
+                {{ form.password.label }}
+                {{ form.password(placeholder="Contraseña temporal") }}
+                {% for error in form.password.errors %}
+                    <small class="error">{{ error }}</small>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="acciones">
+            {{ form.submit(class="boton") }}
+            <a class="boton-cancelar" href="{{ url_for('admin.usuarios') }}">Cancelar</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

@@ -5,3 +5,4 @@ from app.routes.bitacora import bitacora_bp
 from app.routes.indice_documental import indice_documental_bp
 from app.routes.alertas import alertas_bp
 from app.routes.prestamos import prestamos_bp
+from app.routes.admin import admin_bp

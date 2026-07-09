@@ -601,3 +601,13 @@ td a {
 .boton-tabla-neutral:hover {
     background: #334155;
 }
+
+.boton-tabla-peligro {
+    background: #991b1b;
+    border: none;
+    cursor: pointer;
+}
+
+.boton-tabla-peligro:hover {
+    background: #7f1d1d;
+}
