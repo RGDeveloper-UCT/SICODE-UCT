@@ -611,3 +611,135 @@ td a {
 .boton-tabla-peligro:hover {
     background: #7f1d1d;
 }
+
+.filtros-alertas {
+    grid-template-columns: 2fr 1fr 1fr 1fr auto;
+}
+
+.tabla-alertas-contenedor {
+    overflow-x: auto;
+}
+
+.tabla-alertas {
+    min-width: 1150px;
+}
+
+.tabla-alertas th,
+.tabla-alertas td {
+    vertical-align: top;
+}
+
+.descripcion-alerta {
+    min-width: 260px;
+    max-width: 360px;
+    white-space: normal;
+    line-height: 1.35;
+}
+
+.columna-accion-alerta {
+    min-width: 190px;
+    width: 190px;
+    white-space: normal;
+}
+
+@media (max-width: 1000px) {
+    .filtros-alertas {
+        grid-template-columns: 1fr;
+    }
+}
+
+.lista-alertas {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.tarjeta-alerta {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+}
+
+.alerta-cabecera {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    align-items: flex-start;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+}
+
+.alerta-cabecera h2 {
+    margin: 0 0 6px 0;
+    font-size: 20px;
+}
+
+.alerta-badges {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.alerta-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.alerta-grid h3,
+.alerta-descripcion h3 {
+    margin: 0 0 6px 0;
+    font-size: 14px;
+    color: #334155;
+}
+
+.alerta-grid p,
+.alerta-descripcion p {
+    margin: 0;
+}
+
+.alerta-descripcion {
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 14px;
+}
+
+.alerta-acciones {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 14px;
+}
+
+.titulo-acciones-alerta {
+    font-weight: bold;
+    color: #334155;
+    margin-right: 4px;
+}
+
+.alerta-acciones .boton-tabla {
+    margin: 0;
+    min-width: 120px;
+}
+
+@media (max-width: 900px) {
+    .alerta-cabecera {
+        flex-direction: column;
+    }
+
+    .alerta-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .alerta-badges {
+        justify-content: flex-start;
+    }
+}
