@@ -554,3 +554,11 @@ td a {
         min-width: 140px;
     }
 }
+
+.boton-tabla-secundario {
+    background: #166534;
+}
+
+.boton-tabla-secundario:hover {
+    background: #15803d;
+}

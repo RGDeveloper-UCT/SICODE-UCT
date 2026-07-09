@@ -106,8 +106,16 @@
                             <a class="boton-tabla" href="{{ url_for('prestamos.devolver', prestamo_id=prestamo.id) }}">
                                 Registrar devolución
                             </a>
+                            <br><br>
+                            <a class="boton-tabla boton-tabla-secundario" href="{{ url_for('prestamos.comprobante_pdf', prestamo_id=prestamo.id) }}">
+                                Comprobante PDF
+                            </a>
                         {% else %}
                             <span class="badge badge-activo">Finalizado</span>
+                            <br><br>
+                            <a class="boton-tabla boton-tabla-secundario" href="{{ url_for('prestamos.comprobante_pdf', prestamo_id=prestamo.id) }}">
+                                Comprobante PDF
+                            </a>
                         {% endif %}
                     </td>
                 </tr>
