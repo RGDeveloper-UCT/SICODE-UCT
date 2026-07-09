@@ -13,6 +13,24 @@
         <a class="boton-secundario" href="{{ url_for('expedientes.listado') }}">Buscar expediente</a>
     </div>
 
+    <div class="filtros-rapidos">
+        <a class="{% if filtro_estado == '' %}filtro-activo{% endif %}" href="{{ url_for('prestamos.listado') }}">
+            Todos
+        </a>
+
+        <a class="{% if filtro_estado == 'En préstamo' %}filtro-activo{% endif %}" href="{{ url_for('prestamos.listado', estado='En préstamo') }}">
+            En préstamo
+        </a>
+
+        <a class="{% if filtro_estado == 'Devuelto' %}filtro-activo{% endif %}" href="{{ url_for('prestamos.listado', estado='Devuelto') }}">
+            Devueltos
+        </a>
+
+        <a class="{% if filtro_estado == 'Vencidos' %}filtro-activo{% endif %}" href="{{ url_for('prestamos.listado', estado='Vencidos') }}">
+            Vencidos
+        </a>
+    </div>
+
     <form method="GET" class="filtros-expedientes filtros-prestamos">
         <div class="campo-filtro campo-filtro-grande">
             <label>Buscar</label>
@@ -54,7 +72,9 @@
             </thead>
             <tbody>
                 {% for prestamo in prestamos %}
-                <tr>
+                {% set esta_vencido = prestamo.estado == "En préstamo" and prestamo.fecha_estimada_devolucion and prestamo.fecha_estimada_devolucion < fecha_hoy %}
+
+                <tr class="{% if esta_vencido %}fila-vencida{% endif %}">
                     <td>
                         <strong>{{ prestamo.numero_control }}</strong>
                     </td>
@@ -94,7 +114,9 @@
                     </td>
 
                     <td>
-                        {% if prestamo.estado == "En préstamo" %}
+                        {% if esta_vencido %}
+                            <span class="badge badge-vencido">Vencido</span>
+                        {% elif prestamo.estado == "En préstamo" %}
                             <span class="badge badge-advertencia">En préstamo</span>
                         {% else %}
                             <span class="badge badge-activo">Devuelto</span>
@@ -121,7 +143,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="7">No hay préstamos registrados.</td>
+                    <td colspan="7">No hay préstamos registrados con los filtros seleccionados.</td>
                 </tr>
                 {% endfor %}
             </tbody>

@@ -1,6 +1,6 @@
 from xml.sax.saxutils import escape
 from io import BytesIO
-from datetime import datetime
+from datetime import datetime, date
 import re
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file
@@ -58,12 +58,22 @@ def listado():
             )
         )
 
-    if filtro_estado:
-        consulta = consulta.filter(PrestamoExpediente.estado == filtro_estado)
+    if filtro_estado == "En préstamo":
+        consulta = consulta.filter(PrestamoExpediente.estado == "En préstamo")
+
+    elif filtro_estado == "Devuelto":
+        consulta = consulta.filter(PrestamoExpediente.estado == "Devuelto")
+
+    elif filtro_estado == "Vencidos":
+        consulta = consulta.filter(
+            PrestamoExpediente.estado == "En préstamo",
+            PrestamoExpediente.fecha_estimada_devolucion != None,
+            PrestamoExpediente.fecha_estimada_devolucion < date.today(),
+        )
 
     prestamos = consulta.order_by(PrestamoExpediente.fecha_prestamo.desc()).limit(150).all()
 
-    estados = ["En préstamo", "Devuelto"]
+    estados = ["En préstamo", "Devuelto", "Vencidos"]
 
     return render_template(
         "prestamos/listado.html",
@@ -71,6 +81,7 @@ def listado():
         busqueda=busqueda,
         filtro_estado=filtro_estado,
         estados=estados,
+        fecha_hoy=date.today(),
     )
 
 @prestamos_bp.route("/expedientes/<int:expediente_id>/prestamos/nuevo", methods=["GET", "POST"])
