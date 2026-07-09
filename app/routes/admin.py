@@ -1,3 +1,4 @@
+import platform
 import os
 import shutil
 import subprocess
@@ -7,11 +8,15 @@ from functools import wraps
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, send_file
 from flask_login import login_required, current_user
-from sqlalchemy import or_
+from sqlalchemy import or_, text
 from werkzeug.security import generate_password_hash
 
 from app import db
 from app.models.usuario import Usuario
+from app.models.expediente import Expediente
+from app.models.alerta import Alerta
+from app.models.prestamo import PrestamoExpediente
+from app.models.bitacora import Bitacora
 from app.forms.usuario_admin_form import (
     UsuarioCrearForm,
     UsuarioEditarForm,
@@ -361,4 +366,70 @@ def descargar_backup(nombre_archivo):
         as_attachment=True,
         download_name=nombre_archivo,
         mimetype="application/sql",
+    )
+
+
+@admin_bp.route("/sistema")
+@login_required
+@admin_required
+def sistema():
+    estado_db = "Correcta"
+    detalle_db = "Conexión activa con PostgreSQL."
+
+    try:
+        db.session.execute(text("SELECT 1")).scalar()
+    except Exception as error:
+        estado_db = "Error"
+        detalle_db = str(error)
+
+    directorio_backups = obtener_directorio_backups()
+    backups = list(directorio_backups.glob("backup_sicode_uct_*.sql"))
+
+    ultimo_backup = None
+
+    if backups:
+        ultimo_archivo = max(backups, key=lambda archivo: archivo.stat().st_mtime)
+        ultimo_backup = {
+            "nombre": ultimo_archivo.name,
+            "tamano_mb": round(ultimo_archivo.stat().st_size / (1024 * 1024), 2),
+            "modificado": datetime.fromtimestamp(ultimo_archivo.stat().st_mtime),
+        }
+
+    uso_disco = shutil.disk_usage(directorio_backups)
+
+    espacio_total_gb = round(uso_disco.total / (1024 ** 3), 2)
+    espacio_usado_gb = round(uso_disco.used / (1024 ** 3), 2)
+    espacio_libre_gb = round(uso_disco.free / (1024 ** 3), 2)
+
+    indicadores = {
+        "usuarios": Usuario.query.count(),
+        "usuarios_activos": Usuario.query.filter_by(activo=True).count(),
+        "expedientes": Expediente.query.count(),
+        "expedientes_activos": Expediente.query.filter_by(activo=True).count(),
+        "alertas": Alerta.query.count(),
+        "alertas_abiertas": Alerta.query.filter_by(estado="Abierta").count(),
+        "prestamos": PrestamoExpediente.query.count(),
+        "prestamos_activos": PrestamoExpediente.query.filter_by(estado="En préstamo").count(),
+        "eventos_bitacora": Bitacora.query.count(),
+        "backups": len(backups),
+    }
+
+    registrar_bitacora(
+        accion="CONSULTAR_ESTADO_SISTEMA",
+        modulo="Administración",
+        descripcion="Se consultó el panel de estado del sistema.",
+        usuario_id=current_user.id,
+    )
+
+    return render_template(
+        "admin/sistema.html",
+        estado_db=estado_db,
+        detalle_db=detalle_db,
+        indicadores=indicadores,
+        directorio_backups=directorio_backups,
+        ultimo_backup=ultimo_backup,
+        espacio_total_gb=espacio_total_gb,
+        espacio_usado_gb=espacio_usado_gb,
+        espacio_libre_gb=espacio_libre_gb,
+        version_python=platform.python_version(),
     )
