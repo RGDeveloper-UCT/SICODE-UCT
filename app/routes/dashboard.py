@@ -1,9 +1,12 @@
+from datetime import date
+
 from flask import Blueprint, render_template
 from flask_login import login_required, current_user
 
 from app.models.expediente import Expediente
 from app.models.bitacora import Bitacora
 from app.models.alerta import Alerta
+from app.models.prestamo import PrestamoExpediente
 
 dashboard_bp = Blueprint("dashboard", __name__)
 
@@ -32,6 +35,19 @@ def inicio():
     alertas_cerradas = Alerta.query.filter_by(estado="Cerrada").count()
     alertas_alta = Alerta.query.filter_by(gravedad="Alta").count()
 
+    prestamos_activos = PrestamoExpediente.query.filter_by(estado="En préstamo").count()
+    prestamos_devueltos = PrestamoExpediente.query.filter_by(estado="Devuelto").count()
+
+    prestamos_vencidos = (
+        PrestamoExpediente.query
+        .filter(
+            PrestamoExpediente.estado == "En préstamo",
+            PrestamoExpediente.fecha_estimada_devolucion != None,
+            PrestamoExpediente.fecha_estimada_devolucion < date.today(),
+        )
+        .count()
+    )
+
     ultimos_expedientes = (
         Expediente.query
         .order_by(Expediente.creado_en.desc())
@@ -42,6 +58,13 @@ def inicio():
     ultimas_alertas = (
         Alerta.query
         .order_by(Alerta.creado_en.desc())
+        .limit(5)
+        .all()
+    )
+
+    ultimos_prestamos = (
+        PrestamoExpediente.query
+        .order_by(PrestamoExpediente.fecha_prestamo.desc())
         .limit(5)
         .all()
     )
@@ -67,7 +90,11 @@ def inicio():
         alertas_corregidas=alertas_corregidas,
         alertas_cerradas=alertas_cerradas,
         alertas_alta=alertas_alta,
+        prestamos_activos=prestamos_activos,
+        prestamos_devueltos=prestamos_devueltos,
+        prestamos_vencidos=prestamos_vencidos,
         ultimos_expedientes=ultimos_expedientes,
         ultimas_alertas=ultimas_alertas,
+        ultimos_prestamos=ultimos_prestamos,
         ultimos_eventos=ultimos_eventos,
     )
