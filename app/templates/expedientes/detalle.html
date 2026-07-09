@@ -11,6 +11,10 @@
         </div>
 
         <div class="acciones-detalle">
+            <a class="boton-exito" href="{{ url_for('expedientes.reporte_completo_pdf', expediente_id=expediente.id) }}">
+                Reporte completo PDF
+            </a>
+
             <a class="boton-secundario" href="{{ url_for('expedientes.editar', expediente_id=expediente.id) }}">
                 Editar expediente
             </a>

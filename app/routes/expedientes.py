@@ -1,3 +1,5 @@
+import re
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
 from datetime import date
 from xml.sax.saxutils import escape
 from io import BytesIO
@@ -19,6 +21,7 @@ from app.models.expediente import Expediente
 from app.models.documento_expediente import DocumentoExpediente
 from app.models.alerta import Alerta
 from app.models.prestamo import PrestamoExpediente
+from app.models.bitacora import Bitacora
 from app.models.ubicacion import UbicacionFisica
 from app.services.bitacora_service import registrar_bitacora
 from app.services.alertas_service import crear_alerta_si_no_existe
@@ -573,3 +576,269 @@ def exportar_pdf(expediente_id):
         download_name=nombre_archivo,
         mimetype="application/pdf",
     )
+
+
+@expedientes_bp.route("/expedientes/<int:expediente_id>/reporte-completo/pdf")
+@login_required
+def reporte_completo_pdf(expediente_id):
+    expediente = Expediente.query.get_or_404(expediente_id)
+
+    ubicacion = UbicacionFisica.query.filter_by(expediente_id=expediente.id).first()
+
+    documentos = (
+        DocumentoExpediente.query
+        .filter_by(expediente_id=expediente.id)
+        .order_by(DocumentoExpediente.folio_inicio.asc(), DocumentoExpediente.id.asc())
+        .all()
+    )
+
+    alertas = (
+        Alerta.query
+        .filter_by(expediente_id=expediente.id)
+        .order_by(Alerta.creado_en.desc())
+        .all()
+    )
+
+    prestamos = (
+        PrestamoExpediente.query
+        .filter_by(expediente_id=expediente.id)
+        .order_by(PrestamoExpediente.fecha_prestamo.desc())
+        .all()
+    )
+
+    eventos_bitacora = (
+        Bitacora.query
+        .filter_by(expediente_id=expediente.id)
+        .order_by(Bitacora.creado_en.desc())
+        .limit(20)
+        .all()
+    )
+
+    def limpiar_texto(valor):
+        if valor is None or valor == "":
+            return "Sin dato"
+
+        texto = str(valor)
+        texto = texto.encode("latin-1", "replace").decode("latin-1")
+        return escape(texto)
+
+    def p(valor):
+        return Paragraph(limpiar_texto(valor), estilos["Normal"])
+
+    def fecha_dt(valor):
+        if not valor:
+            return "Sin dato"
+        return valor.strftime("%d/%m/%Y %H:%M")
+
+    def fecha_d(valor):
+        if not valor:
+            return "Sin dato"
+        return valor.strftime("%d/%m/%Y")
+
+    def crear_tabla(datos, anchos):
+        tabla = Table(datos, colWidths=anchos, repeatRows=1)
+        tabla.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#17233c")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTNAME", (0, 1), (0, -1), "Helvetica-Bold"),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("PADDING", (0, 0), (-1, -1), 7),
+        ]))
+        return tabla
+
+    archivo_pdf = BytesIO()
+
+    doc = SimpleDocTemplate(
+        archivo_pdf,
+        pagesize=letter,
+        rightMargin=34,
+        leftMargin=34,
+        topMargin=34,
+        bottomMargin=34,
+    )
+
+    estilos = getSampleStyleSheet()
+    elementos = []
+
+    elementos.append(Paragraph("SICODE-UCT", estilos["Title"]))
+    elementos.append(Paragraph("Reporte completo administrativo del expediente", estilos["Heading2"]))
+    elementos.append(Spacer(1, 10))
+
+    elementos.append(Paragraph(
+        "Este reporte contiene metadatos administrativos, ubicacion fisica, foliacion, alertas, "
+        "prestamos, devoluciones y bitacora relacionada. No contiene documentos sensibles ni copias completas del expediente.",
+        estilos["Normal"],
+    ))
+
+    elementos.append(Spacer(1, 16))
+
+    datos_expediente = [
+        ["Campo", "Valor"],
+        ["Codigo interno", p(expediente.codigo_interno)],
+        ["No. de SP", p(expediente.no_sp)],
+        ["Nombre referencia", p(expediente.nombre_referencia)],
+        ["Estado administrativo", p(expediente.estado_administrativo)],
+        ["Estado fisico/documental", p(expediente.estado_fisico_documental)],
+        ["Activo", p("Si" if expediente.activo else "No")],
+        ["Fecha de creacion", p(fecha_dt(expediente.creado_en))],
+        ["Ultima actualizacion", p(fecha_dt(expediente.actualizado_en))],
+        ["Observaciones", p(expediente.observaciones)],
+    ]
+
+    elementos.append(Paragraph("1. Datos principales del expediente", estilos["Heading3"]))
+    elementos.append(crear_tabla(datos_expediente, [2.2 * inch, 4.8 * inch]))
+    elementos.append(Spacer(1, 14))
+
+    datos_ubicacion = [
+        ["Campo", "Valor"],
+        ["Archivador", p(ubicacion.archivador if ubicacion else None)],
+        ["SICOIN", p(ubicacion.sicoin if ubicacion else None)],
+        ["Estante", p(ubicacion.estante if ubicacion else None)],
+        ["Caja", p(ubicacion.caja if ubicacion else None)],
+        ["Modulo", p(ubicacion.modulo if ubicacion else None)],
+        ["Posicion", p(ubicacion.posicion if ubicacion else None)],
+        ["Observaciones ubicacion", p(ubicacion.observaciones if ubicacion else None)],
+    ]
+
+    elementos.append(Paragraph("2. Ubicacion fisica", estilos["Heading3"]))
+    elementos.append(crear_tabla(datos_ubicacion, [2.2 * inch, 4.8 * inch]))
+    elementos.append(Spacer(1, 14))
+
+    total_documentos_activos = sum(1 for documento in documentos if documento.activo)
+    total_folios_activos = sum((documento.total_folios or 0) for documento in documentos if documento.activo)
+    alertas_abiertas = sum(1 for alerta in alertas if alerta.estado in ["Abierta", "En revisión"])
+    prestamos_activos = sum(1 for prestamo in prestamos if prestamo.estado == "En préstamo")
+
+    resumen = [
+        ["Indicador", "Valor"],
+        ["Documentos activos", p(total_documentos_activos)],
+        ["Total folios activos registrados", p(total_folios_activos)],
+        ["Total alertas relacionadas", p(len(alertas))],
+        ["Alertas abiertas o en revision", p(alertas_abiertas)],
+        ["Total prestamos registrados", p(len(prestamos))],
+        ["Prestamos activos", p(prestamos_activos)],
+        ["Eventos de bitacora incluidos", p(len(eventos_bitacora))],
+    ]
+
+    elementos.append(Paragraph("3. Resumen operativo", estilos["Heading3"]))
+    elementos.append(crear_tabla(resumen, [3.2 * inch, 3.8 * inch]))
+    elementos.append(PageBreak())
+
+    elementos.append(Paragraph("4. Indice documental y foliacion", estilos["Heading3"]))
+
+    datos_documentos = [["Documento", "Tipo", "Folios", "Total", "Estado", "Activo"]]
+
+    for documento in documentos:
+        rango_folios = f"{documento.folio_inicio} - {documento.folio_fin}"
+        datos_documentos.append([
+            p(documento.nombre_documento),
+            p(documento.tipo_documento),
+            p(rango_folios),
+            p(documento.total_folios),
+            p(documento.estado_revision),
+            p("Si" if documento.activo else "No"),
+        ])
+
+    if len(datos_documentos) == 1:
+        datos_documentos.append([p("Sin documentos registrados"), p(""), p(""), p(""), p(""), p("")])
+
+    elementos.append(crear_tabla(
+        datos_documentos,
+        [2.0 * inch, 1.0 * inch, 1.0 * inch, 0.7 * inch, 1.5 * inch, 0.8 * inch],
+    ))
+
+    elementos.append(Spacer(1, 16))
+    elementos.append(Paragraph("5. Alertas e incidentes relacionados", estilos["Heading3"]))
+
+    datos_alertas = [["Fecha", "Tipo", "Gravedad", "Estado", "Titulo"]]
+
+    for alerta in alertas:
+        datos_alertas.append([
+            p(fecha_dt(alerta.creado_en)),
+            p(alerta.tipo_alerta),
+            p(alerta.gravedad),
+            p(alerta.estado),
+            p(alerta.titulo),
+        ])
+
+    if len(datos_alertas) == 1:
+        datos_alertas.append([p("Sin alertas registradas"), p(""), p(""), p(""), p("")])
+
+    elementos.append(crear_tabla(
+        datos_alertas,
+        [1.3 * inch, 1.3 * inch, 0.9 * inch, 1.0 * inch, 2.5 * inch],
+    ))
+
+    elementos.append(PageBreak())
+    elementos.append(Paragraph("6. Prestamos y devoluciones", estilos["Heading3"]))
+
+    datos_prestamos = [["Numero control", "Solicitante", "Fecha prestamo", "Fecha estimada", "Fecha real", "Estado"]]
+
+    for prestamo in prestamos:
+        datos_prestamos.append([
+            p(prestamo.numero_control),
+            p(prestamo.solicitante),
+            p(fecha_dt(prestamo.fecha_prestamo)),
+            p(fecha_d(prestamo.fecha_estimada_devolucion)),
+            p(fecha_dt(prestamo.fecha_real_devolucion) if prestamo.fecha_real_devolucion else "Pendiente"),
+            p(prestamo.estado),
+        ])
+
+    if len(datos_prestamos) == 1:
+        datos_prestamos.append([p("Sin prestamos registrados"), p(""), p(""), p(""), p(""), p("")])
+
+    elementos.append(crear_tabla(
+        datos_prestamos,
+        [1.6 * inch, 1.4 * inch, 1.2 * inch, 1.1 * inch, 1.1 * inch, 0.9 * inch],
+    ))
+
+    elementos.append(Spacer(1, 16))
+    elementos.append(Paragraph("7. Ultimos eventos de bitacora relacionados", estilos["Heading3"]))
+
+    datos_bitacora = [["Fecha", "Accion", "Modulo", "Descripcion"]]
+
+    for evento in eventos_bitacora:
+        datos_bitacora.append([
+            p(fecha_dt(evento.creado_en)),
+            p(evento.accion),
+            p(evento.modulo),
+            p(evento.descripcion),
+        ])
+
+    if len(datos_bitacora) == 1:
+        datos_bitacora.append([p("Sin eventos registrados"), p(""), p(""), p("")])
+
+    elementos.append(crear_tabla(
+        datos_bitacora,
+        [1.3 * inch, 1.5 * inch, 1.1 * inch, 3.1 * inch],
+    ))
+
+    elementos.append(Spacer(1, 18))
+    elementos.append(Paragraph(
+        "Reporte generado desde SICODE-UCT para control interno institucional.",
+        estilos["Italic"],
+    ))
+
+    doc.build(elementos)
+    archivo_pdf.seek(0)
+
+    registrar_bitacora(
+        accion="EXPORTAR_REPORTE_COMPLETO_EXPEDIENTE_PDF",
+        modulo="Reportes",
+        descripcion=f"Se genero reporte completo PDF del expediente No. de SP {expediente.no_sp}.",
+        usuario_id=current_user.id,
+        expediente_id=expediente.id,
+    )
+
+    no_sp_limpio = re.sub(r"[^A-Za-z0-9_-]", "-", expediente.no_sp)
+    nombre_archivo = f"reporte_completo_expediente_{no_sp_limpio}.pdf"
+
+    return send_file(
+        archivo_pdf,
+        as_attachment=True,
+        download_name=nombre_archivo,
+        mimetype="application/pdf",
+    )
+
