@@ -23,9 +23,17 @@
                 Índice documental
             </a>
 
-            <a class="boton-secundario" href="{{ url_for('prestamos.nuevo', expediente_id=expediente.id) }}">
-                Registrar préstamo
-            </a>
+            {% set tiene_prestamo_activo = expediente.prestamos|selectattr("estado", "equalto", "En préstamo")|list|length > 0 %}
+
+            {% if expediente.activo and not tiene_prestamo_activo %}
+                <a class="boton-secundario" href="{{ url_for('prestamos.nuevo', expediente_id=expediente.id) }}">
+                    Registrar préstamo
+                </a>
+            {% elif tiene_prestamo_activo %}
+                <span class="badge badge-advertencia">Expediente en préstamo</span>
+            {% else %}
+                <span class="badge badge-inactivo">Expediente inactivo</span>
+            {% endif %}
 
             <a class="boton-cancelar" href="{{ url_for('expedientes.listado') }}">
                 Volver al listado
@@ -104,5 +112,107 @@
 
     <h2>Observaciones</h2>
     <p>{{ expediente.observaciones or "Sin observaciones registradas." }}</p>
+
+    <h2>Historial de préstamos y devoluciones</h2>
+
+    <div class="tabla-contenedor">
+        <table class="tabla-prestamos">
+            <thead>
+                <tr>
+                    <th>Número control</th>
+                    <th>Solicitante</th>
+                    <th>Movimiento</th>
+                    <th>Fechas</th>
+                    <th>Estado</th>
+                    <th class="columna-accion">Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for prestamo in expediente.prestamos|sort(attribute='fecha_prestamo', reverse=True) %}
+                {% set esta_vencido = prestamo.estado == "En préstamo" and prestamo.fecha_estimada_devolucion and prestamo.fecha_estimada_devolucion < fecha_hoy %}
+
+                <tr class="{% if esta_vencido %}fila-vencida{% endif %}">
+                    <td>
+                        <a href="{{ url_for('prestamos.detalle', prestamo_id=prestamo.id) }}">
+                            <strong>{{ prestamo.numero_control }}</strong>
+                        </a>
+                    </td>
+
+                    <td>{{ prestamo.solicitante }}</td>
+
+                    <td>
+                        <strong>Entrega:</strong> {{ prestamo.persona_entrega }}<br>
+                        <strong>Recibe:</strong> {{ prestamo.persona_recibe }}<br>
+
+                        {% if prestamo.persona_devuelve %}
+                            <strong>Devuelve:</strong> {{ prestamo.persona_devuelve }}<br>
+                        {% endif %}
+
+                        {% if prestamo.persona_recibe_devolucion %}
+                            <strong>Recibe devolución:</strong> {{ prestamo.persona_recibe_devolucion }}
+                        {% endif %}
+                    </td>
+
+                    <td>
+                        <strong>Préstamo:</strong>
+                        {{ prestamo.fecha_prestamo.strftime('%d/%m/%Y %H:%M') if prestamo.fecha_prestamo else "Sin dato" }}
+                        <br>
+
+                        <strong>Estimada:</strong>
+                        {% if prestamo.fecha_estimada_devolucion %}
+                            {{ prestamo.fecha_estimada_devolucion.strftime('%d/%m/%Y') }}
+                        {% else %}
+                            Sin dato
+                        {% endif %}
+                        <br>
+
+                        <strong>Real:</strong>
+                        {% if prestamo.fecha_real_devolucion %}
+                            {{ prestamo.fecha_real_devolucion.strftime('%d/%m/%Y %H:%M') }}
+                        {% else %}
+                            Pendiente
+                        {% endif %}
+                    </td>
+
+                    <td>
+                        {% if esta_vencido %}
+                            <span class="badge badge-vencido">Vencido</span>
+                        {% elif prestamo.estado == "En préstamo" %}
+                            <span class="badge badge-advertencia">En préstamo</span>
+                        {% else %}
+                            <span class="badge badge-activo">Devuelto</span>
+                        {% endif %}
+                    </td>
+
+                    <td class="columna-accion">
+                        <a class="boton-tabla boton-tabla-neutral" href="{{ url_for('prestamos.detalle', prestamo_id=prestamo.id) }}">
+                            Ver detalle
+                        </a>
+
+                        <br><br>
+
+                        <a class="boton-tabla boton-tabla-secundario" href="{{ url_for('prestamos.comprobante_pdf', prestamo_id=prestamo.id) }}">
+                            Comprobante PDF
+                        </a>
+
+                        {% if prestamo.estado == "En préstamo" %}
+                            <br><br>
+                            <a class="boton-tabla" href="{{ url_for('prestamos.devolver', prestamo_id=prestamo.id) }}">
+                                Registrar devolución
+                            </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6">
+                        Este expediente todavía no tiene préstamos registrados.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
 </section>
 {% endblock %}
