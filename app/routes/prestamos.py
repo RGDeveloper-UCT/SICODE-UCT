@@ -18,6 +18,7 @@ from app.forms.prestamo_form import PrestamoForm, DevolucionForm
 from app.models.expediente import Expediente
 from app.models.prestamo import PrestamoExpediente
 from app.services.bitacora_service import registrar_bitacora
+from app.services.alertas_service import detectar_prestamos_vencidos
 
 prestamos_bp = Blueprint("prestamos", __name__)
 
@@ -29,6 +30,16 @@ def generar_numero_control(expediente):
 @prestamos_bp.route("/prestamos")
 @login_required
 def listado():
+    alertas_generadas = detectar_prestamos_vencidos(usuario_id=current_user.id)
+
+    if alertas_generadas:
+        registrar_bitacora(
+            accion="GENERAR_ALERTA_PRESTAMO_VENCIDO",
+            modulo="Alertas",
+            descripcion=f"Se generaron {len(alertas_generadas)} alerta(s) automática(s) por préstamo vencido desde el módulo de préstamos.",
+            usuario_id=current_user.id,
+        )
+
     busqueda = request.args.get("q", "").strip()
     filtro_estado = request.args.get("estado", "").strip()
 

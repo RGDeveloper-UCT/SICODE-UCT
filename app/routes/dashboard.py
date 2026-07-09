@@ -7,12 +7,24 @@ from app.models.expediente import Expediente
 from app.models.bitacora import Bitacora
 from app.models.alerta import Alerta
 from app.models.prestamo import PrestamoExpediente
+from app.services.alertas_service import detectar_prestamos_vencidos
+from app.services.bitacora_service import registrar_bitacora
 
 dashboard_bp = Blueprint("dashboard", __name__)
 
 @dashboard_bp.route("/dashboard")
 @login_required
 def inicio():
+    alertas_generadas = detectar_prestamos_vencidos(usuario_id=current_user.id)
+
+    if alertas_generadas:
+        registrar_bitacora(
+            accion="GENERAR_ALERTA_PRESTAMO_VENCIDO",
+            modulo="Alertas",
+            descripcion=f"Se generaron {len(alertas_generadas)} alerta(s) automática(s) por préstamo vencido.",
+            usuario_id=current_user.id,
+        )
+
     total_expedientes = Expediente.query.count()
     expedientes_activos = Expediente.query.filter_by(activo=True).count()
     expedientes_inactivos = Expediente.query.filter_by(activo=False).count()
