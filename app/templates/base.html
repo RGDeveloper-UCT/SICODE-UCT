@@ -22,6 +22,7 @@
             <a href="{{ url_for('prestamos.listado') }}">Préstamos</a>
             {% if current_user.is_authenticated and current_user.rol == "administrador" %}
             <a href="{{ url_for('admin.usuarios') }}">Usuarios</a>
+            <a href="{{ url_for('admin.backups') }}">Backups</a>
             {% endif %}
             <a href="{{ url_for('auth.logout') }}">Cerrar sesión</a>
         </nav>

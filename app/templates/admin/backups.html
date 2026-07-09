@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Backups — SICODE-UCT{% endblock %}
+
+{% block content %}
+<section class="panel panel-ancho">
+    <div class="encabezado-modulo">
+        <div>
+            <h1>Respaldos de base de datos</h1>
+            <p>Generación y descarga de backups administrativos de PostgreSQL.</p>
+        </div>
+
+        <form method="POST" action="{{ url_for('admin.generar_backup') }}" onsubmit="return confirm('¿Desea generar un nuevo respaldo de la base de datos?');">
+            <button class="boton-exito" type="submit">
+                Generar backup
+            </button>
+        </form>
+    </div>
+
+    <div class="aviso">
+        <strong>Nota institucional:</strong>
+        El respaldo contiene la información administrativa registrada en la base de datos del sistema.
+        Debe almacenarse en un lugar seguro y con acceso restringido.
+    </div>
+
+    <p class="contador-resultados">
+        Respaldos encontrados: <strong>{{ archivos|length }}</strong>
+    </p>
+
+    <div class="tabla-contenedor">
+        <table>
+            <thead>
+                <tr>
+                    <th>Archivo</th>
+                    <th>Tamaño</th>
+                    <th>Fecha de generación</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for archivo in archivos %}
+                <tr>
+                    <td>
+                        <strong>{{ archivo.nombre }}</strong>
+                    </td>
+                    <td>{{ archivo.tamano_mb }} MB</td>
+                    <td>{{ archivo.modificado.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+                    <td class="columna-accion">
+                        <a class="boton-tabla boton-tabla-secundario" href="{{ url_for('admin.descargar_backup', nombre_archivo=archivo.nombre) }}">
+                            Descargar
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4">
+                        No hay respaldos generados todavía.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="aviso">
+        <strong>Recomendación:</strong>
+        Genere respaldos antes de cambios importantes, migraciones, pruebas grandes o cierres de jornada.
+    </div>
+</section>
+{% endblock %}

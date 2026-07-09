@@ -1,6 +1,11 @@
+import os
+import shutil
+import subprocess
+from datetime import datetime
+from pathlib import Path
 from functools import wraps
 
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, send_file
 from flask_login import login_required, current_user
 from sqlalchemy import or_
 from werkzeug.security import generate_password_hash
@@ -230,3 +235,130 @@ def reactivar_usuario(usuario_id):
 
     flash("Usuario reactivado correctamente.", "success")
     return redirect(url_for("admin.usuarios"))
+
+
+def obtener_directorio_backups():
+    directorio = Path(current_app.root_path).parent / "backups"
+    directorio.mkdir(parents=True, exist_ok=True)
+    return directorio
+
+
+@admin_bp.route("/backups")
+@login_required
+@admin_required
+def backups():
+    directorio = obtener_directorio_backups()
+
+    archivos = []
+
+    for archivo in directorio.glob("backup_sicode_uct_*.sql"):
+        stat = archivo.stat()
+        archivos.append({
+            "nombre": archivo.name,
+            "tamano_mb": round(stat.st_size / (1024 * 1024), 2),
+            "modificado": datetime.fromtimestamp(stat.st_mtime),
+        })
+
+    archivos = sorted(archivos, key=lambda item: item["modificado"], reverse=True)
+
+    return render_template("admin/backups.html", archivos=archivos)
+
+
+@admin_bp.route("/backups/generar", methods=["POST"])
+@login_required
+@admin_required
+def generar_backup():
+    database_url = (
+        current_app.config.get("SQLALCHEMY_DATABASE_URI")
+        or os.getenv("DATABASE_URL")
+    )
+
+    if not database_url:
+        flash("No se encontró la configuración de conexión a la base de datos.", "danger")
+        return redirect(url_for("admin.backups"))
+
+    pg_dump_path = shutil.which("pg_dump")
+
+    if not pg_dump_path:
+        flash("No se encontró pg_dump en el sistema. Verifique la instalación de PostgreSQL.", "danger")
+        return redirect(url_for("admin.backups"))
+
+    directorio = obtener_directorio_backups()
+    marca_tiempo = datetime.now().strftime("%Y%m%d_%H%M%S")
+    nombre_archivo = f"backup_sicode_uct_{marca_tiempo}.sql"
+    ruta_backup = directorio / nombre_archivo
+
+    comando = [
+        pg_dump_path,
+        "--dbname", database_url,
+        "--file", str(ruta_backup),
+        "--format", "plain",
+        "--encoding", "UTF8",
+        "--no-owner",
+        "--no-privileges",
+    ]
+
+    try:
+        resultado = subprocess.run(
+            comando,
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+
+    except subprocess.TimeoutExpired:
+        flash("El respaldo tardó demasiado y fue cancelado.", "danger")
+        return redirect(url_for("admin.backups"))
+
+    except Exception as error:
+        flash(f"No se pudo generar el respaldo: {error}", "danger")
+        return redirect(url_for("admin.backups"))
+
+    if resultado.returncode != 0:
+        mensaje_error = resultado.stderr or "Error desconocido al ejecutar pg_dump."
+        flash(f"No se pudo generar el respaldo: {mensaje_error}", "danger")
+        return redirect(url_for("admin.backups"))
+
+    registrar_bitacora(
+        accion="GENERAR_BACKUP_DB",
+        modulo="Administración",
+        descripcion=f"Se generó respaldo de base de datos: {nombre_archivo}.",
+        usuario_id=current_user.id,
+    )
+
+    flash("Respaldo generado correctamente.", "success")
+    return redirect(url_for("admin.backups"))
+
+
+@admin_bp.route("/backups/<nombre_archivo>/descargar")
+@login_required
+@admin_required
+def descargar_backup(nombre_archivo):
+    if not nombre_archivo.startswith("backup_sicode_uct_") or not nombre_archivo.endswith(".sql"):
+        flash("Nombre de archivo no permitido.", "danger")
+        return redirect(url_for("admin.backups"))
+
+    directorio = obtener_directorio_backups()
+    ruta_backup = (directorio / nombre_archivo).resolve()
+
+    if ruta_backup.parent != directorio.resolve():
+        flash("Ruta de archivo no permitida.", "danger")
+        return redirect(url_for("admin.backups"))
+
+    if not ruta_backup.exists():
+        flash("El respaldo solicitado no existe.", "danger")
+        return redirect(url_for("admin.backups"))
+
+    registrar_bitacora(
+        accion="DESCARGAR_BACKUP_DB",
+        modulo="Administración",
+        descripcion=f"Se descargó respaldo de base de datos: {nombre_archivo}.",
+        usuario_id=current_user.id,
+    )
+
+    return send_file(
+        ruta_backup,
+        as_attachment=True,
+        download_name=nombre_archivo,
+        mimetype="application/sql",
+    )
