@@ -16,6 +16,9 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from app import db
 from app.forms.expediente_form import ExpedienteForm
 from app.models.expediente import Expediente
+from app.models.documento_expediente import DocumentoExpediente
+from app.models.alerta import Alerta
+from app.models.prestamo import PrestamoExpediente
 from app.models.ubicacion import UbicacionFisica
 from app.services.bitacora_service import registrar_bitacora
 from app.services.alertas_service import crear_alerta_si_no_existe

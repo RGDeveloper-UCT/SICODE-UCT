@@ -57,7 +57,97 @@
 
     <div class="grid">
         <div class="tarjeta">
-            <h2>Código interno</h2>
+            
+    <h2>Resumen rápido del expediente</h2>
+
+    <div class="grid">
+        <div class="tarjeta indicador">
+            <h2>Documentos activos</h2>
+            <p class="numero-indicador">{{ total_documentos_activos }}</p>
+            <a href="{{ url_for('indice_documental.listado', expediente_id=expediente.id) }}">
+                Ver índice documental
+            </a>
+        </div>
+
+        <div class="tarjeta indicador">
+            <h2>Folios registrados</h2>
+            <p class="numero-indicador">{{ total_folios_registrados }}</p>
+            <a href="{{ url_for('indice_documental.listado', expediente_id=expediente.id) }}">
+                Revisar foliación
+            </a>
+        </div>
+
+        <div class="tarjeta indicador">
+            <h2>Alertas abiertas / revisión</h2>
+            <p class="numero-indicador indicador-alerta">{{ alertas_abiertas_revision }}</p>
+            <a href="{{ url_for('alertas.listado', q=expediente.no_sp) }}">
+                Ver alertas
+            </a>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="tarjeta indicador">
+            <h2>Alertas alta gravedad</h2>
+            <p class="numero-indicador indicador-peligro">{{ alertas_gravedad_alta }}</p>
+            <a href="{{ url_for('alertas.listado', q=expediente.no_sp, gravedad='Alta') }}">
+                Revisar alertas críticas
+            </a>
+        </div>
+
+        <div class="tarjeta indicador">
+            <h2>Préstamos activos</h2>
+            <p class="numero-indicador indicador-alerta">{{ prestamos_activos }}</p>
+            <a href="{{ url_for('prestamos.listado', q=expediente.no_sp, estado='En préstamo') }}">
+                Ver préstamos activos
+            </a>
+        </div>
+
+        <div class="tarjeta indicador">
+            <h2>Préstamos vencidos</h2>
+            <p class="numero-indicador indicador-peligro">{{ prestamos_vencidos }}</p>
+            <a href="{{ url_for('prestamos.listado', q=expediente.no_sp, estado='Vencidos') }}">
+                Ver vencidos
+            </a>
+        </div>
+    </div>
+
+    <h2>Último movimiento de préstamo</h2>
+
+    <div class="tarjeta">
+        {% if ultimo_prestamo %}
+            <p>
+                <strong>Número de control:</strong>
+                <a href="{{ url_for('prestamos.detalle', prestamo_id=ultimo_prestamo.id) }}">
+                    {{ ultimo_prestamo.numero_control }}
+                </a>
+            </p>
+
+            <p><strong>Solicitante:</strong> {{ ultimo_prestamo.solicitante }}</p>
+
+            <p>
+                <strong>Fecha préstamo:</strong>
+                {{ ultimo_prestamo.fecha_prestamo.strftime('%d/%m/%Y %H:%M') if ultimo_prestamo.fecha_prestamo else "Sin dato" }}
+            </p>
+
+            <p>
+                <strong>Estado:</strong>
+                {% if ultimo_prestamo.estado == "En préstamo" %}
+                    <span class="badge badge-advertencia">En préstamo</span>
+                {% else %}
+                    <span class="badge badge-activo">Devuelto</span>
+                {% endif %}
+            </p>
+
+            <a class="boton-tabla boton-tabla-neutral" href="{{ url_for('prestamos.detalle', prestamo_id=ultimo_prestamo.id) }}">
+                Ver detalle del préstamo
+            </a>
+        {% else %}
+            <p>Este expediente todavía no tiene movimientos de préstamo registrados.</p>
+        {% endif %}
+    </div>
+
+<h2>Código interno</h2>
             <p>{{ expediente.codigo_interno }}</p>
         </div>
 
