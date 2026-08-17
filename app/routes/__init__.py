@@ -7,3 +7,4 @@ from app.routes.alertas import alertas_bp
 from app.routes.prestamos import prestamos_bp
 from app.routes.admin import admin_bp
 from app.routes.cuenta import cuenta_bp
+from app.routes.coordinacion import coordinacion_bp
