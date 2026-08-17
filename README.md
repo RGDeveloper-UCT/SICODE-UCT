@@ -20,6 +20,23 @@ El sistema no debe almacenar documentos sensibles ni copias completas de expedie
 - Reportes PDF y Excel
 - Servidor local institucional
 
+## Módulos actuales
+
+- Dashboard.
+- Expedientes y ubicación física.
+- Índice documental y foliación.
+- Préstamos y devoluciones.
+- Alertas.
+- Bitácora.
+- Administración y respaldos.
+- Coordinación: registro operativo de pagos, instalaciones, desinstalaciones, anexos, reportes de monitoreo, documentos emitidos, actividades y remisiones.
+
+## Importación histórica de Coordinación
+
+El módulo Coordinación permite previsualizar e importar las hojas operativas del libro histórico de actividades. La importación conserva archivo, hoja y fila de origen, permite datos incompletos y marca los SP todavía no existentes en Expedientes como pendientes de vincular.
+
+Las hojas Portadores y VERIFICACIONES no se modifican ni importan desde este módulo; su integración corresponde a la ampliación posterior de la ficha maestra de Expedientes.
+
 ## Estado actual
 
-Entorno de desarrollo configurado y aplicación Flask inicial funcionando en ambiente local.
+Aplicación Flask operativa en ambiente institucional, con desarrollo versionado mediante Git.

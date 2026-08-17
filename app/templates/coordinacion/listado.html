@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Registros de Coordinación — SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+    <div class="encabezado-modulo"><div><h1>Registros de Coordinación</h1><p>Consulta central de pagos, movimientos, anexos, monitoreo, documentos, actividades y remisiones.</p></div><a class="boton-secundario" href="{{ url_for('coordinacion.inicio') }}">Nuevo registro</a></div>
+    <form method="get" class="filtros-expedientes filtros-coordinacion">
+        <div class="campo-filtro"><label>Buscar</label><input name="q" value="{{ q }}" placeholder="SP, RC, providencia u observación"></div>
+        <div class="campo-filtro"><label>Tipo</label><select name="tipo"><option value="">Todos</option>{% for clave,item in tipos.items() %}<option value="{{ item.codigo }}" {% if tipo == item.codigo %}selected{% endif %}>{{ item.titulo }}</option>{% endfor %}</select></div>
+        <div class="campo-filtro"><label>Estado</label><select name="estado"><option value="">Todos</option>{% for e in ['Completo','Información pendiente','Pendiente de vincular','Pendiente de remisión'] %}<option value="{{ e }}" {% if estado == e %}selected{% endif %}>{{ e }}</option>{% endfor %}</select></div>
+        <div class="acciones-filtro"><button type="submit">Filtrar</button><a href="{{ url_for('coordinacion.listado') }}">Limpiar</a></div>
+    </form>
+    <p class="contador-resultados">{{ registros|length }} registro(s).</p>
+    <div class="tabla-contenedor"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>SP</th><th>RC</th><th>Providencia</th><th>Registrado por</th><th>Estado</th><th>Origen</th><th></th></tr></thead><tbody>
+    {% for registro in registros %}<tr>
+        <td>{{ registro.fecha_recepcion.strftime('%d/%m/%Y') if registro.fecha_recepcion else 'Sin fecha' }}</td><td>{{ registro.tipo }}</td>
+        <td>{% if registro.expediente %}<a href="{{ url_for('expedientes.detalle', expediente_id=registro.expediente.id) }}">{{ registro.no_sp_referencia }}</a>{% else %}{{ registro.no_sp_referencia or '—' }}{% endif %}</td>
+        <td>{{ registro.rc or '—' }}</td><td>{{ registro.providencia or '—' }}</td><td>{{ registro.usuario_origen or registro.usuario.nombre }}</td>
+        <td>{% if registro.estado == 'Completo' %}<span class="badge badge-activo">Completo</span>{% elif registro.estado == 'Pendiente de vincular' %}<span class="badge badge-inactivo">Pendiente de vincular</span>{% else %}<span class="badge badge-advertencia">{{ registro.estado }}</span>{% endif %}</td><td>{{ 'Excel' if registro.origen_registro == 'IMPORTACION_EXCEL' else 'Manual' }}</td><td><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
+    </tr>{% else %}<tr><td colspan="9">No hay registros con los filtros seleccionados.</td></tr>{% endfor %}
+    </tbody></table></div>
+</section>
+{% endblock %}

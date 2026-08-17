@@ -1,0 +1,75 @@
+name: Validar Coordinacion
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/coordinacion-operativa
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "sqlite:///:memory:"
+      SECRET_KEY: prueba-ci-sicode
+    steps:
+      - name: Obtener codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Compilar Python
+        run: python -m compileall -q app migrations
+
+      - name: Validar aplicacion, modelos y plantillas
+        run: |
+          python - <<'PY'
+          from app import create_app, db
+
+          app = create_app()
+          with app.app_context():
+              db.create_all()
+              tablas = set(db.metadata.tables.keys())
+              esperadas = {
+                  'registros_coordinacion',
+                  'pagos_coordinacion',
+                  'movimientos_dispositivo',
+                  'anexos_coordinacion',
+                  'reportes_monitoreo',
+                  'documentos_emitidos',
+                  'actividades_coordinacion',
+                  'remisiones_coordinacion',
+                  'remisiones_expedientes',
+              }
+              faltantes = esperadas - tablas
+              assert not faltantes, f'Tablas faltantes: {sorted(faltantes)}'
+
+          rutas = [str(regla) for regla in app.url_map.iter_rules()]
+          assert '/coordinacion/' in rutas
+          assert '/coordinacion/registros' in rutas
+          assert '/coordinacion/registrar/<tipo>' in rutas
+          assert '/coordinacion/importar' in rutas
+
+          plantillas = [
+              'coordinacion/inicio.html',
+              'coordinacion/formulario.html',
+              'coordinacion/listado.html',
+              'coordinacion/detalle.html',
+              'coordinacion/remision_detalle.html',
+              'coordinacion/importar.html',
+          ]
+          for nombre in plantillas:
+              app.jinja_env.get_template(nombre)
+
+          print('Validacion de Coordinacion completada correctamente.')
+          PY

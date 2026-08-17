@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Remisión — SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+    <div class="encabezado-modulo"><div><h1>Remisión {{ remision.numero_control or ('#' ~ remision.id) }}</h1><p>{{ remision.destino }} · {{ remision.registro.fecha_recepcion.strftime('%d/%m/%Y') if remision.registro.fecha_recepcion else 'Sin fecha' }}</p></div><a class="boton-cancelar" href="{{ url_for('coordinacion.detalle', registro_id=remision.registro.id) }}">Volver</a></div>
+    <h2>Expedientes incluidos</h2>
+    <div class="tabla-contenedor"><table><thead><tr><th>SP</th><th>Folios</th><th>Anexos</th><th>Foliación</th><th>Vinculación</th><th></th></tr></thead><tbody>
+    {% for item in remision.expedientes_remitidos %}<tr>
+        <td>{% if item.expediente %}<a href="{{ url_for('expedientes.detalle', expediente_id=item.expediente.id) }}">{{ item.no_sp_referencia }}</a>{% else %}{{ item.no_sp_referencia }}{% endif %}</td><td>{{ item.folios or '—' }}</td><td>{{ item.anexos or '—' }}</td><td>{{ item.estado_foliacion or '—' }}</td><td>{{ 'Vinculado' if item.expediente else 'Pendiente' }}</td>
+        <td><form method="post" action="{{ url_for('coordinacion.remision_eliminar_expediente', remision_id=remision.id, detalle_id=item.id) }}" class="form-inline">{{ form.csrf_token }}<button class="boton-mini" type="submit">Quitar</button></form></td>
+    </tr>{% else %}<tr><td colspan="6">Todavía no se han agregado expedientes.</td></tr>{% endfor %}
+    </tbody></table></div>
+    <h2>Agregar expediente</h2>
+    <form method="post" class="formulario">{{ form.hidden_tag() }}
+        <div class="grid-form"><div class="campo">{{ form.no_sp.label }}{{ form.no_sp(list='sp-list', placeholder='No. SP') }}{% for e in form.no_sp.errors %}<span class="error">{{ e }}</span>{% endfor %}</div><div class="campo">{{ form.folios.label }}{{ form.folios() }}</div><div class="campo">{{ form.anexos.label }}{{ form.anexos() }}</div><div class="campo">{{ form.estado_foliacion.label }}{{ form.estado_foliacion() }}</div></div>
+        <div class="campo">{{ form.observaciones.label }}{{ form.observaciones() }}</div><div class="acciones">{{ form.submit(class_='boton') }}</div>
+    </form>
+    <datalist id="sp-list">{% for expediente in expedientes %}<option value="{{ expediente.no_sp }}">{{ expediente.nombre_referencia or expediente.codigo_interno }}</option>{% endfor %}</datalist>
+</section>
+{% endblock %}

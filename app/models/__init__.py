@@ -5,3 +5,14 @@ from app.models.bitacora import Bitacora
 from app.models.documento_expediente import DocumentoExpediente
 from app.models.alerta import Alerta
 from app.models.prestamo import PrestamoExpediente
+from app.models.coordinacion import (
+    RegistroCoordinacion,
+    PagoCoordinacion,
+    MovimientoDispositivo,
+    AnexoCoordinacion,
+    ReporteMonitoreo,
+    DocumentoEmitido,
+    ActividadCoordinacion,
+    RemisionCoordinacion,
+    RemisionExpediente,
+)
