@@ -13,7 +13,7 @@ jobs:
   validar:
     runs-on: ubuntu-latest
     env:
-      DATABASE_URL: sqlite:///:memory:
+      DATABASE_URL: "sqlite:///:memory:"
       SECRET_KEY: prueba-ci-sicode
     steps:
       - name: Obtener codigo
