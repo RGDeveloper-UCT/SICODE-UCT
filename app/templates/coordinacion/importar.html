@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Importar Excel — SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+    <div class="encabezado-modulo"><div><h1>Importación histórica de Coordinación</h1><p>Carga controlada del libro ACTIVIDADESCSOD.xlsx sin modificar Portadores ni Verificaciones.</p></div><a class="boton-cancelar" href="{{ url_for('coordinacion.inicio') }}">Volver</a></div>
+    <div class="aviso"><strong>Seguridad:</strong> primero se analiza el archivo. La importación se ejecuta únicamente después de confirmar la previsualización y evita volver a cargar las mismas filas.</div>
+    <form method="post" enctype="multipart/form-data" class="formulario">{{ form.hidden_tag() }}<div class="campo">{{ form.archivo.label }}{{ form.archivo() }}{% for e in form.archivo.errors %}<span class="error">{{ e }}</span>{% endfor %}</div><div class="acciones">{{ form.submit(class_='boton') }}</div></form>
+    {% if resumen %}
+    <h2>Resultado de la previsualización</h2>
+    <div class="grid"><div class="tarjeta indicador"><h2>Filas detectadas</h2><p class="numero-indicador">{{ resumen.total }}</p></div><div class="tarjeta indicador"><h2>Completas</h2><p class="numero-indicador">{{ resumen.completos }}</p></div><div class="tarjeta indicador"><h2>Información pendiente</h2><p class="numero-indicador indicador-alerta">{{ resumen.pendientes }}</p></div><div class="tarjeta indicador"><h2>SP sin vincular</h2><p class="numero-indicador indicador-peligro">{{ resumen.sin_vincular }}</p></div><div class="tarjeta indicador"><h2>Ya importadas</h2><p class="numero-indicador">{{ resumen.ya_importados }}</p></div></div>
+    <div class="tabla-contenedor"><table><thead><tr><th>Hoja</th><th>Total</th><th>Completas</th><th>Pendientes</th><th>Sin vincular</th><th>Ya importadas</th></tr></thead><tbody>{% for hoja,datos in resumen.por_hoja.items() %}<tr><td>{{ hoja }}</td><td>{{ datos.total }}</td><td>{{ datos.completos }}</td><td>{{ datos.pendientes }}</td><td>{{ datos.sin_vincular }}</td><td>{{ datos.ya_importados }}</td></tr>{% endfor %}</tbody></table></div>
+    {% if resumen.advertencias %}<div class="aviso">{% for texto in resumen.advertencias %}<div>{{ texto }}</div>{% endfor %}</div>{% endif %}
+    <form method="post" action="{{ url_for('coordinacion.confirmar_importacion') }}" class="acciones">{{ confirmar.hidden_tag() }}{{ confirmar.submit(class_='boton-exito') }}</form>
+    {% endif %}
+</section>
+{% endblock %}
