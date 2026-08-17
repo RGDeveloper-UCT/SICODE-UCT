@@ -225,21 +225,39 @@ class ImportadorCoordinacion:
             if not any(v is not None for v in row): continue
             sp_celda, folios, anexos, foliacion, remitido = (list(row) + [None] * 5)[:5]
             if self._ya_importado(hoja, fila): self._contabilizar(hoja, None, True); continue
+
+            partes = separar_sp_remision(sp_celda)
+            if not partes and sp_celda is not None:
+                partes = [self._texto(sp_celda)]
+
             estado = "Completo" if self._texto(remitido) and "REMIT" in self._texto(remitido).upper() else "Pendiente de remisión"
-            registro = self._nuevo_registro("REMISION", hoja, fila, estado=estado)
+            if estado == "Completo" and any(resolver_expediente(no_sp)[0] is None for no_sp in partes):
+                estado = "Pendiente de vincular"
+
+            observacion_legacy = None
+            if len(partes) > 1:
+                observacion_legacy = (
+                    f"Fila histórica con varios SP ({self._texto(sp_celda)}). Valores combinados del Excel: "
+                    f"folios={self._texto(folios) or 'sin dato'}, anexos={self._texto(anexos) or 'sin dato'}, "
+                    f"foliación={self._texto(foliacion) or 'sin dato'}."
+                )
+
+            registro = self._nuevo_registro("REMISION", hoja, fila, estado=estado, observaciones=observacion_legacy)
             self._contabilizar(hoja, registro.estado)
             if importar:
                 db.session.add(registro); db.session.flush()
                 remision = RemisionCoordinacion(registro_id=registro.id, destino="Archivo/Bodega MINGOB")
                 db.session.add(remision); db.session.flush()
-                partes = separar_sp_remision(sp_celda)
-                if not partes and sp_celda is not None: partes = [self._texto(sp_celda)]
                 for no_sp in partes:
                     expediente, no_sp_norm = resolver_expediente(no_sp)
+                    valores_individuales = len(partes) == 1
                     db.session.add(RemisionExpediente(
                         remision_id=remision.id, expediente_id=expediente.id if expediente else None,
-                        no_sp_referencia=no_sp_norm or self._texto(no_sp) or "SIN-SP", folios=self._texto(folios),
-                        anexos=self._texto(anexos), estado_foliacion=self._texto(foliacion),
+                        no_sp_referencia=no_sp_norm or self._texto(no_sp) or "SIN-SP",
+                        folios=self._texto(folios) if valores_individuales else None,
+                        anexos=self._texto(anexos) if valores_individuales else None,
+                        estado_foliacion=self._texto(foliacion) if valores_individuales else None,
+                        observaciones="Valores combinados conservados en el registro de remisión." if not valores_individuales else None,
                     ))
 
     def procesar(self, importar=False):
