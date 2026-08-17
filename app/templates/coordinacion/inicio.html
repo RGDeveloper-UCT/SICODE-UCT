@@ -1,48 +1,32 @@
 {% extends "base.html" %}
-
 {% block title %}Coordinación — SICODE-UCT{% endblock %}
-
 {% block content %}
-<section class="panel">
-    <h1>Coordinación</h1>
-    <p>Panel operativo para registrar de forma rápida las actividades y movimientos diarios de la Coordinación de Sistematización y Ordenamiento de Datos.</p>
-
-    <div class="aviso">
-        <strong>Registro simplificado:</strong>
-        seleccione el tipo de actividad. Cada formulario reutilizará la información ya existente del SP, del usuario autenticado y de los módulos de SICODE para evitar duplicar datos.
+<section class="panel panel-ancho">
+    <div class="encabezado-modulo">
+        <div><h1>Coordinación</h1><p>Registro operativo diario de la Coordinación de Sistematización y Ordenamiento de Datos.</p></div>
+        <div class="acciones-detalle">
+            <a class="boton-secundario" href="{{ url_for('coordinacion.listado') }}">Ver registros</a>
+            {% if current_user.rol == 'administrador' %}<a class="boton-cancelar" href="{{ url_for('coordinacion.importar_excel') }}">Importar Excel histórico</a>{% endif %}
+        </div>
     </div>
-
+    <div class="aviso"><strong>Registro simplificado:</strong> seleccione qué desea registrar. El usuario se toma de la sesión y el SP se vincula al expediente existente cuando sea posible.</div>
+    <div class="grid">
+        <div class="tarjeta indicador"><h2>Registros operativos</h2><p class="numero-indicador">{{ conteos.values()|sum }}</p></div>
+        <div class="tarjeta indicador"><h2>Información pendiente</h2><p class="numero-indicador indicador-alerta">{{ pendientes }}</p></div>
+        <div class="tarjeta"><h2>Expedientes</h2><p>La información maestra del SP continúa en el módulo existente de Expedientes.</p><a href="{{ url_for('expedientes.listado') }}">Ir a expedientes</a></div>
+    </div>
     <h2>¿Qué desea registrar?</h2>
-
     <div class="grid coordinacion-grid">
         {% for clave, item in tipos_registro.items() %}
-        <div class="tarjeta coordinacion-tarjeta">
-            <h2>{{ item.titulo }}</h2>
-            <p>{{ item.descripcion }}</p>
-            <a href="{{ url_for('coordinacion.registrar', tipo=clave) }}">Registrar {{ item.titulo|lower }}</a>
-        </div>
+        <div class="tarjeta coordinacion-tarjeta"><h2>{{ item.titulo }}</h2><p>{{ item.descripcion }}</p><p class="nota-mini">Registrados: {{ conteos.get(item.codigo, 0) }}</p><a href="{{ url_for('coordinacion.registrar', tipo=clave) }}">Registrar {{ item.titulo|lower }}</a></div>
         {% endfor %}
     </div>
-
-    <h2>Accesos existentes de SICODE</h2>
-    <div class="grid">
-        <div class="tarjeta">
-            <h2>Expedientes</h2>
-            <p>Consultar o actualizar la ficha principal del SP sin crear registros duplicados.</p>
-            <a href="{{ url_for('expedientes.listado') }}">Ir a expedientes</a>
-        </div>
-
-        <div class="tarjeta">
-            <h2>Alertas</h2>
-            <p>Consultar pendientes, observaciones e incidencias detectadas por el sistema.</p>
-            <a href="{{ url_for('alertas.listado') }}">Ir a alertas</a>
-        </div>
-
-        <div class="tarjeta">
-            <h2>Bitácora</h2>
-            <p>Consultar la trazabilidad de las acciones ejecutadas dentro de SICODE.</p>
-            <a href="{{ url_for('bitacora.listado') }}">Ir a bitácora</a>
-        </div>
-    </div>
+    <h2>Registros recientes</h2>
+    <div class="tabla-contenedor"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>SP</th><th>RC</th><th>Providencia</th><th>Estado</th><th></th></tr></thead><tbody>
+    {% for registro in recientes %}<tr>
+        <td>{{ registro.fecha_recepcion.strftime('%d/%m/%Y') if registro.fecha_recepcion else registro.creado_en.strftime('%d/%m/%Y') }}</td><td>{{ registro.tipo }}</td><td>{{ registro.no_sp_referencia or '—' }}</td><td>{{ registro.rc or '—' }}</td><td>{{ registro.providencia or '—' }}</td>
+        <td>{% if registro.estado == 'Completo' %}<span class="badge badge-activo">Completo</span>{% elif registro.estado == 'Pendiente de vincular' %}<span class="badge badge-inactivo">Pendiente de vincular</span>{% else %}<span class="badge badge-advertencia">{{ registro.estado }}</span>{% endif %}</td><td><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
+    </tr>{% else %}<tr><td colspan="7">No hay registros operativos todavía.</td></tr>{% endfor %}
+    </tbody></table></div>
 </section>
 {% endblock %}
