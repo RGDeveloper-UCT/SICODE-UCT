@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Coordinación — SICODE-UCT{% endblock %}
+
+{% block content %}
+<section class="panel">
+    <h1>Coordinación</h1>
+    <p>Panel operativo para registrar de forma rápida las actividades y movimientos diarios de la Coordinación de Sistematización y Ordenamiento de Datos.</p>
+
+    <div class="aviso">
+        <strong>Registro simplificado:</strong>
+        seleccione el tipo de actividad. Cada formulario reutilizará la información ya existente del SP, del usuario autenticado y de los módulos de SICODE para evitar duplicar datos.
+    </div>
+
+    <h2>¿Qué desea registrar?</h2>
+
+    <div class="grid coordinacion-grid">
+        {% for clave, item in tipos_registro.items() %}
+        <div class="tarjeta coordinacion-tarjeta">
+            <h2>{{ item.titulo }}</h2>
+            <p>{{ item.descripcion }}</p>
+            <a href="{{ url_for('coordinacion.registrar', tipo=clave) }}">Registrar {{ item.titulo|lower }}</a>
+        </div>
+        {% endfor %}
+    </div>
+
+    <h2>Accesos existentes de SICODE</h2>
+    <div class="grid">
+        <div class="tarjeta">
+            <h2>Expedientes</h2>
+            <p>Consultar o actualizar la ficha principal del SP sin crear registros duplicados.</p>
+            <a href="{{ url_for('expedientes.listado') }}">Ir a expedientes</a>
+        </div>
+
+        <div class="tarjeta">
+            <h2>Alertas</h2>
+            <p>Consultar pendientes, observaciones e incidencias detectadas por el sistema.</p>
+            <a href="{{ url_for('alertas.listado') }}">Ir a alertas</a>
+        </div>
+
+        <div class="tarjeta">
+            <h2>Bitácora</h2>
+            <p>Consultar la trazabilidad de las acciones ejecutadas dentro de SICODE.</p>
+            <a href="{{ url_for('bitacora.listado') }}">Ir a bitácora</a>
+        </div>
+    </div>
+</section>
+{% endblock %}
