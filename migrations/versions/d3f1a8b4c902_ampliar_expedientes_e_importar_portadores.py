@@ -59,7 +59,6 @@ def upgrade():
         sa.Column("creado_en", sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(["usuario_id"], ["usuarios.id"]),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("archivo_hash"),
     )
     op.create_index(
         op.f("ix_importaciones_portadores_archivo_hash"),
