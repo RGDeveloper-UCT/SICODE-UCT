@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models.alerta import Alerta
 from app.models.bitacora import Bitacora
+from app.models.coordinacion import AnexoCoordinacion, MovimientoDispositivo, PagoCoordinacion
 from app.models.documento_expediente import DocumentoExpediente
 from app.models.expediente import Expediente
 from app.models.prestamo import PrestamoExpediente
@@ -95,18 +96,28 @@ def _resolver_alerta_vencimiento(session, prestamo):
         alerta.cerrada_por_id = None
 
 
+def _sincronizar_folios_recepcion(detalle):
+    registro = detalle.registro
+    if registro is not None and detalle.folios and not registro.folios_recepcion:
+        registro.folios_recepcion = detalle.folios
+
+
 def _antes_de_flush(session, _flush_context, _instances):
     for objeto in list(session.new):
         if isinstance(objeto, PrestamoExpediente):
             _validar_prestamo_nuevo(session, objeto)
         elif isinstance(objeto, DocumentoExpediente):
             _validar_documento_nuevo(session, objeto)
+        elif isinstance(objeto, (PagoCoordinacion, MovimientoDispositivo, AnexoCoordinacion)):
+            _sincronizar_folios_recepcion(objeto)
 
     for objeto in list(session.dirty):
         if isinstance(objeto, PrestamoExpediente):
             _resolver_alerta_vencimiento(session, objeto)
         elif isinstance(objeto, UbicacionFisica):
             _auditar_cambio_ubicacion(session, objeto)
+        elif isinstance(objeto, (PagoCoordinacion, MovimientoDispositivo, AnexoCoordinacion)):
+            _sincronizar_folios_recepcion(objeto)
 
 
 def registrar_eventos_integridad():

@@ -3,6 +3,9 @@ from app.models.coordinacion import AnexoCoordinacion, RegistroCoordinacion, Rem
 from app.services.sp_service import normalizar_sp
 
 
+TIPOS_ENTRANTES = {"PAGO", "INSTALACION", "DESINSTALACION", "ANEXO", "MONITOREO"}
+
+
 def ejecutar():
     hallazgos = []
 
@@ -17,6 +20,25 @@ def ejecutar():
             descripcion=f"Registro operativo en estado '{registro.estado}'. SP: {registro.no_sp_referencia or 'Sin SP'}.",
             recomendacion="Completar o vincular la información pendiente desde Coordinación.",
         ))
+
+    for registro in RegistroCoordinacion.query.filter(RegistroCoordinacion.tipo.in_(TIPOS_ENTRANTES)).all():
+        # Los importados históricos no siempre contienen esta información; se
+        # advierte, pero no se inventa ni bloquea la conservación del histórico.
+        faltantes = []
+        if not registro.persona_entrega:
+            faltantes.append("quién entrega/remite")
+        if not registro.folios_recepcion:
+            faltantes.append("folios recibidos")
+        if faltantes and registro.origen_registro == "MANUAL":
+            hallazgos.append(HallazgoIntegridad(
+                codigo="COORD-RECEP-001",
+                severidad="advertencia",
+                modulo="Coordinación",
+                entidad="RegistroCoordinacion",
+                registro=f"Registro {registro.id} · {registro.tipo}",
+                descripcion="Recepción manual incompleta: falta " + " y ".join(faltantes) + ".",
+                recomendacion="Completar los metadatos de recepción si la información está disponible.",
+            ))
 
     for registro in RegistroCoordinacion.query.filter(RegistroCoordinacion.expediente_id.isnot(None)).all():
         if registro.no_sp_referencia and normalizar_sp(registro.no_sp_referencia) != normalizar_sp(registro.expediente.no_sp):

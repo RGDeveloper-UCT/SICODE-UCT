@@ -29,5 +29,6 @@
         {% with mensajes = get_flashed_messages(with_categories=true) %}{% if mensajes %}<div class="mensajes">{% for categoria, mensaje in mensajes %}<div class="alerta alerta-{{ categoria }}">{{ mensaje }}</div>{% endfor %}</div>{% endif %}{% endwith %}
         {% block content %}{% endblock %}
     </main>
+    <footer class="pie-sicode">SICODE-UCT · versión {{ sicode_version }}</footer>
 </body>
 </html>

@@ -1,40 +1,47 @@
 import platform
-import os
 import shutil
-import subprocess
-from datetime import datetime
-from pathlib import Path
-from functools import wraps
 
-from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, send_file
-from flask_login import login_required, current_user
+from flask import Blueprint, current_app, flash, redirect, render_template, request, send_file, url_for
+from flask_login import current_user, login_required
 from sqlalchemy import or_, text
 from werkzeug.security import generate_password_hash
 
 from app import db
-from app.models.usuario import Usuario
-from app.models.expediente import Expediente
-from app.models.alerta import Alerta
-from app.models.prestamo import PrestamoExpediente
-from app.models.bitacora import Bitacora
 from app.forms.usuario_admin_form import (
+    CambiarPasswordUsuarioForm,
     UsuarioCrearForm,
     UsuarioEditarForm,
-    CambiarPasswordUsuarioForm,
+)
+from app.models.alerta import Alerta
+from app.models.bitacora import Bitacora
+from app.models.expediente import Expediente
+from app.models.prestamo import PrestamoExpediente
+from app.models.usuario import Usuario
+from app.security import admin_required
+from app.services.backup_service import (
+    BackupError,
+    generar_backup as generar_backup_db,
+    listar_backups,
+    obtener_directorio_backups,
+    resolver_backup,
 )
 from app.services.bitacora_service import registrar_bitacora
+
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
 
-def admin_required(funcion):
-    @wraps(funcion)
-    def wrapper(*args, **kwargs):
-        if current_user.rol != "administrador":
-            flash("No tiene permisos para acceder a este módulo.", "danger")
-            return redirect(url_for("dashboard.inicio"))
-        return funcion(*args, **kwargs)
-    return wrapper
+def _normalizar_usuario(valor):
+    return (valor or "").strip().lower()
+
+
+def _normalizar_correo(valor):
+    texto = (valor or "").strip().lower()
+    return texto or None
+
+
+def _administradores_activos():
+    return Usuario.query.filter_by(rol="administrador", activo=True).count()
 
 
 @admin_bp.route("/usuarios")
@@ -46,31 +53,23 @@ def usuarios():
     filtro_activo = request.args.get("activo", "").strip()
 
     consulta = Usuario.query
-
     if busqueda:
         filtro = f"%{busqueda}%"
-        consulta = consulta.filter(
-            or_(
-                Usuario.nombre.ilike(filtro),
-                Usuario.usuario.ilike(filtro),
-                Usuario.correo.ilike(filtro),
-            )
-        )
-
+        consulta = consulta.filter(or_(
+            Usuario.nombre.ilike(filtro),
+            Usuario.usuario.ilike(filtro),
+            Usuario.correo.ilike(filtro),
+        ))
     if filtro_rol:
         consulta = consulta.filter(Usuario.rol == filtro_rol)
-
     if filtro_activo == "activo":
-        consulta = consulta.filter(Usuario.activo == True)
-
+        consulta = consulta.filter(Usuario.activo.is_(True))
     elif filtro_activo == "inactivo":
-        consulta = consulta.filter(Usuario.activo == False)
-
-    usuarios = consulta.order_by(Usuario.nombre.asc()).all()
+        consulta = consulta.filter(Usuario.activo.is_(False))
 
     return render_template(
         "admin/usuarios.html",
-        usuarios=usuarios,
+        usuarios=consulta.order_by(Usuario.nombre.asc()).all(),
         busqueda=busqueda,
         filtro_rol=filtro_rol,
         filtro_activo=filtro_activo,
@@ -82,42 +81,39 @@ def usuarios():
 @admin_required
 def nuevo_usuario():
     form = UsuarioCrearForm()
-
     if form.validate_on_submit():
-        usuario_existente = Usuario.query.filter_by(usuario=form.usuario.data.strip()).first()
+        usuario_texto = _normalizar_usuario(form.usuario.data)
+        correo = _normalizar_correo(form.correo.data)
 
-        if usuario_existente:
+        if Usuario.query.filter_by(usuario=usuario_texto).first():
             flash("Ya existe un usuario con ese nombre de usuario.", "danger")
             return render_template("admin/formulario_usuario.html", form=form, modo="crear")
-
-        correo_limpio = form.correo.data.strip() if form.correo.data else None
-
-        if correo_limpio:
-            correo_existente = Usuario.query.filter_by(correo=correo_limpio).first()
-            if correo_existente:
-                flash("Ya existe un usuario con ese correo.", "danger")
-                return render_template("admin/formulario_usuario.html", form=form, modo="crear")
+        if correo and Usuario.query.filter_by(correo=correo).first():
+            flash("Ya existe un usuario con ese correo.", "danger")
+            return render_template("admin/formulario_usuario.html", form=form, modo="crear")
 
         nuevo = Usuario(
             nombre=form.nombre.data.strip(),
-            usuario=form.usuario.data.strip(),
-            correo=correo_limpio,
+            usuario=usuario_texto,
+            correo=correo,
             rol=form.rol.data,
             activo=True,
             password_hash=generate_password_hash(form.password.data, method="pbkdf2:sha256"),
         )
-
         db.session.add(nuevo)
-        db.session.commit()
-
+        db.session.flush()
         registrar_bitacora(
             accion="CREAR_USUARIO",
             modulo="Administración",
-            descripcion=f"Se creó el usuario {nuevo.usuario} con rol {nuevo.rol}.",
+            descripcion=f"Se creó el usuario {nuevo.usuario} con rol {nuevo.rol}; contraseña temporal obligatoria.",
             usuario_id=current_user.id,
+            entidad="Usuario",
+            entidad_id=nuevo.id,
+            datos_posteriores={"usuario": nuevo.usuario, "rol": nuevo.rol, "activo": True, "debe_cambiar_password": True},
+            commit=False,
         )
-
-        flash("Usuario creado correctamente.", "success")
+        db.session.commit()
+        flash("Usuario creado. Deberá cambiar su contraseña temporal al iniciar sesión.", "success")
         return redirect(url_for("admin.usuarios"))
 
     return render_template("admin/formulario_usuario.html", form=form, modo="crear")
@@ -131,43 +127,39 @@ def editar_usuario(usuario_id):
     form = UsuarioEditarForm(obj=usuario)
 
     if form.validate_on_submit():
-        usuario_existente = (
-            Usuario.query
-            .filter(Usuario.usuario == form.usuario.data.strip(), Usuario.id != usuario.id)
-            .first()
-        )
+        nuevo_usuario = _normalizar_usuario(form.usuario.data)
+        nuevo_correo = _normalizar_correo(form.correo.data)
+        nuevo_rol = form.rol.data
 
-        if usuario_existente:
+        if Usuario.query.filter(Usuario.usuario == nuevo_usuario, Usuario.id != usuario.id).first():
             flash("Ya existe otro usuario con ese nombre de usuario.", "danger")
             return render_template("admin/formulario_usuario.html", form=form, modo="editar", usuario=usuario)
+        if nuevo_correo and Usuario.query.filter(Usuario.correo == nuevo_correo, Usuario.id != usuario.id).first():
+            flash("Ya existe otro usuario con ese correo.", "danger")
+            return render_template("admin/formulario_usuario.html", form=form, modo="editar", usuario=usuario)
 
-        correo_limpio = form.correo.data.strip() if form.correo.data else None
+        if usuario.rol == "administrador" and usuario.activo and nuevo_rol != "administrador" and _administradores_activos() <= 1:
+            flash("No puede quitar el rol al último administrador activo.", "danger")
+            return render_template("admin/formulario_usuario.html", form=form, modo="editar", usuario=usuario)
 
-        if correo_limpio:
-            correo_existente = (
-                Usuario.query
-                .filter(Usuario.correo == correo_limpio, Usuario.id != usuario.id)
-                .first()
-            )
-
-            if correo_existente:
-                flash("Ya existe otro usuario con ese correo.", "danger")
-                return render_template("admin/formulario_usuario.html", form=form, modo="editar", usuario=usuario)
-
+        anteriores = {"nombre": usuario.nombre, "usuario": usuario.usuario, "correo": usuario.correo, "rol": usuario.rol}
         usuario.nombre = form.nombre.data.strip()
-        usuario.usuario = form.usuario.data.strip()
-        usuario.correo = correo_limpio
-        usuario.rol = form.rol.data
-
-        db.session.commit()
+        usuario.usuario = nuevo_usuario
+        usuario.correo = nuevo_correo
+        usuario.rol = nuevo_rol
 
         registrar_bitacora(
             accion="EDITAR_USUARIO",
             modulo="Administración",
             descripcion=f"Se editó el usuario {usuario.usuario}.",
             usuario_id=current_user.id,
+            entidad="Usuario",
+            entidad_id=usuario.id,
+            datos_anteriores=anteriores,
+            datos_posteriores={"nombre": usuario.nombre, "usuario": usuario.usuario, "correo": usuario.correo, "rol": usuario.rol},
+            commit=False,
         )
-
+        db.session.commit()
         flash("Usuario actualizado correctamente.", "success")
         return redirect(url_for("admin.usuarios"))
 
@@ -180,19 +172,21 @@ def editar_usuario(usuario_id):
 def cambiar_password_usuario(usuario_id):
     usuario = Usuario.query.get_or_404(usuario_id)
     form = CambiarPasswordUsuarioForm()
-
     if form.validate_on_submit():
         usuario.password_hash = generate_password_hash(form.password.data, method="pbkdf2:sha256")
-        db.session.commit()
-
+        # El validador del modelo marca la nueva credencial como temporal.
         registrar_bitacora(
             accion="CAMBIAR_PASSWORD_USUARIO",
             modulo="Administración",
-            descripcion=f"Se actualizó la contraseña temporal del usuario {usuario.usuario}.",
+            descripcion=f"Se asignó una nueva contraseña temporal al usuario {usuario.usuario}.",
             usuario_id=current_user.id,
+            entidad="Usuario",
+            entidad_id=usuario.id,
+            datos_posteriores={"debe_cambiar_password": True},
+            commit=False,
         )
-
-        flash("Contraseña actualizada correctamente.", "success")
+        db.session.commit()
+        flash("Contraseña temporal actualizada. El usuario deberá cambiarla en su próximo acceso.", "success")
         return redirect(url_for("admin.usuarios"))
 
     return render_template("admin/cambiar_password.html", form=form, usuario=usuario)
@@ -207,17 +201,23 @@ def desactivar_usuario(usuario_id):
     if usuario.id == current_user.id:
         flash("No puede desactivar su propio usuario mientras está en sesión.", "danger")
         return redirect(url_for("admin.usuarios"))
+    if usuario.rol == "administrador" and usuario.activo and _administradores_activos() <= 1:
+        flash("No puede desactivar al último administrador activo.", "danger")
+        return redirect(url_for("admin.usuarios"))
 
     usuario.activo = False
-    db.session.commit()
-
     registrar_bitacora(
         accion="DESACTIVAR_USUARIO",
         modulo="Administración",
         descripcion=f"Se desactivó el usuario {usuario.usuario}.",
         usuario_id=current_user.id,
+        entidad="Usuario",
+        entidad_id=usuario.id,
+        datos_anteriores={"activo": True},
+        datos_posteriores={"activo": False},
+        commit=False,
     )
-
+    db.session.commit()
     flash("Usuario desactivado correctamente.", "success")
     return redirect(url_for("admin.usuarios"))
 
@@ -227,111 +227,49 @@ def desactivar_usuario(usuario_id):
 @admin_required
 def reactivar_usuario(usuario_id):
     usuario = Usuario.query.get_or_404(usuario_id)
-
     usuario.activo = True
-    db.session.commit()
-
     registrar_bitacora(
         accion="REACTIVAR_USUARIO",
         modulo="Administración",
         descripcion=f"Se reactivó el usuario {usuario.usuario}.",
         usuario_id=current_user.id,
+        entidad="Usuario",
+        entidad_id=usuario.id,
+        datos_anteriores={"activo": False},
+        datos_posteriores={"activo": True},
+        commit=False,
     )
-
+    db.session.commit()
     flash("Usuario reactivado correctamente.", "success")
     return redirect(url_for("admin.usuarios"))
-
-
-def obtener_directorio_backups():
-    directorio = Path(current_app.root_path).parent / "backups"
-    directorio.mkdir(parents=True, exist_ok=True)
-    return directorio
 
 
 @admin_bp.route("/backups")
 @login_required
 @admin_required
 def backups():
-    directorio = obtener_directorio_backups()
-
-    archivos = []
-
-    for archivo in directorio.glob("backup_sicode_uct_*.sql"):
-        stat = archivo.stat()
-        archivos.append({
-            "nombre": archivo.name,
-            "tamano_mb": round(stat.st_size / (1024 * 1024), 2),
-            "modificado": datetime.fromtimestamp(stat.st_mtime),
-        })
-
-    archivos = sorted(archivos, key=lambda item: item["modificado"], reverse=True)
-
-    return render_template("admin/backups.html", archivos=archivos)
+    return render_template("admin/backups.html", archivos=listar_backups())
 
 
 @admin_bp.route("/backups/generar", methods=["POST"])
 @login_required
 @admin_required
 def generar_backup():
-    database_url = (
-        current_app.config.get("SQLALCHEMY_DATABASE_URI")
-        or os.getenv("DATABASE_URL")
-    )
-
-    if not database_url:
-        flash("No se encontró la configuración de conexión a la base de datos.", "danger")
-        return redirect(url_for("admin.backups"))
-
-    pg_dump_path = shutil.which("pg_dump")
-
-    if not pg_dump_path:
-        flash("No se encontró pg_dump en el sistema. Verifique la instalación de PostgreSQL.", "danger")
-        return redirect(url_for("admin.backups"))
-
-    directorio = obtener_directorio_backups()
-    marca_tiempo = datetime.now().strftime("%Y%m%d_%H%M%S")
-    nombre_archivo = f"backup_sicode_uct_{marca_tiempo}.sql"
-    ruta_backup = directorio / nombre_archivo
-
-    comando = [
-        pg_dump_path,
-        "--dbname", database_url,
-        "--file", str(ruta_backup),
-        "--format", "plain",
-        "--encoding", "UTF8",
-        "--no-owner",
-        "--no-privileges",
-    ]
-
     try:
-        resultado = subprocess.run(
-            comando,
-            capture_output=True,
-            text=True,
-            timeout=180,
-        )
-
-    except subprocess.TimeoutExpired:
-        flash("El respaldo tardó demasiado y fue cancelado.", "danger")
-        return redirect(url_for("admin.backups"))
-
-    except Exception as error:
-        flash(f"No se pudo generar el respaldo: {error}", "danger")
-        return redirect(url_for("admin.backups"))
-
-    if resultado.returncode != 0:
-        mensaje_error = resultado.stderr or "Error desconocido al ejecutar pg_dump."
-        flash(f"No se pudo generar el respaldo: {mensaje_error}", "danger")
+        ruta = generar_backup_db(current_app.config.get("SQLALCHEMY_DATABASE_URI"))
+    except BackupError as error:
+        flash(str(error), "danger")
         return redirect(url_for("admin.backups"))
 
     registrar_bitacora(
         accion="GENERAR_BACKUP_DB",
         modulo="Administración",
-        descripcion=f"Se generó respaldo de base de datos: {nombre_archivo}.",
+        descripcion=f"Se generó y validó el respaldo de base de datos: {ruta.name}.",
         usuario_id=current_user.id,
+        entidad="Backup",
+        entidad_id=ruta.name,
     )
-
-    flash("Respaldo generado correctamente.", "success")
+    flash("Respaldo generado y validado correctamente.", "success")
     return redirect(url_for("admin.backups"))
 
 
@@ -339,34 +277,21 @@ def generar_backup():
 @login_required
 @admin_required
 def descargar_backup(nombre_archivo):
-    if not nombre_archivo.startswith("backup_sicode_uct_") or not nombre_archivo.endswith(".sql"):
-        flash("Nombre de archivo no permitido.", "danger")
-        return redirect(url_for("admin.backups"))
-
-    directorio = obtener_directorio_backups()
-    ruta_backup = (directorio / nombre_archivo).resolve()
-
-    if ruta_backup.parent != directorio.resolve():
-        flash("Ruta de archivo no permitida.", "danger")
-        return redirect(url_for("admin.backups"))
-
-    if not ruta_backup.exists():
-        flash("El respaldo solicitado no existe.", "danger")
+    try:
+        ruta = resolver_backup(nombre_archivo)
+    except BackupError as error:
+        flash(str(error), "danger")
         return redirect(url_for("admin.backups"))
 
     registrar_bitacora(
         accion="DESCARGAR_BACKUP_DB",
         modulo="Administración",
-        descripcion=f"Se descargó respaldo de base de datos: {nombre_archivo}.",
+        descripcion=f"Se descargó respaldo de base de datos: {ruta.name}.",
         usuario_id=current_user.id,
+        entidad="Backup",
+        entidad_id=ruta.name,
     )
-
-    return send_file(
-        ruta_backup,
-        as_attachment=True,
-        download_name=nombre_archivo,
-        mimetype="application/sql",
-    )
+    return send_file(ruta, as_attachment=True, download_name=ruta.name, mimetype="application/sql")
 
 
 @admin_bp.route("/sistema")
@@ -375,31 +300,18 @@ def descargar_backup(nombre_archivo):
 def sistema():
     estado_db = "Correcta"
     detalle_db = "Conexión activa con PostgreSQL."
-
     try:
         db.session.execute(text("SELECT 1")).scalar()
-    except Exception as error:
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Error de PostgreSQL al consultar estado del sistema")
         estado_db = "Error"
-        detalle_db = str(error)
+        detalle_db = "No fue posible validar PostgreSQL. Revise el log del servidor."
 
+    archivos = listar_backups()
+    ultimo_backup = archivos[0] if archivos else None
     directorio_backups = obtener_directorio_backups()
-    backups = list(directorio_backups.glob("backup_sicode_uct_*.sql"))
-
-    ultimo_backup = None
-
-    if backups:
-        ultimo_archivo = max(backups, key=lambda archivo: archivo.stat().st_mtime)
-        ultimo_backup = {
-            "nombre": ultimo_archivo.name,
-            "tamano_mb": round(ultimo_archivo.stat().st_size / (1024 * 1024), 2),
-            "modificado": datetime.fromtimestamp(ultimo_archivo.stat().st_mtime),
-        }
-
     uso_disco = shutil.disk_usage(directorio_backups)
-
-    espacio_total_gb = round(uso_disco.total / (1024 ** 3), 2)
-    espacio_usado_gb = round(uso_disco.used / (1024 ** 3), 2)
-    espacio_libre_gb = round(uso_disco.free / (1024 ** 3), 2)
 
     indicadores = {
         "usuarios": Usuario.query.count(),
@@ -411,7 +323,7 @@ def sistema():
         "prestamos": PrestamoExpediente.query.count(),
         "prestamos_activos": PrestamoExpediente.query.filter_by(estado="En préstamo").count(),
         "eventos_bitacora": Bitacora.query.count(),
-        "backups": len(backups),
+        "backups": len(archivos),
     }
 
     registrar_bitacora(
@@ -428,8 +340,8 @@ def sistema():
         indicadores=indicadores,
         directorio_backups=directorio_backups,
         ultimo_backup=ultimo_backup,
-        espacio_total_gb=espacio_total_gb,
-        espacio_usado_gb=espacio_usado_gb,
-        espacio_libre_gb=espacio_libre_gb,
+        espacio_total_gb=round(uso_disco.total / (1024 ** 3), 2),
+        espacio_usado_gb=round(uso_disco.used / (1024 ** 3), 2),
+        espacio_libre_gb=round(uso_disco.free / (1024 ** 3), 2),
         version_python=platform.python_version(),
     )

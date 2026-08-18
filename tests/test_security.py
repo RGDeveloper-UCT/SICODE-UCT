@@ -31,6 +31,7 @@ def app():
             usuario="admin",
             correo="admin@uct.local",
             password_hash=generate_password_hash("Password123", method="pbkdf2:sha256"),
+            debe_cambiar_password=False,
             rol="administrador",
             activo=True,
         )
@@ -39,6 +40,7 @@ def app():
             usuario="usuario",
             correo="usuario@uct.local",
             password_hash=generate_password_hash("Password123", method="pbkdf2:sha256"),
+            debe_cambiar_password=False,
             rol="usuario_autorizado",
             activo=True,
         )
@@ -98,6 +100,28 @@ def test_usuario_desactivado_pierde_sesion(app, client):
     assert "/login" in respuesta.headers["Location"]
 
 
+def test_password_temporal_obliga_cambio(app, client):
+    with app.app_context():
+        temporal = Usuario(
+            nombre="Temporal",
+            usuario="TEMPORAL",
+            correo="TEMPORAL@UCT.LOCAL",
+            password_hash=generate_password_hash("Temporal123", method="pbkdf2:sha256"),
+            rol="usuario_autorizado",
+            activo=True,
+        )
+        db.session.add(temporal)
+        db.session.commit()
+        assert temporal.usuario == "temporal"
+        assert temporal.correo == "temporal@uct.local"
+        assert temporal.debe_cambiar_password is True
+
+    assert login(client, usuario="temporal", password="Temporal123").status_code == 302
+    respuesta = client.get("/dashboard", follow_redirects=False)
+    assert respuesta.status_code == 302
+    assert "/mi-cuenta/cambiar-password" in respuesta.headers["Location"]
+
+
 def test_portadores_requiere_administrador(client):
     assert login(client, usuario="usuario").status_code == 302
     respuesta = client.get("/expedientes/portadores/importar", follow_redirects=False)
@@ -129,4 +153,7 @@ def test_post_mutante_con_csrf_funciona(app, client):
 def test_health_no_expone_detalles(client):
     respuesta = client.get("/health")
     assert respuesta.status_code == 200
-    assert respuesta.get_json() == {"status": "ok"}
+    cuerpo = respuesta.get_json()
+    assert cuerpo["status"] == "ok"
+    assert "version" in cuerpo
+    assert set(cuerpo) == {"status", "version"}

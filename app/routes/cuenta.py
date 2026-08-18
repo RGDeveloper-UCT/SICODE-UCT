@@ -1,10 +1,11 @@
-from flask import Blueprint, render_template, redirect, url_for, flash
-from flask_login import login_required, current_user
+from flask import Blueprint, flash, redirect, render_template, url_for
+from flask_login import current_user, login_required
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app import db
 from app.forms.cuenta_form import CambiarPasswordPropiaForm
 from app.services.bitacora_service import registrar_bitacora
+
 
 cuenta_bp = Blueprint("cuenta", __name__, url_prefix="/mi-cuenta")
 
@@ -29,23 +30,32 @@ def cambiar_password():
                 descripcion=f"Intento fallido de cambio de contraseña del usuario {current_user.usuario}.",
                 usuario_id=current_user.id,
             )
-            return render_template("cuenta/cambiar_password.html", form=form)
+            return render_template("cuenta/cambiar_password.html", form=form, cambio_obligatorio=current_user.debe_cambiar_password)
 
-        current_user.password_hash = generate_password_hash(
-            form.nueva_password.data,
-            method="pbkdf2:sha256",
-        )
+        if check_password_hash(current_user.password_hash, form.nueva_password.data):
+            flash("La nueva contraseña debe ser diferente de la contraseña actual.", "danger")
+            return render_template("cuenta/cambiar_password.html", form=form, cambio_obligatorio=current_user.debe_cambiar_password)
 
-        db.session.commit()
+        current_user.password_hash = generate_password_hash(form.nueva_password.data, method="pbkdf2:sha256")
+        current_user.debe_cambiar_password = False
 
         registrar_bitacora(
             accion="CAMBIAR_PASSWORD_PROPIO",
             modulo="Mi cuenta",
             descripcion=f"El usuario {current_user.usuario} cambió su propia contraseña.",
             usuario_id=current_user.id,
+            entidad="Usuario",
+            entidad_id=current_user.id,
+            datos_posteriores={"debe_cambiar_password": False},
+            commit=False,
         )
+        db.session.commit()
 
         flash("Contraseña actualizada correctamente.", "success")
         return redirect(url_for("cuenta.detalle"))
 
-    return render_template("cuenta/cambiar_password.html", form=form)
+    return render_template(
+        "cuenta/cambiar_password.html",
+        form=form,
+        cambio_obligatorio=current_user.debe_cambiar_password,
+    )

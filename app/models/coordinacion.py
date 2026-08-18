@@ -13,6 +13,13 @@ class RegistroCoordinacion(db.Model):
     rc = db.Column(db.String(80), nullable=True, index=True)
     providencia = db.Column(db.String(120), nullable=True, index=True)
     fecha_recepcion = db.Column(db.Date, nullable=True, index=True)
+
+    # Metadatos comunes de recepción. El usuario de sesión es quien recibe;
+    # persona_entrega identifica quién trajo/remitió la documentación y
+    # folios_recepcion centraliza el dato común sin depender del subtipo.
+    persona_entrega = db.Column(db.String(180), nullable=True, index=True)
+    folios_recepcion = db.Column(db.String(80), nullable=True)
+
     usuario_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False, index=True)
     usuario_origen = db.Column(db.String(120), nullable=True)
     estado = db.Column(db.String(50), nullable=False, default="Completo", index=True)
@@ -39,6 +46,7 @@ class PagoCoordinacion(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     registro_id = db.Column(db.Integer, db.ForeignKey("registros_coordinacion.id"), nullable=False, unique=True)
+    # Legacy compatible: nuevos flujos usan RegistroCoordinacion.folios_recepcion.
     folios = db.Column(db.String(80), nullable=True)
     periodo_desde = db.Column(db.Date, nullable=True)
     periodo_hasta = db.Column(db.Date, nullable=True)
@@ -56,6 +64,7 @@ class MovimientoDispositivo(db.Model):
     registro_id = db.Column(db.Integer, db.ForeignKey("registros_coordinacion.id"), nullable=False, unique=True)
     movimiento = db.Column(db.String(30), nullable=False)
     descripcion = db.Column(db.String(180), nullable=True)
+    # Legacy compatible: nuevos flujos usan RegistroCoordinacion.folios_recepcion.
     folios = db.Column(db.String(80), nullable=True)
 
     registro = db.relationship("RegistroCoordinacion", backref=db.backref("movimiento_dispositivo", uselist=False, cascade="all, delete-orphan"))
@@ -74,6 +83,7 @@ class AnexoCoordinacion(db.Model):
         index=True,
     )
     tipo_anexo = db.Column(db.String(120), nullable=True)
+    # Legacy compatible: nuevos flujos usan RegistroCoordinacion.folios_recepcion.
     folios = db.Column(db.String(80), nullable=True)
     escaneado = db.Column(db.Boolean, nullable=False, default=False)
     fecha_escaneado = db.Column(db.Date, nullable=True)

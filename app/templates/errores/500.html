@@ -1,0 +1,3 @@
+{% extends "base.html" %}
+{% block title %}Error interno — SICODE-UCT{% endblock %}
+{% block content %}<section class="panel"><h1>No fue posible completar la operación</h1><p>El sistema registró el error técnico. No repita cambios de datos hasta confirmar el estado de la operación.</p><a class="boton-secundario" href="{{ url_for('dashboard.inicio') }}">Volver al Dashboard</a></section>{% endblock %}
