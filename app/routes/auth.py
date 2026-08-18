@@ -1,12 +1,15 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request
-from flask_login import login_user, logout_user, login_required, current_user
+from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from flask_login import current_user, login_required, login_user, logout_user
 from werkzeug.security import check_password_hash
 
-from app.models.usuario import Usuario
 from app.forms.login_form import LoginForm
+from app.models.usuario import Usuario
+from app.security import es_url_interna
 from app.services.bitacora_service import registrar_bitacora
 
+
 auth_bp = Blueprint("auth", __name__)
+
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
@@ -23,6 +26,7 @@ def login():
 
         if usuario and check_password_hash(usuario.password_hash, password):
             login_user(usuario)
+            session.permanent = True
 
             registrar_bitacora(
                 accion="LOGIN_EXITOSO",
@@ -34,7 +38,7 @@ def login():
             flash("Inicio de sesión correcto.", "success")
 
             siguiente = request.args.get("next")
-            if siguiente:
+            if siguiente and es_url_interna(siguiente):
                 return redirect(siguiente)
 
             return redirect(url_for("dashboard.inicio"))
@@ -50,6 +54,7 @@ def login():
 
     return render_template("auth/login.html", form=form)
 
+
 @auth_bp.route("/logout")
 @login_required
 def logout():
@@ -64,5 +69,6 @@ def logout():
     )
 
     logout_user()
+    session.clear()
     flash("Sesión cerrada correctamente.", "info")
     return redirect(url_for("auth.login"))

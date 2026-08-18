@@ -17,13 +17,8 @@
                 estado=filtro_estado,
                 gravedad=filtro_gravedad,
                 tipo=filtro_tipo
-            ) }}">
-                Exportar Excel
-            </a>
-
-            <a class="boton-secundario" href="{{ url_for('dashboard.inicio') }}">
-                Volver al dashboard
-            </a>
+            ) }}">Exportar Excel</a>
+            <a class="boton-secundario" href="{{ url_for('dashboard.inicio') }}">Volver al dashboard</a>
         </div>
     </div>
 
@@ -32,52 +27,40 @@
             <label>Buscar</label>
             <input type="text" name="q" value="{{ busqueda }}" placeholder="Buscar por expediente, documento, título o descripción">
         </div>
-
         <div class="campo-filtro">
             <label>Estado</label>
             <select name="estado">
                 <option value="">Todos</option>
                 {% for estado in estados %}
-                    <option value="{{ estado }}" {% if filtro_estado == estado %}selected{% endif %}>
-                        {{ estado }}
-                    </option>
+                    <option value="{{ estado }}" {% if filtro_estado == estado %}selected{% endif %}>{{ estado }}</option>
                 {% endfor %}
             </select>
         </div>
-
         <div class="campo-filtro">
             <label>Gravedad</label>
             <select name="gravedad">
                 <option value="">Todas</option>
                 {% for gravedad in gravedades %}
-                    <option value="{{ gravedad }}" {% if filtro_gravedad == gravedad %}selected{% endif %}>
-                        {{ gravedad }}
-                    </option>
+                    <option value="{{ gravedad }}" {% if filtro_gravedad == gravedad %}selected{% endif %}>{{ gravedad }}</option>
                 {% endfor %}
             </select>
         </div>
-
         <div class="campo-filtro">
             <label>Tipo</label>
             <select name="tipo">
                 <option value="">Todos</option>
                 {% for tipo in tipos %}
-                    <option value="{{ tipo }}" {% if filtro_tipo == tipo %}selected{% endif %}>
-                        {{ tipo }}
-                    </option>
+                    <option value="{{ tipo }}" {% if filtro_tipo == tipo %}selected{% endif %}>{{ tipo }}</option>
                 {% endfor %}
             </select>
         </div>
-
         <div class="acciones-filtro">
             <button type="submit">Aplicar filtros</button>
             <a href="{{ url_for('alertas.listado') }}">Limpiar</a>
         </div>
     </form>
 
-    <p class="contador-resultados">
-        Alertas mostradas: <strong>{{ alertas|length }}</strong>
-    </p>
+    <p class="contador-resultados">Alertas mostradas: <strong>{{ alertas|length }}</strong></p>
 
     <div class="lista-alertas">
         {% for alerta in alertas %}
@@ -85,11 +68,8 @@
             <div class="alerta-cabecera">
                 <div>
                     <h2>{{ alerta.titulo }}</h2>
-                    <p>
-                        <strong>Tipo:</strong> {{ alerta.tipo_alerta }}
-                    </p>
+                    <p><strong>Tipo:</strong> {{ alerta.tipo_alerta }}</p>
                 </div>
-
                 <div class="alerta-badges">
                     {% if alerta.gravedad == "Alta" %}
                         <span class="badge badge-inactivo">Alta</span>
@@ -98,38 +78,17 @@
                     {% else %}
                         <span class="badge badge-activo">Baja</span>
                     {% endif %}
-
                     <span class="badge badge-neutral">{{ alerta.estado }}</span>
                 </div>
             </div>
 
             <div class="alerta-grid">
-                <div>
-                    <h3>Fecha</h3>
-                    <p>{{ alerta.creado_en.strftime('%d/%m/%Y %H:%M') }}</p>
-                </div>
-
+                <div><h3>Fecha</h3><p>{{ alerta.creado_en.strftime('%d/%m/%Y %H:%M') }}</p></div>
                 <div>
                     <h3>Expediente</h3>
-                    <p>
-                        <a href="{{ url_for('expedientes.detalle', expediente_id=alerta.expediente.id) }}">
-                            <strong>{{ alerta.expediente.no_sp }}</strong>
-                        </a>
-                        <br>
-                        {{ alerta.expediente.codigo_interno }}
-                    </p>
+                    <p><a href="{{ url_for('expedientes.detalle', expediente_id=alerta.expediente.id) }}"><strong>{{ alerta.expediente.no_sp }}</strong></a><br>{{ alerta.expediente.codigo_interno }}</p>
                 </div>
-
-                <div>
-                    <h3>Documento</h3>
-                    <p>
-                        {% if alerta.documento %}
-                            {{ alerta.documento.nombre_documento }}
-                        {% else %}
-                            No aplica
-                        {% endif %}
-                    </p>
-                </div>
+                <div><h3>Documento</h3><p>{{ alerta.documento.nombre_documento if alerta.documento else 'No aplica' }}</p></div>
             </div>
 
             <div class="alerta-descripcion">
@@ -139,36 +98,23 @@
 
             <div class="alerta-acciones">
                 <span class="titulo-acciones-alerta">Cambiar estado:</span>
-
-                {% if alerta.estado != "Abierta" %}
-                    <a class="boton-tabla boton-tabla-neutral" href="{{ url_for('alertas.cambiar_estado', alerta_id=alerta.id, nuevo_estado='Abierta') }}">
-                        Abierta
-                    </a>
-                {% endif %}
-
-                {% if alerta.estado != "En revisión" %}
-                    <a class="boton-tabla" href="{{ url_for('alertas.cambiar_estado', alerta_id=alerta.id, nuevo_estado='En revisión') }}">
-                        En revisión
-                    </a>
-                {% endif %}
-
-                {% if alerta.estado != "Corregida" %}
-                    <a class="boton-tabla boton-tabla-secundario" href="{{ url_for('alertas.cambiar_estado', alerta_id=alerta.id, nuevo_estado='Corregida') }}">
-                        Corregida
-                    </a>
-                {% endif %}
-
-                {% if alerta.estado != "Cerrada" %}
-                    <a class="boton-tabla boton-tabla-peligro" href="{{ url_for('alertas.cambiar_estado', alerta_id=alerta.id, nuevo_estado='Cerrada') }}">
-                        Cerrada
-                    </a>
-                {% endif %}
+                {% for estado_destino, clase in [
+                    ('Abierta', 'boton-tabla boton-tabla-neutral'),
+                    ('En revisión', 'boton-tabla'),
+                    ('Corregida', 'boton-tabla boton-tabla-secundario'),
+                    ('Cerrada', 'boton-tabla boton-tabla-peligro')
+                ] %}
+                    {% if alerta.estado != estado_destino %}
+                    <form method="POST" action="{{ url_for('alertas.cambiar_estado', alerta_id=alerta.id, nuevo_estado=estado_destino) }}" class="form-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="{{ clase }}">{{ estado_destino }}</button>
+                    </form>
+                    {% endif %}
+                {% endfor %}
             </div>
         </article>
         {% else %}
-        <div class="tarjeta">
-            <p>No hay alertas registradas con los filtros seleccionados.</p>
-        </div>
+        <div class="tarjeta"><p>No hay alertas registradas con los filtros seleccionados.</p></div>
         {% endfor %}
     </div>
 </section>

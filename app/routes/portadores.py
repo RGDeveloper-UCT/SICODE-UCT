@@ -11,6 +11,7 @@ from app.forms.importacion_portadores_form import (
     ImportarPortadoresForm,
 )
 from app.models.importacion_portadores import ImportacionPortadores
+from app.security import admin_required
 from app.services.bitacora_service import registrar_bitacora
 from app.services.importacion_portadores_service import (
     ErrorMantaPortadores,
@@ -38,6 +39,7 @@ def _carpeta_temporal():
 
 @portadores_bp.route("/importar", methods=["GET", "POST"])
 @login_required
+@admin_required
 def importar():
     form = ImportarPortadoresForm()
     resumen = None
@@ -62,10 +64,11 @@ def importar():
             ruta.unlink(missing_ok=True)
             meta.unlink(missing_ok=True)
             flash(str(error), "danger")
-        except Exception as error:
+        except Exception:
             ruta.unlink(missing_ok=True)
             meta.unlink(missing_ok=True)
-            flash(f"No fue posible analizar la manta: {error}", "danger")
+            current_app.logger.exception("Error al analizar manta de Portadores")
+            flash("No fue posible analizar la manta. Revise el formato e inténtelo nuevamente.", "danger")
 
     historial = (
         ImportacionPortadores.query
@@ -85,6 +88,7 @@ def importar():
 
 @portadores_bp.route("/importar/confirmar", methods=["POST"])
 @login_required
+@admin_required
 def confirmar_importacion():
     form = ConfirmarImportacionPortadoresForm()
     if not form.validate_on_submit():
@@ -129,8 +133,9 @@ def confirmar_importacion():
     except ErrorMantaPortadores as error:
         flash(str(error), "warning")
         return redirect(url_for("portadores.importar"))
-    except Exception as error:
-        flash(f"La sincronización fue cancelada y no se guardaron cambios: {error}", "danger")
+    except Exception:
+        current_app.logger.exception("Error al sincronizar manta de Portadores")
+        flash("La sincronización fue cancelada y no se guardaron cambios.", "danger")
         return redirect(url_for("portadores.importar"))
     finally:
         ruta.unlink(missing_ok=True)
