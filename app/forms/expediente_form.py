@@ -1,13 +1,14 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, SelectField, SubmitField
+from wtforms import SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Length, Optional
+
 
 class ExpedienteForm(FlaskForm):
     codigo_interno = StringField(
         "Código interno",
         validators=[
             DataRequired(message="Debe ingresar el código interno."),
-            Length(max=50)
+            Length(max=50),
         ],
     )
 
@@ -15,16 +16,13 @@ class ExpedienteForm(FlaskForm):
         "No. de SP",
         validators=[
             DataRequired(message="Debe ingresar el No. de SP."),
-            Length(max=50)
+            Length(max=50),
         ],
     )
 
     nombre_referencia = StringField(
         "Nombre de referencia",
-        validators=[
-            Optional(),
-            Length(max=150)
-        ],
+        validators=[Optional(), Length(max=150)],
     )
 
     estado_administrativo = SelectField(
@@ -32,8 +30,6 @@ class ExpedienteForm(FlaskForm):
         choices=[
             ("Activo", "Activo"),
             ("En revisión", "En revisión"),
-            ("En préstamo", "En préstamo"),
-            ("Devuelto", "Devuelto"),
             ("Cerrado", "Cerrado"),
         ],
         default="Activo",
@@ -59,5 +55,4 @@ class ExpedienteForm(FlaskForm):
     posicion = StringField("Posición", validators=[Optional(), Length(max=80)])
 
     observaciones = TextAreaField("Observaciones", validators=[Optional()])
-
     submit = SubmitField("Guardar expediente")
