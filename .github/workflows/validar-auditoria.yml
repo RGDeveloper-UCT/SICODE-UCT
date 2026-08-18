@@ -12,6 +12,7 @@ jobs:
     env:
       DATABASE_URL: "sqlite:////tmp/sicode_auditoria_test.db"
       SECRET_KEY: "ci-sicode-auditoria-segura"
+      PYTHONPATH: "."
     steps:
       - name: Obtener código
         uses: actions/checkout@v4
