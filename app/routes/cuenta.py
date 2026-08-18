@@ -30,11 +30,13 @@ def cambiar_password():
                 descripcion=f"Intento fallido de cambio de contraseña del usuario {current_user.usuario}.",
                 usuario_id=current_user.id,
             )
-            return render_template("cuenta/cambiar_password.html", form=form)
+            return render_template("cuenta/cambiar_password.html", form=form, cambio_obligatorio=current_user.debe_cambiar_password)
+
+        if check_password_hash(current_user.password_hash, form.nueva_password.data):
+            flash("La nueva contraseña debe ser diferente de la contraseña actual.", "danger")
+            return render_template("cuenta/cambiar_password.html", form=form, cambio_obligatorio=current_user.debe_cambiar_password)
 
         current_user.password_hash = generate_password_hash(form.nueva_password.data, method="pbkdf2:sha256")
-        # El validador del modelo marca toda asignación como temporal. En este
-        # flujo el propio usuario la eligió y por eso queda como definitiva.
         current_user.debe_cambiar_password = False
 
         registrar_bitacora(
