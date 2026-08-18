@@ -39,6 +39,7 @@ def create_app():
         Alerta,
         PrestamoExpediente,
         ImportacionPortadores,
+        VerificacionExpediente,
     )
     from app.services.integridad_events import registrar_eventos_integridad
     from app.services.version_service import obtener_version
@@ -56,14 +57,14 @@ def create_app():
         return usuario
 
     from app.routes import (
-        auth_bp, dashboard_bp, expedientes_bp, expediente_fisico_bp, bitacora_bp,
-        indice_documental_bp, alertas_bp, prestamos_bp, admin_bp, integridad_bp,
-        busqueda_bp, cuenta_bp, coordinacion_bp, portadores_bp,
+        auth_bp, dashboard_bp, expedientes_bp, expediente_fisico_bp, verificaciones_bp,
+        bitacora_bp, indice_documental_bp, alertas_bp, prestamos_bp, admin_bp,
+        integridad_bp, busqueda_bp, cuenta_bp, coordinacion_bp, portadores_bp,
     )
     for blueprint in (
-        auth_bp, dashboard_bp, expedientes_bp, expediente_fisico_bp, bitacora_bp,
-        indice_documental_bp, alertas_bp, prestamos_bp, admin_bp, integridad_bp,
-        busqueda_bp, cuenta_bp, coordinacion_bp, portadores_bp,
+        auth_bp, dashboard_bp, expedientes_bp, expediente_fisico_bp, verificaciones_bp,
+        bitacora_bp, indice_documental_bp, alertas_bp, prestamos_bp, admin_bp,
+        integridad_bp, busqueda_bp, cuenta_bp, coordinacion_bp, portadores_bp,
     ):
         app.register_blueprint(blueprint)
 
