@@ -1,0 +1,105 @@
+from datetime import datetime
+
+from flask import has_request_context, request
+from flask_login import current_user
+from sqlalchemy import event, inspect, select
+from sqlalchemy.orm import Session
+
+from app.models.alerta import Alerta
+from app.models.bitacora import Bitacora
+from app.models.expediente import Expediente
+from app.models.prestamo import PrestamoExpediente
+from app.models.ubicacion import UbicacionFisica
+
+
+_REGISTRADO = False
+_CAMPOS_UBICACION = ("archivador", "sicoin", "estante", "caja", "modulo", "posicion", "observaciones")
+
+
+def _usuario_actual_id():
+    if has_request_context() and current_user.is_authenticated:
+        return current_user.id
+    return None
+
+
+def _auditar_cambio_ubicacion(session, ubicacion):
+    estado = inspect(ubicacion)
+    anteriores = {}
+    posteriores = {}
+
+    for campo in _CAMPOS_UBICACION:
+        historia = estado.attrs[campo].history
+        if not historia.has_changes():
+            continue
+        anteriores[campo] = historia.deleted[0] if historia.deleted else None
+        posteriores[campo] = historia.added[0] if historia.added else getattr(ubicacion, campo)
+
+    if not posteriores:
+        return
+
+    session.add(Bitacora(
+        usuario_id=_usuario_actual_id(),
+        expediente_id=ubicacion.expediente_id,
+        accion="CAMBIAR_UBICACION",
+        modulo="Expedientes",
+        descripcion="Se actualizó la ubicación física del expediente.",
+        entidad="UbicacionFisica",
+        entidad_id=str(ubicacion.id) if ubicacion.id else None,
+        datos_anteriores=anteriores,
+        datos_posteriores=posteriores,
+        ip_origen=request.remote_addr if has_request_context() else None,
+        user_agent=(request.user_agent.string[:255] if has_request_context() and request.user_agent else None),
+        creado_en=datetime.utcnow(),
+    ))
+
+
+def _validar_prestamo_nuevo(session, prestamo):
+    expediente = prestamo.expediente
+    if expediente is None and prestamo.expediente_id is not None:
+        expediente = session.get(Expediente, prestamo.expediente_id)
+
+    if expediente is None:
+        return
+    if not expediente.expediente_fisico_registrado:
+        raise ValueError("No se puede prestar un SP que todavía no tiene expediente físico registrado.")
+    if not expediente.activo:
+        raise ValueError("No se puede prestar un expediente inactivo.")
+
+
+def _resolver_alerta_vencimiento(session, prestamo):
+    estado = inspect(prestamo).attrs.estado.history
+    if not estado.has_changes() or prestamo.estado != "Devuelto":
+        return
+
+    alertas = session.execute(
+        select(Alerta).where(
+            Alerta.expediente_id == prestamo.expediente_id,
+            Alerta.tipo_alerta == "PRESTAMO_VENCIDO",
+            Alerta.estado.in_(["Abierta", "En revisión"]),
+        )
+    ).scalars().all()
+
+    for alerta in alertas:
+        alerta.estado = "Corregida"
+        alerta.cerrado_en = None
+        alerta.cerrada_por_id = None
+
+
+def _antes_de_flush(session, _flush_context, _instances):
+    for objeto in list(session.new):
+        if isinstance(objeto, PrestamoExpediente):
+            _validar_prestamo_nuevo(session, objeto)
+
+    for objeto in list(session.dirty):
+        if isinstance(objeto, PrestamoExpediente):
+            _resolver_alerta_vencimiento(session, objeto)
+        elif isinstance(objeto, UbicacionFisica):
+            _auditar_cambio_ubicacion(session, objeto)
+
+
+def registrar_eventos_integridad():
+    global _REGISTRADO
+    if _REGISTRADO:
+        return
+    event.listen(Session, "before_flush", _antes_de_flush)
+    _REGISTRADO = True
