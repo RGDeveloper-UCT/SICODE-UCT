@@ -1,4 +1,4 @@
-from flask import Blueprint, flash, redirect, request, session, url_for
+from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from werkzeug.security import check_password_hash
 
@@ -52,7 +52,7 @@ def login():
 
         flash("Usuario o contraseña incorrectos.", "danger")
 
-    return __import__("flask").render_template("auth/login.html", form=form)
+    return render_template("auth/login.html", form=form)
 
 
 @auth_bp.route("/logout")
