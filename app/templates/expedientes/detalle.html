@@ -12,6 +12,7 @@
             {% if expediente.expediente_fisico_registrado %}
                 <a class="boton-secundario" href="{{ url_for('expedientes.editar', expediente_id=expediente.id) }}">Editar expediente</a>
                 <a class="boton-secundario" href="{{ url_for('indice_documental.listado', expediente_id=expediente.id) }}">Índice documental</a>
+                <a class="boton-secundario" href="{{ url_for('verificaciones.expediente', expediente_id=expediente.id) }}">Verificaciones</a>
                 {% if expediente.activo and not expediente.prestamo_activo %}
                     <a class="boton-secundario" href="{{ url_for('prestamos.nuevo', expediente_id=expediente.id) }}">Registrar préstamo</a>
                 {% endif %}
@@ -34,6 +35,7 @@
         <div class="tarjeta indicador"><h2>Disponibilidad</h2><p class="numero-indicador texto-indicador">{{ expediente.disponibilidad }}</p></div>
         <div class="tarjeta indicador"><h2>Documentos activos</h2><p class="numero-indicador">{{ expediente.documentos_activos|length }}</p>{% if expediente.expediente_fisico_registrado %}<a href="{{ url_for('indice_documental.listado', expediente_id=expediente.id) }}">Ver índice</a>{% endif %}</div>
         <div class="tarjeta indicador"><h2>Folios registrados</h2><p class="numero-indicador">{{ expediente.total_folios_activos }}</p></div>
+        <div class="tarjeta indicador"><h2>Verificaciones</h2><p class="numero-indicador">{{ expediente.verificaciones|length }}</p>{% if expediente.expediente_fisico_registrado %}<a href="{{ url_for('verificaciones.expediente', expediente_id=expediente.id) }}">Ver historial</a>{% endif %}</div>
         <div class="tarjeta indicador"><h2>Alertas pendientes</h2><p class="numero-indicador indicador-alerta">{{ expediente.alertas_pendientes|length }}</p><a href="{{ url_for('alertas.listado', q=expediente.no_sp) }}">Ver alertas</a></div>
         <div class="tarjeta indicador"><h2>Préstamos activos</h2><p class="numero-indicador indicador-alerta">{{ expediente.prestamos_activos|length }}</p></div>
         <div class="tarjeta indicador"><h2>Préstamos vencidos</h2><p class="numero-indicador indicador-peligro">{{ expediente.prestamos_vencidos|length }}</p></div>
@@ -78,15 +80,15 @@
     <h2>Actividad relacionada de Coordinación</h2>
     <div class="tabla-contenedor">
         <table>
-            <thead><tr><th>Fecha</th><th>Tipo</th><th>RC</th><th>Providencia</th><th>Estado</th><th>Acción</th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Tipo</th><th>RC</th><th>Providencia</th><th>Entrega/remite</th><th>Estado</th><th>Acción</th></tr></thead>
             <tbody>
             {% for registro in expediente.registros_coordinacion|sort(attribute='creado_en', reverse=true) %}
                 <tr>
                     <td>{{ registro.fecha_recepcion.strftime('%d/%m/%Y') if registro.fecha_recepcion else 'Sin fecha' }}</td>
-                    <td>{{ registro.tipo }}</td><td>{{ registro.rc or '—' }}</td><td>{{ registro.providencia or '—' }}</td><td>{{ registro.estado }}</td>
+                    <td>{{ registro.tipo }}</td><td>{{ registro.rc or '—' }}</td><td>{{ registro.providencia or '—' }}</td><td>{{ registro.persona_entrega or '—' }}</td><td>{{ registro.estado }}</td>
                     <td><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
                 </tr>
-            {% else %}<tr><td colspan="6">No hay registros de Coordinación vinculados directamente a este SP.</td></tr>{% endfor %}
+            {% else %}<tr><td colspan="7">No hay registros de Coordinación vinculados directamente a este SP.</td></tr>{% endfor %}
             </tbody>
         </table>
     </div>
