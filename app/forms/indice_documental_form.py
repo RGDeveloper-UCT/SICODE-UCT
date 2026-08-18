@@ -1,16 +1,15 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, SelectField, IntegerField, SubmitField
-from wtforms.validators import DataRequired, Length, Optional, NumberRange
+from wtforms import HiddenField, IntegerField, SelectField, StringField, SubmitField, TextAreaField
+from wtforms.validators import DataRequired, Length, NumberRange, Optional
+
 
 class IndiceDocumentalForm(FlaskForm):
+    anexo_coordinacion_id = HiddenField("Anexo de Coordinación", validators=[Optional()])
+
     nombre_documento = StringField(
         "Nombre del documento",
-        validators=[
-            DataRequired(message="Debe ingresar el nombre del documento."),
-            Length(max=180)
-        ],
+        validators=[DataRequired(message="Debe ingresar el nombre del documento."), Length(max=180)],
     )
-
     tipo_documento = SelectField(
         "Tipo de documento",
         choices=[
@@ -24,23 +23,14 @@ class IndiceDocumentalForm(FlaskForm):
         ],
         default="Documento",
     )
-
     folio_inicio = IntegerField(
         "Folio inicial",
-        validators=[
-            DataRequired(message="Debe ingresar el folio inicial."),
-            NumberRange(min=1, message="El folio inicial debe ser mayor o igual a 1.")
-        ],
+        validators=[DataRequired(message="Debe ingresar el folio inicial."), NumberRange(min=1, message="El folio inicial debe ser mayor o igual a 1.")],
     )
-
     folio_fin = IntegerField(
         "Folio final",
-        validators=[
-            DataRequired(message="Debe ingresar el folio final."),
-            NumberRange(min=1, message="El folio final debe ser mayor o igual a 1.")
-        ],
+        validators=[DataRequired(message="Debe ingresar el folio final."), NumberRange(min=1, message="El folio final debe ser mayor o igual a 1.")],
     )
-
     estado_revision = SelectField(
         "Estado de revisión",
         choices=[
@@ -52,7 +42,5 @@ class IndiceDocumentalForm(FlaskForm):
         ],
         default="Pendiente de revisión",
     )
-
     observaciones = TextAreaField("Observaciones", validators=[Optional()])
-
     submit = SubmitField("Agregar al índice")
