@@ -12,6 +12,18 @@ from app.services.bitacora_service import registrar_bitacora
 expediente_fisico_bp = Blueprint("expediente_fisico", __name__, url_prefix="/expedientes")
 
 
+@expediente_fisico_bp.route("/pendientes-fisicos")
+@login_required
+def pendientes():
+    registros = (
+        Expediente.query
+        .filter_by(expediente_fisico_registrado=False)
+        .order_by(Expediente.no_sp.asc())
+        .all()
+    )
+    return render_template("expedientes/pendientes_fisicos.html", registros=registros)
+
+
 @expediente_fisico_bp.route("/<int:expediente_id>/registrar-fisico", methods=["GET", "POST"])
 @login_required
 def registrar(expediente_id):
