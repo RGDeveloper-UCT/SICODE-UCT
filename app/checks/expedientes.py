@@ -51,6 +51,35 @@ def ejecutar():
                     recomendacion="Registrar archivador/estante/caja o la ubicación institucional correspondiente.",
                 ))
 
+            verificaciones = sorted(
+                expediente.verificaciones,
+                key=lambda item: item.creado_en,
+                reverse=True,
+            )
+            if not verificaciones:
+                hallazgos.append(HallazgoIntegridad(
+                    codigo="EXP-VERIF-001",
+                    severidad="advertencia",
+                    modulo="Expedientes",
+                    entidad="Expediente",
+                    registro=f"SP {expediente.no_sp}",
+                    descripcion="Expediente físico sin una verificación histórica registrada en el nuevo control.",
+                    recomendacion="Registrar una verificación cuando corresponda; no inventar verificaciones históricas faltantes.",
+                ))
+            elif expediente.estado_fisico_documental != verificaciones[0].resultado:
+                hallazgos.append(HallazgoIntegridad(
+                    codigo="EXP-VERIF-002",
+                    severidad="error",
+                    modulo="Expedientes",
+                    entidad="Expediente",
+                    registro=f"SP {expediente.no_sp}",
+                    descripcion=(
+                        f"El estado actual '{expediente.estado_fisico_documental}' no coincide con la última "
+                        f"verificación '{verificaciones[0].resultado}'."
+                    ),
+                    recomendacion="Revisar el historial y corregir el estado actual solo después de confirmar cuál evento es válido.",
+                ))
+
     for clave, registros in por_sp.items():
         if clave and len(registros) > 1:
             hallazgos.append(HallazgoIntegridad(
