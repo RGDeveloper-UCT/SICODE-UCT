@@ -1,0 +1,81 @@
+name: Validar Portadores
+
+on:
+  push:
+    branches:
+      - feature/importar-portadores
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "sqlite:////tmp/sicode_portadores_test.db"
+      SECRET_KEY: "prueba-ci-portadores"
+
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Compilar Python
+        run: python -m compileall -q app migrations
+
+      - name: Validar cadena de migraciones
+        run: python -m flask --app run.py db heads
+
+      - name: Aplicar migraciones en base temporal
+        run: python -m flask --app run.py db upgrade
+
+      - name: Validar modelos, rutas y normalización de SP
+        run: |
+          python - <<'PY'
+          from app import create_app, db
+          from app.services.coordinacion_service import normalizar_sp
+
+          app = create_app()
+          with app.app_context():
+              tablas = set(db.metadata.tables.keys())
+              assert 'importaciones_portadores' in tablas
+
+              columnas = set(db.metadata.tables['expedientes'].columns.keys())
+              esperadas = {
+                  'fecha_instalacion',
+                  'fecha_desinstalacion',
+                  'expediente_oj',
+                  'estado_portador',
+                  'estado_monitoreo',
+                  'juzgado_tribunal',
+                  'ultima_sincronizacion_portadores',
+              }
+              faltantes = esperadas - columnas
+              assert not faltantes, f'Columnas faltantes: {sorted(faltantes)}'
+
+          assert normalizar_sp('SP01') == '1'
+          assert normalizar_sp('SP-001') == '1'
+          assert normalizar_sp('001') == '1'
+          assert normalizar_sp('SP 455') == '455'
+
+          rutas = [str(regla) for regla in app.url_map.iter_rules()]
+          assert '/expedientes/portadores/importar' in rutas
+          assert '/expedientes/portadores/importar/confirmar' in rutas
+
+          app.jinja_env.get_template('expedientes/importar_portadores.html')
+          app.jinja_env.get_template('expedientes/listado.html')
+
+          import xlrd
+          assert xlrd.__version__
+
+          print('Validación de importación de Portadores completada correctamente.')
+          PY
