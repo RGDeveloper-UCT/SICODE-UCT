@@ -1,42 +1,90 @@
 # SICODE-UCT
 
-Sistema de Control y Ordenamiento de Expedientes de la Unidad de Control Telemático.
+**Sistema de Control y Ordenamiento de Expedientes de la Unidad de Control Telemático.**
 
-Aplicación web interna desarrollada en Python para registrar, buscar, ubicar, controlar, verificar y dar seguimiento a expedientes físicos mediante metadatos administrativos, ubicación física, foliación, préstamos, devoluciones, alertas, reportes y bitácora.
+Aplicación web institucional interna para registrar, localizar, relacionar y auditar metadatos administrativos de sujetos portadores y expedientes físicos. El sistema no debe almacenar copias completas de expedientes ni documentos sensibles.
 
-## Restricción principal
+## Principios de diseño
 
-El sistema no debe almacenar documentos sensibles ni copias completas de expedientes físicos. Solo debe registrar metadatos administrativos y de control.
+- Una sola fuente de verdad por dato.
+- No. de SP como identificador administrativo; ID interno de base de datos como relación técnica estable.
+- Un SP puede existir antes de que el expediente físico esté recibido/localizado.
+- Los movimientos especializados se relacionan con el expediente; no copian su información maestra.
+- Las operaciones importantes quedan trazadas en Bitácora.
+- Las verificaciones automáticas detectan y recomiendan; no realizan correcciones destructivas.
 
-## Tecnología base
+## Tecnología
 
-- Python
-- Flask
+- Python / Flask
 - PostgreSQL
-- SQLAlchemy
-- Flask-Migrate
-- Flask-Login
-- HTML / Bootstrap
-- Reportes PDF y Excel
-- Servidor local institucional
+- SQLAlchemy / Flask-Migrate (Alembic)
+- Flask-Login / Flask-WTF
+- Gunicorn + Nginx en la instalación institucional
+- ReportLab / openpyxl / xlrd para PDF y Excel
+- GitHub Actions + pytest
 
-## Módulos actuales
+## Módulos
 
-- Dashboard.
-- Expedientes y ubicación física.
-- Índice documental y foliación.
-- Préstamos y devoluciones.
-- Alertas.
-- Bitácora.
-- Administración y respaldos.
-- Coordinación: registro operativo de pagos, instalaciones, desinstalaciones, anexos, reportes de monitoreo, documentos emitidos, actividades y remisiones.
+- **Dashboard:** pendientes y accesos accionables.
+- **Búsqueda global:** SP, nombre, documentos, préstamos, ubicaciones y actividad de Coordinación.
+- **SP / Expedientes:** maestro de sujetos portadores, existencia del expediente físico, estado y ubicación.
+- **Importación de Portadores:** sincronización diaria de la manta `.xls` con previsualización y reconciliación de vínculos.
+- **Índice documental:** documentos, anexos y rangos de folios; evita traslapes y valida totales.
+- **Coordinación:** pagos, instalaciones, desinstalaciones, anexos, monitoreos, documentos emitidos, actividades y remisiones.
+- **Préstamos:** entrega, devolución, vencimientos y comprobantes.
+- **Alertas:** control de observaciones e incidencias.
+- **Bitácora:** auditoría legible y campos estructurados de trazabilidad.
+- **Administración:** usuarios, backups, estado técnico y Control de Integridad.
+- **Control de Integridad:** reglas determinísticas para SP, expedientes, ubicación, folios, préstamos, Coordinación, usuarios y backups.
 
-## Importación histórica de Coordinación
+## Variables de entorno obligatorias
 
-El módulo Coordinación permite previsualizar e importar las hojas operativas del libro histórico de actividades. La importación conserva archivo, hoja y fila de origen, permite datos incompletos y marca los SP todavía no existentes en Expedientes como pendientes de vincular.
+```env
+SECRET_KEY=<secreto-aleatorio-largo>
+DATABASE_URL=postgresql://usuario:password@host/base
+```
 
-Las hojas Portadores y VERIFICACIONES no se modifican ni importan desde este módulo; su integración corresponde a la ampliación posterior de la ficha maestra de Expedientes.
+Opcionales:
 
-## Estado actual
+```env
+SESSION_HOURS=8
+SESSION_COOKIE_SECURE=false
+MAX_UPLOAD_MB=16
+SICODE_VERSION=
+```
 
-Aplicación Flask operativa en ambiente institucional, con desarrollo versionado mediante Git.
+En producción, `SECRET_KEY` y `DATABASE_URL` son obligatorias. SICODE no arranca con una clave secreta de respaldo conocida.
+
+## Contraseñas temporales
+
+Las contraseñas asignadas por administración o por `seed.py` se consideran temporales. El usuario debe cambiarlas en su siguiente acceso antes de continuar en otros módulos.
+
+## Migraciones
+
+Nunca cree tablas manualmente en producción. Utilice Alembic:
+
+```bash
+python -m flask --app run.py db current
+python -m flask --app run.py db heads
+python -m flask --app run.py db upgrade
+```
+
+Las migraciones de integridad se detienen si detectan inconsistencias que podrían hacer inseguro aplicar un constraint. No fuerce una migración fallida; revise primero el mensaje y los datos afectados.
+
+## QA
+
+```bash
+pytest -q
+python -m compileall -q app migrations tests
+python -m flask --app run.py db heads
+```
+
+GitHub Actions ejecuta smoke tests de Coordinación y Portadores, además de la suite pytest de auditoría.
+
+## Producción institucional
+
+El procedimiento documentado está en [`docs/OPERACION_SERVIDOR.md`](docs/OPERACION_SERVIDOR.md). Incluye backup, actualización Git, dependencias, migración, reinicio y rollback.
+
+## Estado del desarrollo
+
+La arquitectura Flask/PostgreSQL actual se mantiene. No existe justificación técnica para reescribir SICODE en otro framework. Las mejoras futuras deben priorizar integración y simplificación sobre nuevos módulos redundantes.
