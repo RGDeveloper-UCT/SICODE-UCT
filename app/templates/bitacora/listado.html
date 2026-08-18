@@ -1,127 +1,39 @@
 {% extends "base.html" %}
-
 {% block title %}Bitácora — SICODE-UCT{% endblock %}
-
 {% block content %}
-<section class="panel">
+<section class="panel panel-ancho">
     <div class="encabezado-modulo">
-        <div>
-            <h1>Bitácora / Auditoría</h1>
-            <p>Consulta de eventos registrados en el sistema.</p>
-        </div>
-
-        <a class="boton-secundario" href="{{ url_for('dashboard.inicio') }}">Volver al dashboard</a>
+        <div><h1>Bitácora / Auditoría</h1><p>Consulta del historial técnico y administrativo, incluida trazabilidad estructurada cuando está disponible.</p></div>
+        <div class="acciones-detalle"><a class="boton-exito" href="{{ url_for('bitacora.exportar_excel', q=busqueda, accion=filtro_accion, modulo=filtro_modulo, usuario=filtro_usuario) }}">Exportar Excel</a><a class="boton-cancelar" href="{{ url_for('dashboard.inicio') }}">Dashboard</a></div>
     </div>
-
-        <div class="acciones-detalle">
-            <a class="boton-exito" href="{{ url_for(
-                'bitacora.exportar_excel',
-                q=busqueda,
-                accion=filtro_accion,
-                modulo=filtro_modulo,
-                usuario=filtro_usuario
-            ) }}">
-                Exportar Excel
-            </a>
-        </div>
 
     <form method="GET" class="filtros-expedientes">
-        <div class="campo-filtro campo-filtro-grande">
-            <label>Buscar</label>
-            <input type="text" name="q" value="{{ busqueda }}" placeholder="Buscar por descripción, usuario, acción, No. de SP o código interno">
-        </div>
-
-        <div class="campo-filtro">
-            <label>Acción</label>
-            <select name="accion">
-                <option value="">Todas</option>
-                {% for accion in acciones %}
-                    <option value="{{ accion }}" {% if filtro_accion == accion %}selected{% endif %}>{{ accion }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="campo-filtro">
-            <label>Módulo</label>
-            <select name="modulo">
-                <option value="">Todos</option>
-                {% for modulo in modulos %}
-                    <option value="{{ modulo }}" {% if filtro_modulo == modulo %}selected{% endif %}>{{ modulo }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="campo-filtro">
-            <label>Usuario</label>
-            <select name="usuario">
-                <option value="">Todos</option>
-                {% for usuario in usuarios %}
-                    <option value="{{ usuario.usuario }}" {% if filtro_usuario == usuario.usuario %}selected{% endif %}>
-                        {{ usuario.nombre }} / {{ usuario.usuario }}
-                    </option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="acciones-filtro">
-            <button type="submit">Aplicar filtros</button>
-            <a href="{{ url_for('bitacora.listado') }}">Limpiar</a>
-        </div>
+        <div class="campo-filtro campo-filtro-grande"><label>Buscar</label><input type="text" name="q" value="{{ busqueda }}" placeholder="Descripción, entidad, usuario, acción, SP o código"></div>
+        <div class="campo-filtro"><label>Acción</label><select name="accion"><option value="">Todas</option>{% for accion in acciones %}<option value="{{ accion }}" {% if filtro_accion == accion %}selected{% endif %}>{{ accion }}</option>{% endfor %}</select></div>
+        <div class="campo-filtro"><label>Módulo</label><select name="modulo"><option value="">Todos</option>{% for modulo in modulos %}<option value="{{ modulo }}" {% if filtro_modulo == modulo %}selected{% endif %}>{{ modulo }}</option>{% endfor %}</select></div>
+        <div class="campo-filtro"><label>Usuario</label><select name="usuario"><option value="">Todos</option>{% for usuario in usuarios %}<option value="{{ usuario.usuario }}" {% if filtro_usuario == usuario.usuario %}selected{% endif %}>{{ usuario.nombre }} / {{ usuario.usuario }}</option>{% endfor %}</select></div>
+        <div class="acciones-filtro"><button type="submit">Aplicar filtros</button><a href="{{ url_for('bitacora.listado') }}">Limpiar</a></div>
     </form>
 
-    <p class="contador-resultados">
-        Eventos mostrados: <strong>{{ eventos|length }}</strong>
-        <span class="nota-mini">Se muestran máximo los últimos 100 eventos según los filtros aplicados.</span>
-    </p>
+    <p class="contador-resultados">Mostrando <strong>{{ eventos|length }}</strong> de <strong>{{ paginacion.total }}</strong> evento(s).</p>
+    <div class="tabla-contenedor"><table>
+        <thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Módulo / entidad</th><th>Expediente</th><th>IP</th><th>Descripción</th><th>Cambio estructurado</th></tr></thead>
+        <tbody>
+        {% for evento in eventos %}
+            <tr>
+                <td>{{ evento.creado_en.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+                <td>{% if evento.usuario %}{{ evento.usuario.nombre }}<br><small>{{ evento.usuario.usuario }}</small>{% else %}Sistema / sin usuario{% endif %}</td>
+                <td><span class="badge badge-neutral">{{ evento.accion }}</span></td>
+                <td>{{ evento.modulo }}{% if evento.entidad %}<br><small>{{ evento.entidad }}{% if evento.entidad_id %} #{{ evento.entidad_id }}{% endif %}</small>{% endif %}</td>
+                <td>{% if evento.expediente %}<a href="{{ url_for('expedientes.detalle', expediente_id=evento.expediente.id) }}">SP {{ evento.expediente.no_sp }}</a>{% else %}No aplica{% endif %}</td>
+                <td>{{ evento.ip_origen or 'Sin dato' }}</td>
+                <td>{{ evento.descripcion or 'Sin descripción' }}{% if evento.motivo %}<br><small><strong>Motivo:</strong> {{ evento.motivo }}</small>{% endif %}</td>
+                <td>{% if evento.datos_anteriores or evento.datos_posteriores %}<details><summary>Ver antes / después</summary><p><strong>Antes:</strong> {{ evento.datos_anteriores or '—' }}</p><p><strong>Después:</strong> {{ evento.datos_posteriores or '—' }}</p></details>{% else %}Registro histórico textual{% endif %}</td>
+            </tr>
+        {% else %}<tr><td colspan="8">No hay eventos con los filtros seleccionados.</td></tr>{% endfor %}
+        </tbody>
+    </table></div>
 
-    <div class="tabla-contenedor">
-        <table>
-            <thead>
-                <tr>
-                    <th>Fecha</th>
-                    <th>Usuario</th>
-                    <th>Acción</th>
-                    <th>Módulo</th>
-                    <th>Expediente</th>
-                    <th>IP origen</th>
-                    <th>Descripción</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for evento in eventos %}
-                <tr>
-                    <td>{{ evento.creado_en.strftime('%d/%m/%Y %H:%M:%S') }}</td>
-                    <td>
-                        {% if evento.usuario %}
-                            {{ evento.usuario.nombre }}<br>
-                            <small>{{ evento.usuario.usuario }}</small>
-                        {% else %}
-                            Sin usuario
-                        {% endif %}
-                    </td>
-                    <td><span class="badge badge-neutral">{{ evento.accion }}</span></td>
-                    <td>{{ evento.modulo }}</td>
-                    <td>
-                        {% if evento.expediente %}
-                            <a href="{{ url_for('expedientes.detalle', expediente_id=evento.expediente.id) }}">
-                                {{ evento.expediente.no_sp }}
-                            </a>
-                            <br>
-                            <small>{{ evento.expediente.codigo_interno }}</small>
-                        {% else %}
-                            No aplica
-                        {% endif %}
-                    </td>
-                    <td>{{ evento.ip_origen or "Sin dato" }}</td>
-                    <td>{{ evento.descripcion or "Sin descripción" }}</td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="7">No hay eventos registrados con los filtros seleccionados.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+    {% if paginacion.pages > 1 %}<div class="paginacion">{% if paginacion.has_prev %}<a class="boton-tabla" href="{{ url_for('bitacora.listado', q=busqueda, accion=filtro_accion, modulo=filtro_modulo, usuario=filtro_usuario, page=paginacion.prev_num) }}">← Anterior</a>{% endif %}<span>Página {{ paginacion.page }} de {{ paginacion.pages }}</span>{% if paginacion.has_next %}<a class="boton-tabla" href="{{ url_for('bitacora.listado', q=busqueda, accion=filtro_accion, modulo=filtro_modulo, usuario=filtro_usuario, page=paginacion.next_num) }}">Siguiente →</a>{% endif %}</div>{% endif %}
 </section>
 {% endblock %}
