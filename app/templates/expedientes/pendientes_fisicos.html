@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}SP sin expediente físico — SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+    <div class="encabezado-modulo"><div><h1>SP sin expediente físico</h1><p>Registros maestros conocidos que todavía no tienen expediente físico confirmado en SICODE.</p></div><a class="boton-cancelar" href="{{ url_for('dashboard.inicio') }}">Dashboard</a></div>
+    <p class="contador-resultados">Pendientes: <strong>{{ registros|length }}</strong></p>
+    <div class="tabla-contenedor"><table>
+        <thead><tr><th>SP</th><th>Nombre</th><th>Estado portador</th><th>Monitoreo</th><th>Última sincronización</th><th>Acción</th></tr></thead>
+        <tbody>
+        {% for item in registros %}
+            <tr><td><strong>{{ item.no_sp }}</strong></td><td>{{ item.nombre_referencia or 'Sin dato' }}</td><td>{{ item.estado_portador or 'Sin dato' }}</td><td>{{ item.estado_monitoreo or 'Sin dato' }}</td><td>{{ item.ultima_sincronizacion_portadores.strftime('%d/%m/%Y %H:%M') if item.ultima_sincronizacion_portadores else 'Sin dato' }}</td><td><a href="{{ url_for('expediente_fisico.registrar', expediente_id=item.id) }}">Registrar expediente físico</a></td></tr>
+        {% else %}<tr><td colspan="6"><span class="badge badge-activo">Correcto</span> Todos los SP registrados tienen expediente físico confirmado.</td></tr>{% endfor %}
+        </tbody>
+    </table></div>
+</section>
+{% endblock %}
