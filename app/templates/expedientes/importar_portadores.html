@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Importar Portadores — SICODE-UCT{% endblock %}
+
+{% block content %}
+<section class="panel panel-ancho">
+    <div class="encabezado-modulo">
+        <div>
+            <h1>Importar manta de Sujetos Portadores</h1>
+            <p>Sincroniza diariamente el reporte GT - Wearer List - Sujetos Portadores con el maestro de Expedientes.</p>
+        </div>
+        <a class="boton-cancelar" href="{{ url_for('expedientes.listado') }}">Volver a Expedientes</a>
+    </div>
+
+    <div class="aviso">
+        <strong>Sincronización segura:</strong>
+        si un SP no existe se crea; si ya existe, únicamente se actualizan los datos provenientes de Portadores.
+        Los campos vacíos de la manta no borran información existente y los SP ausentes en el archivo no se eliminan ni se desactivan.
+        Tampoco se modifican la ubicación física, el estado documental, préstamos, alertas o índice documental.
+    </div>
+
+    <form method="post" enctype="multipart/form-data" class="formulario">
+        {{ form.hidden_tag() }}
+        <div class="campo">
+            {{ form.archivo.label }}
+            {{ form.archivo(accept=".xls") }}
+            {% for error in form.archivo.errors %}<span class="error">{{ error }}</span>{% endfor %}
+        </div>
+        <div class="acciones">
+            {{ form.submit(class_="boton-secundario") }}
+        </div>
+    </form>
+
+    {% if resumen %}
+        <h2>Previsualización</h2>
+
+        {% if resumen.ya_importado %}
+            <div class="alerta alerta-warning">
+                Este mismo archivo ya fue sincronizado anteriormente. Puede revisarlo, pero SICODE no permitirá importarlo nuevamente.
+            </div>
+        {% endif %}
+
+        <div class="grid">
+            <div class="tarjeta indicador"><h2>Filas con SP</h2><p class="numero-indicador">{{ resumen.total }}</p></div>
+            <div class="tarjeta indicador"><h2>Nuevos</h2><p class="numero-indicador">{{ resumen.nuevos }}</p></div>
+            <div class="tarjeta indicador"><h2>Actualizar</h2><p class="numero-indicador">{{ resumen.actualizados }}</p></div>
+            <div class="tarjeta indicador"><h2>Sin cambios</h2><p class="numero-indicador">{{ resumen.sin_cambios }}</p></div>
+            <div class="tarjeta indicador"><h2>Omitidos</h2><p class="numero-indicador">{{ resumen.omitidos }}</p></div>
+            <div class="tarjeta indicador"><h2>Duplicados</h2><p class="numero-indicador">{{ resumen.duplicados }}</p></div>
+        </div>
+
+        {% for advertencia in resumen.advertencias %}
+            <div class="alerta alerta-warning">{{ advertencia }}</div>
+        {% endfor %}
+
+        <div class="tabla-contenedor">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fila</th>
+                        <th>SP</th>
+                        <th>Nombre</th>
+                        <th>Fecha instalación</th>
+                        <th>Estado monitoreo</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fila in resumen.previsualizacion %}
+                    <tr>
+                        <td>{{ fila.fila }}</td>
+                        <td>{{ fila.no_sp }}</td>
+                        <td>{{ fila.nombre or "Sin dato" }}</td>
+                        <td>{{ fila.fecha_instalacion.strftime('%d/%m/%Y') if fila.fecha_instalacion else "Sin dato" }}</td>
+                        <td>{{ fila.estado_monitoreo or "Sin dato" }}</td>
+                        <td>
+                            {% if fila.accion == "Crear" %}
+                                <span class="badge badge-activo">Crear</span>
+                            {% elif fila.accion == "Actualizar" %}
+                                <span class="badge badge-advertencia">Actualizar</span>
+                            {% elif fila.accion == "Duplicado en archivo" %}
+                                <span class="badge badge-inactivo">Omitir duplicado</span>
+                            {% else %}
+                                <span class="badge badge-neutral">Sin cambios</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if resumen.total > resumen.previsualizacion|length %}
+            <p class="nota">Se muestran las primeras {{ resumen.previsualizacion|length }} filas para revisión. La sincronización procesará el archivo completo.</p>
+        {% endif %}
+
+        {% if confirmar and not resumen.ya_importado %}
+            <form method="post" action="{{ url_for('portadores.confirmar_importacion') }}" class="acciones">
+                {{ confirmar.hidden_tag() }}
+                {{ confirmar.submit(class_="boton-exito", onclick="return confirm('¿Confirma la sincronización de esta manta con Expedientes?');") }}
+            </form>
+        {% endif %}
+    {% endif %}
+
+    <h2>Últimas sincronizaciones</h2>
+    <div class="tabla-contenedor">
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Archivo</th>
+                    <th>Usuario</th>
+                    <th>Filas</th>
+                    <th>Nuevos</th>
+                    <th>Actualizados</th>
+                    <th>Vínculos Coordinación</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in historial %}
+                <tr>
+                    <td>{{ item.creado_en.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td>{{ item.archivo_nombre }}</td>
+                    <td>{{ item.usuario.nombre if item.usuario else "Sin dato" }}</td>
+                    <td>{{ item.total_filas }}</td>
+                    <td>{{ item.nuevos }}</td>
+                    <td>{{ item.actualizados }}</td>
+                    <td>{{ item.vinculados_coordinacion }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7">Todavía no se han sincronizado mantas de Portadores.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
