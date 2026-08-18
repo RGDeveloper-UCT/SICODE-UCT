@@ -1,6 +1,9 @@
 from datetime import datetime
-from app import db
+
 from flask_login import UserMixin
+
+from app import db
+
 
 class Usuario(db.Model, UserMixin):
     __tablename__ = "usuarios"
@@ -15,6 +18,11 @@ class Usuario(db.Model, UserMixin):
 
     creado_en = db.Column(db.DateTime, default=datetime.utcnow)
     actualizado_en = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @property
+    def is_active(self):
+        """Flask-Login debe considerar inactiva una cuenta deshabilitada en SICODE."""
+        return bool(self.activo)
 
     def __repr__(self):
         return f"<Usuario {self.usuario}>"
