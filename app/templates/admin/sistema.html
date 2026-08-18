@@ -1,123 +1,39 @@
 {% extends "base.html" %}
-
 {% block title %}Estado del sistema — SICODE-UCT{% endblock %}
-
 {% block content %}
 <section class="panel panel-ancho">
     <div class="encabezado-modulo">
-        <div>
-            <h1>Estado del sistema</h1>
-            <p>Panel administrativo de verificación técnica y operativa.</p>
-        </div>
-
+        <div><h1>Estado del sistema</h1><p>Salud técnica, respaldos y acceso al control de integridad de SICODE-UCT.</p></div>
         <div class="acciones-detalle">
-            <a class="boton-secundario" href="{{ url_for('admin.backups') }}">
-                Ver backups
-            </a>
-
-            <a class="boton-cancelar" href="{{ url_for('dashboard.inicio') }}">
-                Volver al dashboard
-            </a>
+            <a class="boton-exito" href="{{ url_for('integridad.inicio') }}">Control de Integridad</a>
+            <a class="boton-secundario" href="{{ url_for('admin.backups') }}">Backups</a>
+            <a class="boton-cancelar" href="{{ url_for('dashboard.inicio') }}">Dashboard</a>
         </div>
     </div>
 
+    <div class="aviso"><strong>Control separado:</strong> esta pantalla muestra salud técnica. El botón <em>Control de Integridad</em> revisa coherencia de expedientes, folios, préstamos, Coordinación, usuarios y respaldos sin autocorregir datos.</div>
+
     <h2>Estado general</h2>
-
     <div class="grid">
-        <div class="tarjeta indicador">
-            <h2>Base de datos</h2>
-            {% if estado_db == "Correcta" %}
-                <p class="numero-indicador">OK</p>
-                <span class="badge badge-activo">Conectada</span>
-            {% else %}
-                <p class="numero-indicador indicador-peligro">Error</p>
-                <span class="badge badge-inactivo">Revisar</span>
-            {% endif %}
-            <p>{{ detalle_db }}</p>
-        </div>
-
-        <div class="tarjeta indicador">
-            <h2>Versión Python</h2>
-            <p class="numero-indicador">{{ version_python }}</p>
-        </div>
-
-        <div class="tarjeta indicador">
-            <h2>Backups generados</h2>
-            <p class="numero-indicador">{{ indicadores.backups }}</p>
-            <a href="{{ url_for('admin.backups') }}">Administrar backups</a>
-        </div>
+        <div class="tarjeta indicador"><h2>Base de datos</h2>{% if estado_db == 'Correcta' %}<p class="numero-indicador">OK</p><span class="badge badge-activo">Conectada</span>{% else %}<p class="numero-indicador indicador-peligro">Error</p><span class="badge badge-inactivo">Revisar</span>{% endif %}<p>{{ detalle_db }}</p></div>
+        <div class="tarjeta indicador"><h2>Python</h2><p class="numero-indicador">{{ version_python }}</p></div>
+        <div class="tarjeta indicador"><h2>Backups</h2><p class="numero-indicador">{{ indicadores.backups }}</p><a href="{{ url_for('admin.backups') }}">Administrar</a></div>
+        <div class="tarjeta indicador"><h2>Espacio libre</h2><p class="numero-indicador">{{ espacio_libre_gb }} GB</p><p>Total {{ espacio_total_gb }} GB</p></div>
     </div>
 
     <h2>Indicadores de datos</h2>
-
     <div class="grid">
-        <div class="tarjeta indicador">
-            <h2>Usuarios</h2>
-            <p class="numero-indicador">{{ indicadores.usuarios }}</p>
-            <p>Activos: <strong>{{ indicadores.usuarios_activos }}</strong></p>
-        </div>
-
-        <div class="tarjeta indicador">
-            <h2>Expedientes</h2>
-            <p class="numero-indicador">{{ indicadores.expedientes }}</p>
-            <p>Activos: <strong>{{ indicadores.expedientes_activos }}</strong></p>
-        </div>
-
-        <div class="tarjeta indicador">
-            <h2>Alertas</h2>
-            <p class="numero-indicador indicador-alerta">{{ indicadores.alertas }}</p>
-            <p>Abiertas: <strong>{{ indicadores.alertas_abiertas }}</strong></p>
-        </div>
+        <div class="tarjeta indicador"><h2>Usuarios</h2><p class="numero-indicador">{{ indicadores.usuarios }}</p><p>Activos: {{ indicadores.usuarios_activos }}</p></div>
+        <div class="tarjeta indicador"><h2>Registros SP</h2><p class="numero-indicador">{{ indicadores.expedientes }}</p><p>Activos: {{ indicadores.expedientes_activos }}</p></div>
+        <div class="tarjeta indicador"><h2>Alertas</h2><p class="numero-indicador indicador-alerta">{{ indicadores.alertas }}</p><p>Abiertas: {{ indicadores.alertas_abiertas }}</p></div>
+        <div class="tarjeta indicador"><h2>Préstamos</h2><p class="numero-indicador">{{ indicadores.prestamos }}</p><p>Activos: {{ indicadores.prestamos_activos }}</p></div>
+        <div class="tarjeta indicador"><h2>Bitácora</h2><p class="numero-indicador">{{ indicadores.eventos_bitacora }}</p><a href="{{ url_for('bitacora.listado') }}">Ver eventos</a></div>
     </div>
 
-    <div class="grid">
-        <div class="tarjeta indicador">
-            <h2>Préstamos</h2>
-            <p class="numero-indicador">{{ indicadores.prestamos }}</p>
-            <p>Activos: <strong>{{ indicadores.prestamos_activos }}</strong></p>
-        </div>
-
-        <div class="tarjeta indicador">
-            <h2>Eventos de bitácora</h2>
-            <p class="numero-indicador">{{ indicadores.eventos_bitacora }}</p>
-            <a href="{{ url_for('bitacora.listado') }}">Ver bitácora</a>
-        </div>
-
-        <div class="tarjeta indicador">
-            <h2>Espacio libre</h2>
-            <p class="numero-indicador">{{ espacio_libre_gb }} GB</p>
-            <p>Total: {{ espacio_total_gb }} GB / Usado: {{ espacio_usado_gb }} GB</p>
-        </div>
-    </div>
-
-    <h2>Información de backups</h2>
-
-    <div class="tabla-contenedor">
-        <table>
-            <tbody>
-                <tr>
-                    <th>Directorio de backups</th>
-                    <td>{{ directorio_backups }}</td>
-                </tr>
-                <tr>
-                    <th>Último backup</th>
-                    <td>
-                        {% if ultimo_backup %}
-                            <strong>{{ ultimo_backup.nombre }}</strong><br>
-                            Tamaño: {{ ultimo_backup.tamano_mb }} MB<br>
-                            Fecha: {{ ultimo_backup.modificado.strftime('%d/%m/%Y %H:%M:%S') }}
-                        {% else %}
-                            No hay backups generados todavía.
-                        {% endif %}
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-
-    <div class="aviso">
-        <strong>Recomendación:</strong>
-        Revise este panel al iniciar la jornada, antes de cambios importantes y antes del cierre diario.
-    </div>
+    <h2>Último respaldo</h2>
+    <div class="tabla-contenedor"><table><tbody>
+        <tr><th>Directorio</th><td>{{ directorio_backups }}</td></tr>
+        <tr><th>Último backup</th><td>{% if ultimo_backup %}<strong>{{ ultimo_backup.nombre }}</strong><br>{{ ultimo_backup.tamano_mb }} MB · {{ ultimo_backup.modificado.strftime('%d/%m/%Y %H:%M:%S') }}{% else %}No hay backups generados.{% endif %}</td></tr>
+    </tbody></table></div>
 </section>
 {% endblock %}

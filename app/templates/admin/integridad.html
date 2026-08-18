@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Control de Integridad — SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+    <div class="encabezado-modulo">
+        <div>
+            <h1>Control de Integridad</h1>
+            <p>Verificaciones determinísticas de coherencia. Este panel no corrige ni elimina datos automáticamente.</p>
+        </div>
+        <div class="acciones-detalle">
+            <a class="boton-secundario" href="{{ url_for('integridad.inicio') }}">Volver a verificar</a>
+            <a class="boton-cancelar" href="{{ url_for('admin.sistema') }}">Estado del sistema</a>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="tarjeta indicador"><h2>Módulos sin hallazgos</h2><p class="numero-indicador">{{ control.correctos }}/{{ control.total_reglas }}</p><span class="badge badge-activo">Correctos</span></div>
+        <div class="tarjeta indicador"><h2>Advertencias</h2><p class="numero-indicador indicador-alerta">{{ control.advertencias }}</p><span class="badge badge-advertencia">Revisar</span></div>
+        <div class="tarjeta indicador"><h2>Errores</h2><p class="numero-indicador indicador-peligro">{{ control.errores }}</p><span class="badge badge-inactivo">Requiere atención</span></div>
+    </div>
+
+    {% if control.modulos_correctos %}
+    <div class="aviso"><strong>Sin hallazgos:</strong> {{ control.modulos_correctos|join(', ') }}.</div>
+    {% endif %}
+
+    <h2>Hallazgos detectados</h2>
+    <div class="tabla-contenedor">
+        <table>
+            <thead><tr><th>Nivel</th><th>Código</th><th>Módulo</th><th>Registro</th><th>Situación</th><th>Recomendación</th></tr></thead>
+            <tbody>
+            {% for item in control.hallazgos %}
+                <tr>
+                    <td>{% if item.severidad == 'error' %}<span class="badge badge-inactivo">🔴 Error</span>{% else %}<span class="badge badge-advertencia">🟡 Advertencia</span>{% endif %}</td>
+                    <td><strong>{{ item.codigo }}</strong></td>
+                    <td>{{ item.modulo }}</td>
+                    <td>{{ item.registro }}</td>
+                    <td>{{ item.descripcion }}</td>
+                    <td>{{ item.recomendacion }}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="6"><span class="badge badge-activo">🟢 Correcto</span> No se detectaron inconsistencias con las reglas actuales.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="aviso">
+        <strong>Importante:</strong> una advertencia no significa necesariamente un error administrativo. El sistema detecta patrones que requieren revisión humana y conserva la decisión bajo control del usuario autorizado.
+    </div>
+</section>
+{% endblock %}

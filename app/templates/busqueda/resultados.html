@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Buscar — SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+    <div class="encabezado-modulo"><div><h1>Búsqueda global</h1><p>Localiza información relacionada sin entrar módulo por módulo.</p></div></div>
+
+    <form method="GET" action="{{ url_for('busqueda.global_') }}" class="busqueda">
+        <input type="search" name="q" value="{{ q }}" placeholder="SP, nombre, RC, providencia, préstamo, anexo, reporte, ubicación..." minlength="2" required autofocus>
+        <button type="submit">Buscar</button>
+    </form>
+
+    {% if q %}
+        <p class="contador-resultados">Resultados para <strong>{{ q }}</strong>: <strong>{{ resultados|length }}</strong></p>
+        <div class="lista-alertas">
+        {% for item in resultados %}
+            <article class="tarjeta-alerta">
+                <div class="alerta-cabecera">
+                    <div><h2>{{ item.titulo }}</h2><p>{{ item.detalle }}</p></div>
+                    <span class="badge badge-neutral">{{ item.categoria }}</span>
+                </div>
+                <a class="boton-tabla" href="{{ url_for(item.endpoint, **item.params) }}">Abrir registro</a>
+            </article>
+        {% else %}
+            <div class="aviso">No se encontraron coincidencias. Pruebe con No. de SP, nombre, RC, providencia, número de préstamo o un dato de ubicación.</div>
+        {% endfor %}
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

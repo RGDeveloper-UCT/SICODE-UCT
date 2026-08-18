@@ -4,6 +4,7 @@ from app import db
 from app.models.alerta import Alerta
 from app.models.prestamo import PrestamoExpediente
 
+
 def crear_alerta_si_no_existe(
     expediente_id,
     tipo_alerta,
@@ -13,6 +14,7 @@ def crear_alerta_si_no_existe(
     usuario_id=None,
     documento_id=None,
     origen="Automática",
+    commit=True,
 ):
     estados_abiertos = ["Abierta", "En revisión"]
 
@@ -41,29 +43,38 @@ def crear_alerta_si_no_existe(
         origen=origen,
         creada_por_id=usuario_id,
     )
-
     db.session.add(alerta)
-    db.session.commit()
-
+    if commit:
+        db.session.commit()
     return alerta, True
 
 
-def detectar_prestamos_vencidos(usuario_id=None):
-    prestamos_vencidos = (
+def prestamos_vencidos():
+    """Consulta pura: no modifica la base de datos."""
+    return (
         PrestamoExpediente.query
         .filter(
             PrestamoExpediente.estado == "En préstamo",
-            PrestamoExpediente.fecha_estimada_devolucion != None,
+            PrestamoExpediente.fecha_estimada_devolucion.isnot(None),
             PrestamoExpediente.fecha_estimada_devolucion < date.today(),
         )
         .all()
     )
 
+
+def detectar_prestamos_vencidos(usuario_id=None, crear_alertas=False):
+    """Compatibilidad con vistas existentes sin efectos secundarios en GET.
+
+    Por defecto solo evita mutaciones. La creación de alertas requiere una
+    llamada explícita con `crear_alertas=True`; el Control de Integridad se
+    limita a detectar/recomendar y no la invoca automáticamente.
+    """
+    if not crear_alertas:
+        return []
+
     alertas_creadas = []
-
-    for prestamo in prestamos_vencidos:
+    for prestamo in prestamos_vencidos():
         expediente = prestamo.expediente
-
         alerta, creada = crear_alerta_si_no_existe(
             expediente_id=expediente.id,
             tipo_alerta="PRESTAMO_VENCIDO",
@@ -77,7 +88,6 @@ def detectar_prestamos_vencidos(usuario_id=None):
             usuario_id=usuario_id,
             origen="Automática",
         )
-
         if creada:
             alertas_creadas.append(alerta)
 
