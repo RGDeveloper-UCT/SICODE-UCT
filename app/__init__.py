@@ -1,5 +1,5 @@
-from flask import Flask, redirect, url_for
-from flask_login import LoginManager
+from flask import Flask, flash, redirect, render_template, request, url_for
+from flask_login import LoginManager, current_user
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
@@ -70,20 +70,24 @@ def create_app():
         coordinacion_bp,
         portadores_bp,
     )
-    app.register_blueprint(auth_bp)
-    app.register_blueprint(dashboard_bp)
-    app.register_blueprint(expedientes_bp)
-    app.register_blueprint(expediente_fisico_bp)
-    app.register_blueprint(bitacora_bp)
-    app.register_blueprint(indice_documental_bp)
-    app.register_blueprint(alertas_bp)
-    app.register_blueprint(prestamos_bp)
-    app.register_blueprint(admin_bp)
-    app.register_blueprint(integridad_bp)
-    app.register_blueprint(busqueda_bp)
-    app.register_blueprint(cuenta_bp)
-    app.register_blueprint(coordinacion_bp)
-    app.register_blueprint(portadores_bp)
+    for blueprint in (
+        auth_bp, dashboard_bp, expedientes_bp, expediente_fisico_bp, bitacora_bp,
+        indice_documental_bp, alertas_bp, prestamos_bp, admin_bp, integridad_bp,
+        busqueda_bp, cuenta_bp, coordinacion_bp, portadores_bp,
+    ):
+        app.register_blueprint(blueprint)
+
+    @app.before_request
+    def exigir_cambio_password_temporal():
+        if not current_user.is_authenticated or not current_user.debe_cambiar_password:
+            return None
+
+        permitidos = {"cuenta.cambiar_password", "auth.logout", "static"}
+        if request.endpoint in permitidos:
+            return None
+
+        flash("Debe cambiar su contraseña temporal antes de continuar en SICODE.", "warning")
+        return redirect(url_for("cuenta.cambiar_password"))
 
     @app.route("/")
     def inicio():
@@ -101,5 +105,19 @@ def create_app():
         except Exception:
             db.session.rollback()
             return "Base de datos no disponible", 503
+
+    @app.errorhandler(403)
+    def prohibido(_error):
+        return render_template("errores/403.html"), 403
+
+    @app.errorhandler(404)
+    def no_encontrado(_error):
+        return render_template("errores/404.html"), 404
+
+    @app.errorhandler(500)
+    def error_interno(error):
+        db.session.rollback()
+        app.logger.error("Error interno no controlado en SICODE", exc_info=error)
+        return render_template("errores/500.html"), 500
 
     return app
