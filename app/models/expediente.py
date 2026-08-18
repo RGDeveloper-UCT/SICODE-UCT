@@ -1,4 +1,5 @@
 from datetime import datetime
+
 from app import db
 
 
@@ -8,14 +9,18 @@ class Expediente(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     codigo_interno = db.Column(db.String(50), unique=True, nullable=False)
-    no_sp = db.Column(db.String(50), unique=True, nullable=False)
+    no_sp = db.Column(db.String(50), unique=True, nullable=False, index=True)
 
     nombre_referencia = db.Column(db.String(150), nullable=True)
     estado_administrativo = db.Column(db.String(80), nullable=False, default="Activo")
     estado_fisico_documental = db.Column(db.String(80), nullable=False, default="Pendiente de verificación")
 
+    # Un SP puede existir en la manta antes de que la Coordinación tenga físicamente
+    # su expediente. Esta bandera evita confundir ambas situaciones sin duplicar
+    # la entidad maestra ni crear otra fuente de verdad.
+    expediente_fisico_registrado = db.Column(db.Boolean, nullable=False, default=True, index=True)
+
     # Datos maestros provenientes de la manta diaria de Sujetos Portadores.
-    # Se mantienen separados de los estados administrativos/documentales de SICODE.
     nombres = db.Column(db.String(150), nullable=True)
     apellidos = db.Column(db.String(150), nullable=True)
     genero = db.Column(db.String(30), nullable=True)
@@ -47,6 +52,21 @@ class Expediente(db.Model):
 
     creado_en = db.Column(db.DateTime, default=datetime.utcnow)
     actualizado_en = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @property
+    def prestamo_activo(self):
+        return next(
+            (prestamo for prestamo in self.prestamos if prestamo.activo and prestamo.estado == "En préstamo"),
+            None,
+        )
+
+    @property
+    def disponibilidad(self):
+        if not self.expediente_fisico_registrado:
+            return "Sin expediente físico"
+        if not self.activo:
+            return "Inactivo"
+        return "En préstamo" if self.prestamo_activo else "Disponible"
 
     def __repr__(self):
         return f"<Expediente SP {self.no_sp}>"
