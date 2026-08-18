@@ -5,14 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}SICODE-UCT{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/estilos.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mejoras.css') }}">
 </head>
 <body>
     <header class="topbar">
-        <div class="marca-sicode">
-            <strong>SICODE-UCT</strong>
-            <span>Sistema de Control y Ordenamiento de Expedientes</span>
-        </div>
-
+        <div class="marca-sicode"><strong>SICODE-UCT</strong><span>Sistema de Control y Ordenamiento de Expedientes</span></div>
         {% if current_user.is_authenticated %}
         <nav>
             <a href="{{ url_for('dashboard.inicio') }}">Dashboard</a>
@@ -23,23 +20,13 @@
             <a href="{{ url_for('alertas.listado') }}">Alertas</a>
             <a href="{{ url_for('bitacora.listado') }}">Bitácora</a>
             <a href="{{ url_for('cuenta.detalle') }}">Mi cuenta</a>
-            {% if current_user.rol == "administrador" %}
-            <a href="{{ url_for('admin.usuarios') }}">Usuarios</a>
-            <a href="{{ url_for('admin.sistema') }}">Sistema</a>
-            {% endif %}
+            {% if current_user.rol == "administrador" %}<a href="{{ url_for('admin.usuarios') }}">Usuarios</a><a href="{{ url_for('admin.sistema') }}">Sistema</a>{% endif %}
             <a href="{{ url_for('auth.logout') }}">Salir</a>
         </nav>
         {% endif %}
     </header>
-
     <main class="contenedor">
-        {% with mensajes = get_flashed_messages(with_categories=true) %}
-            {% if mensajes %}
-                <div class="mensajes">
-                    {% for categoria, mensaje in mensajes %}<div class="alerta alerta-{{ categoria }}">{{ mensaje }}</div>{% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
+        {% with mensajes = get_flashed_messages(with_categories=true) %}{% if mensajes %}<div class="mensajes">{% for categoria, mensaje in mensajes %}<div class="alerta alerta-{{ categoria }}">{{ mensaje }}</div>{% endfor %}</div>{% endif %}{% endwith %}
         {% block content %}{% endblock %}
     </main>
 </body>
