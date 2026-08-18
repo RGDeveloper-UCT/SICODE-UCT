@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models.alerta import Alerta
 from app.models.bitacora import Bitacora
+from app.models.documento_expediente import DocumentoExpediente
 from app.models.expediente import Expediente
 from app.models.prestamo import PrestamoExpediente
 from app.models.ubicacion import UbicacionFisica
@@ -20,6 +21,12 @@ def _usuario_actual_id():
     if has_request_context() and current_user.is_authenticated:
         return current_user.id
     return None
+
+
+def _expediente(session, expediente_id, relacion=None):
+    if relacion is not None:
+        return relacion
+    return session.get(Expediente, expediente_id) if expediente_id is not None else None
 
 
 def _auditar_cambio_ubicacion(session, ubicacion):
@@ -54,16 +61,19 @@ def _auditar_cambio_ubicacion(session, ubicacion):
 
 
 def _validar_prestamo_nuevo(session, prestamo):
-    expediente = prestamo.expediente
-    if expediente is None and prestamo.expediente_id is not None:
-        expediente = session.get(Expediente, prestamo.expediente_id)
-
+    expediente = _expediente(session, prestamo.expediente_id, prestamo.expediente)
     if expediente is None:
         return
     if not expediente.expediente_fisico_registrado:
         raise ValueError("No se puede prestar un SP que todavía no tiene expediente físico registrado.")
     if not expediente.activo:
         raise ValueError("No se puede prestar un expediente inactivo.")
+
+
+def _validar_documento_nuevo(session, documento):
+    expediente = _expediente(session, documento.expediente_id, documento.expediente)
+    if expediente and not expediente.expediente_fisico_registrado:
+        raise ValueError("No se puede foliar un SP que todavía no tiene expediente físico registrado.")
 
 
 def _resolver_alerta_vencimiento(session, prestamo):
@@ -89,6 +99,8 @@ def _antes_de_flush(session, _flush_context, _instances):
     for objeto in list(session.new):
         if isinstance(objeto, PrestamoExpediente):
             _validar_prestamo_nuevo(session, objeto)
+        elif isinstance(objeto, DocumentoExpediente):
+            _validar_documento_nuevo(session, objeto)
 
     for objeto in list(session.dirty):
         if isinstance(objeto, PrestamoExpediente):
