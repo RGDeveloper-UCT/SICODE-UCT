@@ -40,8 +40,9 @@ def create_app():
         PrestamoExpediente,
         ImportacionPortadores,
     )
-
     from app.services.integridad_events import registrar_eventos_integridad
+    from app.services.version_service import obtener_version
+
     registrar_eventos_integridad()
 
     @login_manager.user_loader
@@ -55,20 +56,9 @@ def create_app():
         return usuario
 
     from app.routes import (
-        auth_bp,
-        dashboard_bp,
-        expedientes_bp,
-        expediente_fisico_bp,
-        bitacora_bp,
-        indice_documental_bp,
-        alertas_bp,
-        prestamos_bp,
-        admin_bp,
-        integridad_bp,
-        busqueda_bp,
-        cuenta_bp,
-        coordinacion_bp,
-        portadores_bp,
+        auth_bp, dashboard_bp, expedientes_bp, expediente_fisico_bp, bitacora_bp,
+        indice_documental_bp, alertas_bp, prestamos_bp, admin_bp, integridad_bp,
+        busqueda_bp, cuenta_bp, coordinacion_bp, portadores_bp,
     )
     for blueprint in (
         auth_bp, dashboard_bp, expedientes_bp, expediente_fisico_bp, bitacora_bp,
@@ -81,13 +71,14 @@ def create_app():
     def exigir_cambio_password_temporal():
         if not current_user.is_authenticated or not current_user.debe_cambiar_password:
             return None
-
-        permitidos = {"cuenta.cambiar_password", "auth.logout", "static"}
-        if request.endpoint in permitidos:
+        if request.endpoint in {"cuenta.cambiar_password", "auth.logout", "static"}:
             return None
-
         flash("Debe cambiar su contraseña temporal antes de continuar en SICODE.", "warning")
         return redirect(url_for("cuenta.cambiar_password"))
+
+    @app.context_processor
+    def contexto_version():
+        return {"sicode_version": obtener_version()}
 
     @app.route("/")
     def inicio():
@@ -95,7 +86,7 @@ def create_app():
 
     @app.route("/health")
     def health():
-        return {"status": "ok"}
+        return {"status": "ok", "version": obtener_version()}
 
     @app.route("/health/db")
     def health_db():
