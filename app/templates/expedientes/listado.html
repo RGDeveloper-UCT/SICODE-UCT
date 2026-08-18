@@ -12,8 +12,9 @@
 
         <div class="acciones-detalle">
             <a class="boton-secundario" href="{{ url_for('expedientes.nuevo') }}">Nuevo expediente</a>
+            {% if current_user.rol == "administrador" %}
             <a class="boton-secundario" href="{{ url_for('portadores.importar') }}">Importar Portadores</a>
-
+            {% endif %}
             <a class="boton-exito" href="{{ url_for(
                 'expedientes.exportar_excel',
                 q=busqueda,
@@ -29,7 +30,6 @@
             <label>Buscar</label>
             <input type="text" name="q" value="{{ busqueda }}" placeholder="No. de SP, código interno o nombre">
         </div>
-
         <div class="campo-filtro">
             <label>Activo</label>
             <select name="activo">
@@ -38,76 +38,35 @@
                 <option value="no" {% if filtro_activo == "no" %}selected{% endif %}>Inactivos</option>
             </select>
         </div>
-
         <div class="campo-filtro">
             <label>Estado administrativo</label>
             <select name="estado_administrativo">
                 <option value="">Todos</option>
-                {% for estado in estados_administrativos %}
-                    <option value="{{ estado }}" {% if filtro_estado_admin == estado %}selected{% endif %}>{{ estado }}</option>
-                {% endfor %}
+                {% for estado in estados_administrativos %}<option value="{{ estado }}" {% if filtro_estado_admin == estado %}selected{% endif %}>{{ estado }}</option>{% endfor %}
             </select>
         </div>
-
         <div class="campo-filtro">
             <label>Estado físico/documental</label>
             <select name="estado_fisico_documental">
                 <option value="">Todos</option>
-                {% for estado in estados_fisicos %}
-                    <option value="{{ estado }}" {% if filtro_estado_fisico == estado %}selected{% endif %}>{{ estado }}</option>
-                {% endfor %}
+                {% for estado in estados_fisicos %}<option value="{{ estado }}" {% if filtro_estado_fisico == estado %}selected{% endif %}>{{ estado }}</option>{% endfor %}
             </select>
         </div>
-
-        <div class="acciones-filtro">
-            <button type="submit">Aplicar filtros</button>
-            <a href="{{ url_for('expedientes.listado') }}">Limpiar</a>
-        </div>
+        <div class="acciones-filtro"><button type="submit">Aplicar filtros</button><a href="{{ url_for('expedientes.listado') }}">Limpiar</a></div>
     </form>
 
-    <p class="contador-resultados">
-        Expedientes encontrados: <strong>{{ expedientes|length }}</strong>
-    </p>
-
+    <p class="contador-resultados">Expedientes encontrados: <strong>{{ expedientes|length }}</strong></p>
     <div class="tabla-contenedor">
         <table>
-            <thead>
-                <tr>
-                    <th>Código interno</th>
-                    <th>No. de SP</th>
-                    <th>Nombre referencia</th>
-                    <th>Estado administrativo</th>
-                    <th>Estado físico/documental</th>
-                    <th>Activo</th>
-                    <th>Acción</th>
-                </tr>
-            </thead>
+            <thead><tr><th>Código interno</th><th>No. de SP</th><th>Nombre referencia</th><th>Estado administrativo</th><th>Estado físico/documental</th><th>Activo</th><th>Acción</th></tr></thead>
             <tbody>
                 {% for expediente in expedientes %}
                 <tr>
-                    <td>{{ expediente.codigo_interno }}</td>
-                    <td>{{ expediente.no_sp }}</td>
-                    <td>{{ expediente.nombre_referencia or "Sin dato" }}</td>
-                    <td>{{ expediente.estado_administrativo }}</td>
-                    <td>{{ expediente.estado_fisico_documental }}</td>
-                    <td>
-                        {% if expediente.activo %}
-                            <span class="badge badge-activo">Sí</span>
-                        {% else %}
-                            <span class="badge badge-inactivo">No</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <a href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Ver</a>
-                        |
-                        <a href="{{ url_for('expedientes.editar', expediente_id=expediente.id) }}">Editar</a>
-                    </td>
+                    <td>{{ expediente.codigo_interno }}</td><td>{{ expediente.no_sp }}</td><td>{{ expediente.nombre_referencia or "Sin dato" }}</td><td>{{ expediente.estado_administrativo }}</td><td>{{ expediente.estado_fisico_documental }}</td>
+                    <td>{% if expediente.activo %}<span class="badge badge-activo">Sí</span>{% else %}<span class="badge badge-inactivo">No</span>{% endif %}</td>
+                    <td><a href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Ver</a> | <a href="{{ url_for('expedientes.editar', expediente_id=expediente.id) }}">Editar</a></td>
                 </tr>
-                {% else %}
-                <tr>
-                    <td colspan="7">No hay expedientes registrados con los filtros seleccionados.</td>
-                </tr>
-                {% endfor %}
+                {% else %}<tr><td colspan="7">No hay expedientes registrados con los filtros seleccionados.</td></tr>{% endfor %}
             </tbody>
         </table>
     </div>
