@@ -21,24 +21,15 @@ def upgrade():
         batch_op.add_column(sa.Column("folios_recepcion", sa.String(length=80), nullable=True))
         batch_op.create_index("ix_registros_coordinacion_persona_entrega", ["persona_entrega"], unique=False)
 
-    # Migra al campo común los folios históricos que ya estaban almacenados en
-    # los detalles especializados. Las columnas legacy se conservan por
-    # compatibilidad y para permitir rollback sin pérdida.
-    op.execute(sa.text(
-        "UPDATE registros_coordinacion r SET folios_recepcion = p.folios "
-        "FROM pagos_coordinacion p "
-        "WHERE p.registro_id = r.id AND r.folios_recepcion IS NULL AND p.folios IS NOT NULL"
-    ))
-    op.execute(sa.text(
-        "UPDATE registros_coordinacion r SET folios_recepcion = m.folios "
-        "FROM movimientos_dispositivo m "
-        "WHERE m.registro_id = r.id AND r.folios_recepcion IS NULL AND m.folios IS NOT NULL"
-    ))
-    op.execute(sa.text(
-        "UPDATE registros_coordinacion r SET folios_recepcion = a.folios "
-        "FROM anexos_coordinacion a "
-        "WHERE a.registro_id = r.id AND r.folios_recepcion IS NULL AND a.folios IS NOT NULL"
-    ))
+    # SQL compatible con PostgreSQL y SQLite de CI. Migra únicamente valores
+    # ya existentes y deja intactos los registros que no tenían folios.
+    for tabla in ("pagos_coordinacion", "movimientos_dispositivo", "anexos_coordinacion"):
+        op.execute(sa.text(
+            f"UPDATE registros_coordinacion "
+            f"SET folios_recepcion = (SELECT folios FROM {tabla} d WHERE d.registro_id = registros_coordinacion.id) "
+            f"WHERE folios_recepcion IS NULL "
+            f"AND EXISTS (SELECT 1 FROM {tabla} d WHERE d.registro_id = registros_coordinacion.id AND d.folios IS NOT NULL)"
+        ))
 
 
 def downgrade():
