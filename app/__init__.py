@@ -1,25 +1,34 @@
 from flask import Flask, redirect, url_for
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
 from flask_login import LoginManager
+from flask_migrate import Migrate
+from flask_sqlalchemy import SQLAlchemy
+from flask_wtf.csrf import CSRFProtect
 from sqlalchemy import text
+
 from config import Config
+
 
 db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
+csrf = CSRFProtect()
+
 
 def create_app():
+    Config.validar()
+
     app = Flask(__name__)
     app.config.from_object(Config)
 
     db.init_app(app)
     migrate.init_app(app, db)
+    csrf.init_app(app)
 
     login_manager.init_app(app)
     login_manager.login_view = "auth.login"
     login_manager.login_message = "Debe iniciar sesión para acceder al sistema."
     login_manager.login_message_category = "warning"
+    login_manager.session_protection = "strong"
 
     from app.models import (
         Usuario,
@@ -34,7 +43,13 @@ def create_app():
 
     @login_manager.user_loader
     def load_user(usuario_id):
-        return Usuario.query.get(int(usuario_id))
+        try:
+            usuario = db.session.get(Usuario, int(usuario_id))
+        except (TypeError, ValueError):
+            return None
+        if not usuario or not usuario.activo:
+            return None
+        return usuario
 
     from app.routes import (
         auth_bp,
@@ -65,12 +80,17 @@ def create_app():
     def inicio():
         return redirect(url_for("auth.login"))
 
+    @app.route("/health")
+    def health():
+        return {"status": "ok"}
+
     @app.route("/health/db")
     def health_db():
         try:
-            db.session.execute(text("SELECT 1"))
+            db.session.execute(text("SELECT 1")).scalar()
             return "Conexion a PostgreSQL correcta"
-        except Exception as error:
-            return f"Error de conexion a PostgreSQL: {error}", 500
+        except Exception:
+            db.session.rollback()
+            return "Base de datos no disponible", 503
 
     return app
