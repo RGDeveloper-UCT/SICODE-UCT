@@ -5,22 +5,39 @@ from uuid import uuid4
 from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func, or_
+from sqlalchemy.exc import IntegrityError
 from werkzeug.utils import secure_filename
 
 from app import db
 from app.forms.coordinacion_form import (
-    ActividadForm, AnexoForm, ConfirmarImportacionForm, DocumentoEmitidoForm,
-    ImportarCoordinacionForm, MonitoreoForm, MovimientoForm, PagoForm,
-    RemisionExpedienteForm, RemisionForm,
+    ActividadForm,
+    AnexoForm,
+    ConfirmarImportacionForm,
+    DocumentoEmitidoForm,
+    ImportarCoordinacionForm,
+    MonitoreoForm,
+    MovimientoForm,
+    PagoForm,
+    RemisionExpedienteForm,
+    RemisionForm,
 )
 from app.models.coordinacion import (
-    ActividadCoordinacion, AnexoCoordinacion, DocumentoEmitido, MovimientoDispositivo,
-    PagoCoordinacion, RegistroCoordinacion, RemisionCoordinacion, RemisionExpediente, ReporteMonitoreo,
+    ActividadCoordinacion,
+    AnexoCoordinacion,
+    DocumentoEmitido,
+    MovimientoDispositivo,
+    PagoCoordinacion,
+    RegistroCoordinacion,
+    RemisionCoordinacion,
+    RemisionExpediente,
+    ReporteMonitoreo,
 )
 from app.models.expediente import Expediente
+from app.security import admin_required
 from app.services.bitacora_service import registrar_bitacora
 from app.services.coordinacion_service import determinar_estado, resolver_expediente
 from app.services.importacion_coordinacion_service import ImportadorCoordinacion
+
 
 coordinacion_bp = Blueprint("coordinacion", __name__, url_prefix="/coordinacion")
 
@@ -43,26 +60,39 @@ CATALOGOS = {
     "areas_apoyo": ["Monitoreo", "Analista de Riesgo", "Dirección", "Subdirección", "Administración", "Otra coordinación"],
 }
 
-
-def _solo_admin():
-    if current_user.rol != "administrador":
-        abort(403)
+TIPOS_ENTRANTES = {"PAGO", "INSTALACION", "DESINSTALACION", "ANEXO", "MONITOREO"}
 
 
 def _sp_opciones():
     return Expediente.query.filter_by(activo=True).order_by(Expediente.no_sp.asc()).all()
 
 
+def _limpiar(valor):
+    if isinstance(valor, str):
+        valor = valor.strip()
+        return valor or None
+    return valor
+
+
 def _crear_base(tipo, no_sp=None, rc=None, providencia=None, fecha=None, observaciones=None, campos_clave=None):
     expediente, no_sp_norm = resolver_expediente(no_sp)
     estado = determinar_estado(expediente, no_sp_norm, campos_clave=campos_clave)
+
+    # Los formularios entrantes comparten estos nombres. Se capturan aquí una
+    # sola vez para que "Recepción" sea una capacidad transversal de
+    # Coordinación y no otro panel duplicado.
+    persona_entrega = _limpiar(request.form.get("persona_entrega")) if tipo in TIPOS_ENTRANTES else None
+    folios_recepcion = _limpiar(request.form.get("folios")) if tipo in TIPOS_ENTRANTES else None
+
     registro = RegistroCoordinacion(
         tipo=tipo,
         expediente_id=expediente.id if expediente else None,
         no_sp_referencia=no_sp_norm,
-        rc=rc.strip() if isinstance(rc, str) and rc.strip() else rc,
-        providencia=providencia.strip() if isinstance(providencia, str) and providencia.strip() else providencia,
+        rc=_limpiar(rc),
+        providencia=_limpiar(providencia),
         fecha_recepcion=fecha,
+        persona_entrega=persona_entrega,
+        folios_recepcion=folios_recepcion,
         usuario_id=current_user.id,
         usuario_origen=current_user.nombre,
         estado=estado,
@@ -78,9 +108,24 @@ def _registrar_bitacora_nuevo(registro, etiqueta):
     registrar_bitacora(
         accion=f"REGISTRAR_{registro.tipo}",
         modulo="Coordinación",
-        descripcion=f"Se registró {etiqueta}. SP: {registro.no_sp_referencia or 'Sin SP'}. Estado: {registro.estado}.",
+        descripcion=(
+            f"Se registró {etiqueta}. SP: {registro.no_sp_referencia or 'Sin SP'}. "
+            f"Recibe: {registro.usuario_origen or current_user.nombre}. "
+            f"Entrega/remite: {registro.persona_entrega or 'No consignado'}. Estado: {registro.estado}."
+        ),
         usuario_id=current_user.id,
         expediente_id=registro.expediente_id,
+        entidad="RegistroCoordinacion",
+        entidad_id=registro.id,
+        datos_posteriores={
+            "tipo": registro.tipo,
+            "sp": registro.no_sp_referencia,
+            "rc": registro.rc,
+            "providencia": registro.providencia,
+            "persona_entrega": registro.persona_entrega,
+            "folios_recepcion": registro.folios_recepcion,
+            "estado": registro.estado,
+        },
     )
 
 
@@ -120,28 +165,32 @@ def listado():
     q = request.args.get("q", "").strip()
     tipo = request.args.get("tipo", "").strip()
     estado = request.args.get("estado", "").strip()
+    pagina = request.args.get("page", 1, type=int)
+
     consulta = RegistroCoordinacion.query
     if q:
         patron = f"%{q}%"
-        consulta = consulta.filter(
-            or_(
-                RegistroCoordinacion.no_sp_referencia.ilike(patron),
-                RegistroCoordinacion.rc.ilike(patron),
-                RegistroCoordinacion.providencia.ilike(patron),
-                RegistroCoordinacion.observaciones.ilike(patron),
-            )
-        )
+        consulta = consulta.filter(or_(
+            RegistroCoordinacion.no_sp_referencia.ilike(patron),
+            RegistroCoordinacion.rc.ilike(patron),
+            RegistroCoordinacion.providencia.ilike(patron),
+            RegistroCoordinacion.persona_entrega.ilike(patron),
+            RegistroCoordinacion.observaciones.ilike(patron),
+        ))
     if tipo:
         consulta = consulta.filter(RegistroCoordinacion.tipo == tipo)
     if estado:
         consulta = consulta.filter(RegistroCoordinacion.estado == estado)
-    registros = consulta.order_by(
+
+    paginacion = consulta.order_by(
         RegistroCoordinacion.fecha_recepcion.desc().nullslast(),
         RegistroCoordinacion.creado_en.desc(),
-    ).all()
+    ).paginate(page=max(pagina, 1), per_page=75, error_out=False)
+
     return render_template(
         "coordinacion/listado.html",
-        registros=registros,
+        registros=paginacion.items,
+        paginacion=paginacion,
         q=q,
         tipo=tipo,
         estado=estado,
@@ -338,18 +387,28 @@ def remision_detalle(remision_id):
             observaciones=form.observaciones.data,
         )
         db.session.add(detalle)
-        db.session.flush()
+        try:
+            db.session.flush()
+        except IntegrityError:
+            db.session.rollback()
+            flash("Ese SP ya está incluido en la remisión.", "warning")
+            return redirect(url_for("coordinacion.remision_detalle", remision_id=remision.id))
+
         _recalcular_estado_remision(remision)
-        db.session.commit()
         registrar_bitacora(
             accion="AGREGAR_EXPEDIENTE_REMISION",
             modulo="Coordinación",
             descripcion=f"Se agregó el SP {detalle.no_sp_referencia} a la remisión {remision.id}.",
             usuario_id=current_user.id,
             expediente_id=detalle.expediente_id,
+            entidad="RemisionExpediente",
+            entidad_id=detalle.id,
+            commit=False,
         )
+        db.session.commit()
         flash("Expediente agregado a la remisión.", "success")
         return redirect(url_for("coordinacion.remision_detalle", remision_id=remision.id))
+
     return render_template(
         "coordinacion/remision_detalle.html",
         remision=remision,
@@ -367,14 +426,18 @@ def remision_eliminar_expediente(remision_id, detalle_id):
     db.session.delete(detalle)
     db.session.flush()
     _recalcular_estado_remision(remision)
-    db.session.commit()
     registrar_bitacora(
         accion="QUITAR_EXPEDIENTE_REMISION",
         modulo="Coordinación",
         descripcion=f"Se quitó el SP {sp} de la remisión {remision.id}.",
         usuario_id=current_user.id,
         expediente_id=expediente_id,
+        entidad="RemisionExpediente",
+        entidad_id=detalle_id,
+        datos_anteriores={"sp": sp},
+        commit=False,
     )
+    db.session.commit()
     flash("Expediente retirado de la remisión.", "info")
     return redirect(url_for("coordinacion.remision_detalle", remision_id=remision.id))
 
@@ -394,8 +457,8 @@ def _carpeta_importaciones():
 
 @coordinacion_bp.route("/importar", methods=["GET", "POST"])
 @login_required
+@admin_required
 def importar_excel():
-    _solo_admin()
     form = ImportarCoordinacionForm()
     resumen = confirmar = None
     if form.validate_on_submit():
@@ -411,22 +474,18 @@ def importar_excel():
             resumen = ImportadorCoordinacion(ruta, current_user.id, nombre_original).procesar(importar=False)
             confirmar = ConfirmarImportacionForm()
             confirmar.token.data = token
-        except Exception as error:
+        except Exception:
             ruta.unlink(missing_ok=True)
             meta.unlink(missing_ok=True)
-            flash(f"No fue posible analizar el archivo: {error}", "danger")
-    return render_template(
-        "coordinacion/importar.html",
-        form=form,
-        resumen=resumen,
-        confirmar=confirmar,
-    )
+            current_app.logger.exception("Error al previsualizar importación histórica de Coordinación")
+            flash("No fue posible analizar el archivo. Revise el formato e inténtelo nuevamente.", "danger")
+    return render_template("coordinacion/importar.html", form=form, resumen=resumen, confirmar=confirmar)
 
 
 @coordinacion_bp.route("/importar/confirmar", methods=["POST"])
 @login_required
+@admin_required
 def confirmar_importacion():
-    _solo_admin()
     form = ConfirmarImportacionForm()
     if not form.validate_on_submit():
         flash("No fue posible validar la importación.", "danger")
@@ -457,8 +516,9 @@ def confirmar_importacion():
             usuario_id=current_user.id,
         )
         flash("Importación histórica completada.", "success")
-    except Exception as error:
-        flash(f"La importación fue cancelada y no se guardaron cambios: {error}", "danger")
+    except Exception:
+        current_app.logger.exception("Error al confirmar importación histórica de Coordinación")
+        flash("La importación fue cancelada y no se guardaron cambios.", "danger")
         return redirect(url_for("coordinacion.importar_excel"))
     finally:
         ruta.unlink(missing_ok=True)
