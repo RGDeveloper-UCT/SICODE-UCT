@@ -153,4 +153,7 @@ def test_post_mutante_con_csrf_funciona(app, client):
 def test_health_no_expone_detalles(client):
     respuesta = client.get("/health")
     assert respuesta.status_code == 200
-    assert respuesta.get_json() == {"status": "ok"}
+    cuerpo = respuesta.get_json()
+    assert cuerpo["status"] == "ok"
+    assert "version" in cuerpo
+    assert set(cuerpo) == {"status", "version"}
