@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Verificaciones — SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+    <div class="encabezado-modulo">
+        <div><h1>Verificaciones del expediente</h1><p>SP <strong>{{ expediente.no_sp }}</strong> · {{ expediente.nombre_referencia or 'Sin nombre' }}</p></div>
+        <a class="boton-cancelar" href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Volver al expediente</a>
+    </div>
+
+    <div class="aviso"><strong>Estado actual:</strong> {{ expediente.estado_fisico_documental }}. Cada nueva verificación conserva su historial; no reemplaza los eventos anteriores.</div>
+
+    <h2>Registrar verificación</h2>
+    <form method="POST" class="formulario">
+        {{ form.hidden_tag() }}
+        <div class="grid-form">
+            <div class="campo">{{ form.tipo.label }}{{ form.tipo() }}{% for e in form.tipo.errors %}<small class="error">{{ e }}</small>{% endfor %}</div>
+            <div class="campo">{{ form.resultado.label }}{{ form.resultado() }}{% for e in form.resultado.errors %}<small class="error">{{ e }}</small>{% endfor %}</div>
+            <div class="campo">{{ form.folios_verificados.label }}{{ form.folios_verificados() }}{% for e in form.folios_verificados.errors %}<small class="error">{{ e }}</small>{% endfor %}</div>
+        </div>
+        <div class="campo">{{ form.observaciones.label }}{{ form.observaciones(rows='4', placeholder='Hallazgos, faltantes, foliación, ubicación o motivo del resultado') }}</div>
+        <div class="acciones">{{ form.submit(class_='boton') }}</div>
+    </form>
+
+    <h2>Historial</h2>
+    <div class="tabla-contenedor">
+        <table>
+            <thead><tr><th>Fecha</th><th>Tipo</th><th>Resultado</th><th>Folios verificados</th><th>Usuario</th><th>Observaciones</th></tr></thead>
+            <tbody>
+            {% for item in historial %}
+                <tr>
+                    <td>{{ item.creado_en.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td>{{ item.tipo }}</td>
+                    <td>{% if item.resultado == 'Verificado' %}<span class="badge badge-activo">Verificado</span>{% elif item.resultado == 'No localizado' %}<span class="badge badge-inactivo">No localizado</span>{% else %}<span class="badge badge-advertencia">{{ item.resultado }}</span>{% endif %}</td>
+                    <td>{{ item.folios_verificados if item.folios_verificados is not none else '—' }}</td>
+                    <td>{{ item.usuario.nombre }}</td>
+                    <td>{{ item.observaciones or 'Sin observaciones' }}</td>
+                </tr>
+            {% else %}<tr><td colspan="6">Todavía no existen verificaciones formales registradas.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
