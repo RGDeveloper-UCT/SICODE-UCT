@@ -2,6 +2,8 @@ from flask_wtf import FlaskForm
 from wtforms import SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Length, Optional
 
+from app.services.sp_service import normalizar_sp
+
 
 ESTADOS_ADMINISTRATIVOS = [
     ("Activo", "Activo"),
@@ -25,6 +27,7 @@ class ExpedienteForm(FlaskForm):
     )
     no_sp = StringField(
         "No. de SP",
+        filters=[normalizar_sp],
         validators=[DataRequired(message="Debe ingresar el No. de SP."), Length(max=50)],
     )
     nombre_referencia = StringField("Nombre de referencia", validators=[Optional(), Length(max=150)])
@@ -45,8 +48,6 @@ class ExpedienteForm(FlaskForm):
 
 
 class RegistrarExpedienteFisicoForm(FlaskForm):
-    """Completa un SP ya conocido sin duplicar su registro maestro."""
-
     estado_administrativo = SelectField("Estado administrativo", choices=ESTADOS_ADMINISTRATIVOS, default="Activo")
     estado_fisico_documental = SelectField(
         "Estado físico/documental",
