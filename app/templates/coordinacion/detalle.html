@@ -1,25 +1,41 @@
 {% extends "base.html" %}
 {% block title %}Detalle de Coordinación — SICODE-UCT{% endblock %}
 {% block content %}
-<section class="panel">
+<section class="panel panel-ancho">
     <div class="encabezado-modulo"><div><h1>{{ registro.tipo }}</h1><p>Registro operativo No. {{ registro.id }}</p></div><a class="boton-cancelar" href="{{ url_for('coordinacion.listado') }}">Volver</a></div>
+
+    <h2>Recepción / control</h2>
     <div class="grid-form detalle-grid">
         <div class="tarjeta"><strong>Fecha</strong><p>{{ registro.fecha_recepcion.strftime('%d/%m/%Y') if registro.fecha_recepcion else 'Sin fecha' }}</p></div>
         <div class="tarjeta"><strong>Estado</strong><p>{{ registro.estado }}</p></div>
         <div class="tarjeta"><strong>SP</strong><p>{% if registro.expediente %}<a href="{{ url_for('expedientes.detalle', expediente_id=registro.expediente.id) }}">{{ registro.no_sp_referencia }}</a>{% else %}{{ registro.no_sp_referencia or 'No aplica' }}{% endif %}</p></div>
-        <div class="tarjeta"><strong>Usuario</strong><p>{{ registro.usuario_origen or registro.usuario.nombre }}</p></div>
+        <div class="tarjeta"><strong>Quién recibe</strong><p>{{ registro.usuario_origen or registro.usuario.nombre }}</p></div>
+        <div class="tarjeta"><strong>Quién entrega / remite</strong><p>{{ registro.persona_entrega or 'No consignado' }}</p></div>
+        <div class="tarjeta"><strong>Folios recibidos</strong><p>{{ registro.folios_recepcion or 'Sin dato' }}</p></div>
         <div class="tarjeta"><strong>RC</strong><p>{{ registro.rc or 'Sin dato' }}</p></div>
         <div class="tarjeta"><strong>Providencia</strong><p>{{ registro.providencia or 'Sin dato' }}</p></div>
+        <div class="tarjeta"><strong>Origen</strong><p>{{ 'Excel' if registro.origen_registro == 'IMPORTACION_EXCEL' else 'Manual' }}</p></div>
     </div>
-    <h2>Información específica</h2><div class="tabla-contenedor"><table><tbody>
+
+    <h2>Información específica</h2>
+    <div class="tabla-contenedor"><table><tbody>
     {% if registro.tipo == 'PAGO' and registro.pago %}
-        <tr><th>Folios</th><td>{{ registro.pago.folios or 'Sin dato' }}</td></tr><tr><th>Período</th><td>{{ registro.pago.periodo_desde.strftime('%d/%m/%Y') if registro.pago.periodo_desde else '' }}{% if registro.pago.periodo_hasta %} al {{ registro.pago.periodo_hasta.strftime('%d/%m/%Y') }}{% endif %} {{ registro.pago.periodo_texto or '' }}</td></tr><tr><th>Boleta</th><td>{{ registro.pago.boleta or 'Sin dato' }}</td></tr><tr><th>Total</th><td>{{ ('Q %.2f'|format(registro.pago.total)) if registro.pago.total is not none else 'Sin dato' }}</td></tr>
+        <tr><th>Período</th><td>{{ registro.pago.periodo_desde.strftime('%d/%m/%Y') if registro.pago.periodo_desde else '' }}{% if registro.pago.periodo_hasta %} al {{ registro.pago.periodo_hasta.strftime('%d/%m/%Y') }}{% endif %} {{ registro.pago.periodo_texto or '' }}</td></tr>
+        <tr><th>Boleta</th><td>{{ registro.pago.boleta or 'Sin dato' }}</td></tr>
+        <tr><th>Total</th><td>{{ ('Q %.2f'|format(registro.pago.total)) if registro.pago.total is not none else 'Sin dato' }}</td></tr>
     {% elif registro.tipo in ['INSTALACION','DESINSTALACION'] and registro.movimiento_dispositivo %}
-        <tr><th>Movimiento</th><td>{{ registro.movimiento_dispositivo.movimiento }}</td></tr><tr><th>Descripción</th><td>{{ registro.movimiento_dispositivo.descripcion or 'Sin dato' }}</td></tr><tr><th>Folios</th><td>{{ registro.movimiento_dispositivo.folios or 'Sin dato' }}</td></tr>
+        <tr><th>Movimiento</th><td>{{ registro.movimiento_dispositivo.movimiento }}</td></tr>
+        <tr><th>Descripción</th><td>{{ registro.movimiento_dispositivo.descripcion or 'Sin dato' }}</td></tr>
     {% elif registro.tipo == 'ANEXO' and registro.anexo_coordinacion %}
-        <tr><th>Tipo</th><td>{{ registro.anexo_coordinacion.tipo_anexo or 'Sin dato' }}</td></tr><tr><th>Anexo No.</th><td>{{ registro.anexo_coordinacion.numero_anexo or 'Sin dato' }}</td></tr><tr><th>Folios</th><td>{{ registro.anexo_coordinacion.folios or 'Sin dato' }}</td></tr><tr><th>Escaneado</th><td>{{ 'Sí' if registro.anexo_coordinacion.escaneado else 'Pendiente' }}</td></tr><tr><th>Fecha escaneado</th><td>{{ registro.anexo_coordinacion.fecha_escaneado.strftime('%d/%m/%Y') if registro.anexo_coordinacion.fecha_escaneado else 'Sin dato' }}</td></tr>
+        <tr><th>Tipo</th><td>{{ registro.anexo_coordinacion.tipo_anexo or 'Sin dato' }}</td></tr>
+        <tr><th>Anexo No.</th><td>{{ registro.anexo_coordinacion.numero_anexo or 'Sin dato' }}</td></tr>
+        <tr><th>Escaneado</th><td>{{ 'Sí' if registro.anexo_coordinacion.escaneado else 'Pendiente' }}</td></tr>
+        <tr><th>Fecha escaneado</th><td>{{ registro.anexo_coordinacion.fecha_escaneado.strftime('%d/%m/%Y') if registro.anexo_coordinacion.fecha_escaneado else 'Sin dato' }}</td></tr>
+        <tr><th>Índice documental</th><td>{% if registro.anexo_coordinacion.documento_expediente %}<a href="{{ url_for('indice_documental.listado', expediente_id=registro.expediente_id) }}">Incorporado: {{ registro.anexo_coordinacion.documento_expediente.nombre_documento }}</a>{% elif registro.expediente_id %}<a href="{{ url_for('indice_documental.listado', expediente_id=registro.expediente_id, anexo_id=registro.anexo_coordinacion.id) }}">Pendiente de incorporar</a>{% else %}Pendiente de vincular SP{% endif %}</td></tr>
     {% elif registro.tipo == 'MONITOREO' and registro.reporte_monitoreo %}
-        <tr><th>Tipo documento</th><td>{{ registro.reporte_monitoreo.tipo_documento or 'Sin dato' }}</td></tr><tr><th>Reporte No.</th><td>{{ registro.reporte_monitoreo.numero_reporte or 'Sin dato' }}</td></tr><tr><th>Evento</th><td>{{ registro.reporte_monitoreo.tipo_evento or 'Sin dato' }}</td></tr>
+        <tr><th>Tipo documento</th><td>{{ registro.reporte_monitoreo.tipo_documento or 'Sin dato' }}</td></tr>
+        <tr><th>Reporte No.</th><td>{{ registro.reporte_monitoreo.numero_reporte or 'Sin dato' }}</td></tr>
+        <tr><th>Evento</th><td>{{ registro.reporte_monitoreo.tipo_evento or 'Sin dato' }}</td></tr>
     {% elif registro.tipo == 'DOCUMENTO_EMITIDO' and registro.documento_emitido %}
         <tr><th>No. documento</th><td>{{ registro.documento_emitido.numero_documento }}</td></tr><tr><th>Destino</th><td>{{ registro.documento_emitido.destino or 'Sin dato' }}</td></tr><tr><th>Descripción</th><td>{{ registro.documento_emitido.descripcion or 'Sin dato' }}</td></tr>
     {% elif registro.tipo == 'ACTIVIDAD' and registro.actividad_coordinacion %}
@@ -28,6 +44,7 @@
         <tr><th>Destino</th><td>{{ registro.remision_coordinacion.destino }}</td></tr><tr><th>Número control</th><td>{{ registro.remision_coordinacion.numero_control or 'Sin dato' }}</td></tr><tr><th>Expedientes</th><td>{{ registro.remision_coordinacion.expedientes_remitidos|length }}</td></tr>
     {% endif %}
     </tbody></table></div>
+
     {% if registro.observaciones %}<div class="aviso"><strong>Observaciones:</strong> {{ registro.observaciones }}</div>{% endif %}
     {% if registro.origen_registro == 'IMPORTACION_EXCEL' %}<p class="nota">Importado de {{ registro.archivo_origen }}, hoja {{ registro.hoja_origen }}, fila {{ registro.fila_origen }}.</p>{% endif %}
     {% if registro.tipo == 'REMISION' and registro.remision_coordinacion %}<div class="acciones"><a class="boton-secundario" href="{{ url_for('coordinacion.remision_detalle', remision_id=registro.remision_coordinacion.id) }}">Ver expedientes de la remisión</a></div>{% endif %}
