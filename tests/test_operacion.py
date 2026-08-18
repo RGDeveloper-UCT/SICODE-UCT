@@ -1,0 +1,150 @@
+from datetime import date
+
+import pytest
+from werkzeug.security import generate_password_hash
+
+from app import create_app, db
+from app.models.alerta import Alerta
+from app.models.coordinacion import RegistroCoordinacion
+from app.models.expediente import Expediente
+from app.models.usuario import Usuario
+from app.models.verificacion import VerificacionExpediente
+
+
+@pytest.fixture()
+def app_operacion():
+    app = create_app()
+    app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
+    with app.app_context():
+        db.drop_all()
+        db.create_all()
+        admin = Usuario(
+            nombre="Admin Operación",
+            usuario="admin-op",
+            correo="admin-op@uct.local",
+            password_hash=generate_password_hash("Password123", method="pbkdf2:sha256"),
+            debe_cambiar_password=False,
+            rol="administrador",
+            activo=True,
+        )
+        expediente = Expediente(
+            codigo_interno="SICODE-UCT-0100",
+            no_sp="100",
+            nombre_referencia="Sujeto Operación",
+            estado_administrativo="Activo",
+            estado_fisico_documental="Pendiente de verificación",
+            expediente_fisico_registrado=True,
+            activo=True,
+        )
+        db.session.add_all([admin, expediente])
+        db.session.commit()
+    yield app
+    with app.app_context():
+        db.session.remove()
+        db.drop_all()
+
+
+@pytest.fixture()
+def cliente(app_operacion):
+    cliente = app_operacion.test_client()
+    with cliente.session_transaction() as sesion:
+        with app_operacion.app_context():
+            usuario = Usuario.query.filter_by(usuario="admin-op").one()
+            sesion["_user_id"] = str(usuario.id)
+            sesion["_fresh"] = True
+    return cliente
+
+
+def test_recepcion_integra_quien_entrega_folios_y_quien_recibe(app_operacion, cliente):
+    respuesta = cliente.post(
+        "/coordinacion/registrar/monitoreo",
+        data={
+            "no_sp": "100",
+            "rc": "RC-100",
+            "providencia": "PROV-100",
+            "fecha_recepcion": date.today().isoformat(),
+            "persona_entrega": "Centro de Control y Monitoreo",
+            "folios": "1-8",
+            "tipo_documento": "PROVIDENCIA",
+            "numero_reporte": "REP-100",
+            "tipo_evento": "No comunicación",
+            "observaciones": "Prueba de recepción",
+        },
+        follow_redirects=False,
+    )
+    assert respuesta.status_code == 302
+
+    with app_operacion.app_context():
+        registro = RegistroCoordinacion.query.filter_by(rc="RC-100").one()
+        assert registro.persona_entrega == "Centro de Control y Monitoreo"
+        assert registro.folios_recepcion == "1-8"
+        assert registro.usuario.nombre == "Admin Operación"
+        assert registro.expediente.no_sp == "100"
+
+
+def test_verificacion_con_observaciones_actualiza_estado_y_alerta(app_operacion, cliente):
+    respuesta = cliente.post(
+        "/expedientes/1/verificaciones",
+        data={
+            "tipo": "INTEGRAL",
+            "resultado": "Con observaciones",
+            "folios_verificados": "25",
+            "observaciones": "Falta revisar anexo.",
+        },
+        follow_redirects=False,
+    )
+    assert respuesta.status_code == 302
+
+    with app_operacion.app_context():
+        expediente = db.session.get(Expediente, 1)
+        verificacion = VerificacionExpediente.query.one()
+        assert expediente.estado_fisico_documental == "Con observaciones"
+        assert verificacion.folios_verificados == 25
+        assert Alerta.query.filter_by(tipo_alerta="REVISION_EXPEDIENTE", estado="Abierta").count() == 1
+
+
+def test_verificacion_correcta_resuelve_alertas_de_revision(app_operacion, cliente):
+    with app_operacion.app_context():
+        db.session.add(Alerta(
+            expediente_id=1,
+            tipo_alerta="REVISION_EXPEDIENTE",
+            titulo="Revisión pendiente",
+            gravedad="Media",
+            estado="Abierta",
+            origen="Automática",
+        ))
+        db.session.commit()
+
+    respuesta = cliente.post(
+        "/expedientes/1/verificaciones",
+        data={"tipo": "DOCUMENTAL", "resultado": "Verificado", "folios_verificados": "25"},
+        follow_redirects=False,
+    )
+    assert respuesta.status_code == 302
+
+    with app_operacion.app_context():
+        alerta = Alerta.query.filter_by(tipo_alerta="REVISION_EXPEDIENTE").one()
+        assert alerta.estado == "Corregida"
+        assert db.session.get(Expediente, 1).estado_fisico_documental == "Verificado"
+
+
+def test_listado_coordinacion_usa_paginacion(app_operacion, cliente):
+    with app_operacion.app_context():
+        usuario = Usuario.query.filter_by(usuario="admin-op").one()
+        for numero in range(80):
+            db.session.add(RegistroCoordinacion(
+                tipo="ACTIVIDAD",
+                fecha_recepcion=date.today(),
+                usuario_id=usuario.id,
+                usuario_origen=usuario.nombre,
+                estado="Completo",
+                origen_registro="MANUAL",
+                observaciones=f"Registro {numero}",
+            ))
+        db.session.commit()
+
+    respuesta = cliente.get("/coordinacion/registros")
+    texto = respuesta.get_data(as_text=True)
+    assert respuesta.status_code == 200
+    assert "Mostrando <strong>75</strong>" in texto
+    assert "Página 1 de 2" in texto
