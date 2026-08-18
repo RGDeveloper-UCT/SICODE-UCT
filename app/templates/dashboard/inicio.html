@@ -1,301 +1,46 @@
 {% extends "base.html" %}
-
 {% block title %}Dashboard — SICODE-UCT{% endblock %}
-
 {% block content %}
-<section class="panel">
-    <h1>Dashboard inicial</h1>
-    <p>Bienvenido, <strong>{{ usuario.nombre }}</strong>.</p>
+<section class="panel panel-ancho">
+    <div class="encabezado-modulo">
+        <div><h1>Dashboard</h1><p>Resumen operativo de lo que requiere atención hoy. Usuario: <strong>{{ usuario.nombre }}</strong>.</p></div>
+        <div class="acciones-detalle"><a class="boton-secundario" href="{{ url_for('busqueda.global_') }}">Buscar en SICODE</a>{% if current_user.rol == 'administrador' %}<a class="boton-exito" href="{{ url_for('integridad.inicio') }}">Control de Integridad</a>{% endif %}</div>
+    </div>
 
-    <h2>Resumen de expedientes</h2>
-
+    <h2>SP y expedientes</h2>
     <div class="grid">
-        <div class="tarjeta indicador">
-            <h2>Total de expedientes</h2>
-            <p class="numero-indicador">{{ total_expedientes }}</p>
-        </div>
-
-        <div class="tarjeta indicador">
-            <h2>Expedientes activos</h2>
-            <p class="numero-indicador">{{ expedientes_activos }}</p>
-        </div>
-
-        <div class="tarjeta indicador">
-            <h2>Expedientes inactivos</h2>
-            <p class="numero-indicador">{{ expedientes_inactivos }}</p>
-        </div>
+        <a class="tarjeta indicador tarjeta-enlace" href="{{ url_for('expedientes.listado') }}"><h2>SP registrados</h2><p class="numero-indicador">{{ total_sp }}</p><span>Ver maestro</span></a>
+        <a class="tarjeta indicador tarjeta-enlace" href="{{ url_for('expedientes.listado') }}"><h2>Expedientes físicos</h2><p class="numero-indicador">{{ expedientes_fisicos }}</p><span>Ver expedientes</span></a>
+        <a class="tarjeta indicador tarjeta-enlace" href="{{ url_for('expediente_fisico.pendientes') }}"><h2>Sin expediente físico</h2><p class="numero-indicador indicador-alerta">{{ sp_sin_expediente }}</p><span>Ver exactamente cuáles</span></a>
+        <a class="tarjeta indicador tarjeta-enlace" href="{{ url_for('expedientes.listado', estado_fisico_documental='Pendiente de verificación') }}"><h2>Pendientes de verificación</h2><p class="numero-indicador indicador-alerta">{{ pendientes_verificacion }}</p><span>Revisar</span></a>
     </div>
 
+    <h2>Atención operativa</h2>
     <div class="grid">
-        <div class="tarjeta indicador">
-            <h2>Pendientes de verificación</h2>
-            <p class="numero-indicador">{{ pendientes_verificacion }}</p>
-        </div>
-
-        <div class="tarjeta indicador">
-            <h2>Verificados</h2>
-            <p class="numero-indicador">{{ expedientes_verificados }}</p>
-        </div>
-
-        <div class="tarjeta indicador">
-            <h2>Con observaciones</h2>
-            <p class="numero-indicador">{{ expedientes_con_observaciones }}</p>
-        </div>
+        <a class="tarjeta indicador tarjeta-enlace" href="{{ url_for('coordinacion.listado') }}"><h2>Coordinación pendiente</h2><p class="numero-indicador indicador-alerta">{{ coordinacion_pendiente }}</p><span>Completar/vincular</span></a>
+        <a class="tarjeta indicador tarjeta-enlace" href="{{ url_for('coordinacion.listado', tipo='ANEXO') }}"><h2>Anexos por incorporar</h2><p class="numero-indicador indicador-alerta">{{ anexos_pendientes }}</p><span>Revisar anexos</span></a>
+        <a class="tarjeta indicador tarjeta-enlace" href="{{ url_for('prestamos.listado', estado='En préstamo') }}"><h2>Préstamos activos</h2><p class="numero-indicador">{{ prestamos_activos }}</p><span>Ver movimientos</span></a>
+        <a class="tarjeta indicador tarjeta-enlace" href="{{ url_for('prestamos.listado', estado='Vencidos') }}"><h2>Préstamos vencidos</h2><p class="numero-indicador indicador-peligro">{{ prestamos_vencidos }}</p><span>Atender vencidos</span></a>
+        <a class="tarjeta indicador tarjeta-enlace" href="{{ url_for('alertas.listado') }}"><h2>Alertas pendientes</h2><p class="numero-indicador indicador-alerta">{{ alertas_pendientes }}</p><span>Ver alertas</span></a>
+        <a class="tarjeta indicador tarjeta-enlace" href="{{ url_for('alertas.listado', gravedad='Alta') }}"><h2>Alertas altas</h2><p class="numero-indicador indicador-peligro">{{ alertas_altas }}</p><span>Prioridad alta</span></a>
     </div>
 
-    <h2>Resumen de préstamos</h2>
-
-    <div class="grid">
-        <div class="tarjeta indicador">
-            <h2>Préstamos activos</h2>
-            <p class="numero-indicador indicador-alerta">{{ prestamos_activos }}</p>
-        </div>
-
-        <div class="tarjeta indicador">
-            <h2>Préstamos devueltos</h2>
-            <p class="numero-indicador">{{ prestamos_devueltos }}</p>
-        </div>
-
-        <div class="tarjeta indicador">
-            <h2>Préstamos vencidos</h2>
-            <p class="numero-indicador indicador-peligro">{{ prestamos_vencidos }}</p>
-        </div>
-    </div>
-
-    <h2>Resumen de alertas</h2>
-
-    <div class="grid">
-        <div class="tarjeta indicador">
-            <h2>Alertas abiertas</h2>
-            <p class="numero-indicador indicador-alerta">{{ alertas_abiertas }}</p>
-        </div>
-
-        <div class="tarjeta indicador">
-            <h2>En revisión</h2>
-            <p class="numero-indicador">{{ alertas_en_revision }}</p>
-        </div>
-
-        <div class="tarjeta indicador">
-            <h2>Gravedad alta</h2>
-            <p class="numero-indicador indicador-peligro">{{ alertas_alta }}</p>
-        </div>
-    </div>
-
-    <div class="grid">
-        <div class="tarjeta indicador">
-            <h2>Corregidas</h2>
-            <p class="numero-indicador">{{ alertas_corregidas }}</p>
-        </div>
-
-        <div class="tarjeta indicador">
-            <h2>Cerradas</h2>
-            <p class="numero-indicador">{{ alertas_cerradas }}</p>
-        </div>
-
-        <div class="tarjeta">
-            <h2>Alertas e incidentes</h2>
-            <p>Revisar alertas generadas por expedientes, foliación, anexos u observaciones.</p>
-            <a href="{{ url_for('alertas.listado') }}">Ver alertas</a>
-        </div>
-    </div>
-
-    <h2>Módulos disponibles</h2>
-
-    <div class="grid">
-        <div class="tarjeta">
-            <h2>Expedientes</h2>
-            <p>Registrar, buscar, consultar y editar expedientes físicos.</p>
-            <a href="{{ url_for('expedientes.listado') }}">Ir a expedientes</a>
-        </div>
-
-        <div class="tarjeta">
-            <h2>Préstamos</h2>
-            <p>Controlar préstamos y devoluciones físicas de expedientes.</p>
-            <a href="{{ url_for('prestamos.listado') }}">Ir a préstamos</a>
-        </div>
-
-        <div class="tarjeta">
-            <h2>Bitácora</h2>
-            <p>Registro técnico de acciones principales del sistema.</p>
-            <a href="{{ url_for('bitacora.listado') }}">Ver bitácora</a>
-        </div>
-    </div>
-
-    <h2>Últimos expedientes registrados</h2>
-
-    <div class="tabla-contenedor">
-        <table>
-            <thead>
-                <tr>
-                    <th>Código interno</th>
-                    <th>No. de SP</th>
-                    <th>Nombre referencia</th>
-                    <th>Estado físico/documental</th>
-                    <th>Activo</th>
-                    <th>Acción</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for expediente in ultimos_expedientes %}
-                <tr>
-                    <td>{{ expediente.codigo_interno }}</td>
-                    <td>{{ expediente.no_sp }}</td>
-                    <td>{{ expediente.nombre_referencia or "Sin dato" }}</td>
-                    <td>{{ expediente.estado_fisico_documental }}</td>
-                    <td>
-                        {% if expediente.activo %}
-                            <span class="badge badge-activo">Sí</span>
-                        {% else %}
-                            <span class="badge badge-inactivo">No</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <a href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Ver</a>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="6">No hay expedientes registrados.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    <h2>Últimos préstamos</h2>
-
-    <div class="tabla-contenedor">
-        <table>
-            <thead>
-                <tr>
-                    <th>Número control</th>
-                    <th>Expediente</th>
-                    <th>Solicitante</th>
-                    <th>Fecha préstamo</th>
-                    <th>Fecha estimada devolución</th>
-                    <th>Estado</th>
-                    <th>Acción</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for prestamo in ultimos_prestamos %}
-                <tr>
-                    <td>
-                        <a href="{{ url_for('prestamos.detalle', prestamo_id=prestamo.id) }}">
-                            {{ prestamo.numero_control }}
-                        </a>
-                    </td>
-                    <td>
-                        <a href="{{ url_for('expedientes.detalle', expediente_id=prestamo.expediente.id) }}">
-                            {{ prestamo.expediente.no_sp }}
-                        </a>
-                    </td>
-                    <td>{{ prestamo.solicitante }}</td>
-                    <td>{{ prestamo.fecha_prestamo.strftime('%d/%m/%Y %H:%M') }}</td>
-                    <td>
-                        {% if prestamo.fecha_estimada_devolucion %}
-                            {{ prestamo.fecha_estimada_devolucion.strftime('%d/%m/%Y') }}
-                        {% else %}
-                            Sin dato
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if prestamo.estado == "En préstamo" %}
-                            <span class="badge badge-advertencia">En préstamo</span>
-                        {% else %}
-                            <span class="badge badge-activo">Devuelto</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <a href="{{ url_for('prestamos.detalle', prestamo_id=prestamo.id) }}">Ver detalle</a>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="7">No hay préstamos registrados.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    <h2>Últimas alertas</h2>
-
-    <div class="tabla-contenedor">
-        <table>
-            <thead>
-                <tr>
-                    <th>Fecha</th>
-                    <th>Gravedad</th>
-                    <th>Estado</th>
-                    <th>Tipo</th>
-                    <th>Expediente</th>
-                    <th>Título</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for alerta in ultimas_alertas %}
-                <tr>
-                    <td>{{ alerta.creado_en.strftime('%d/%m/%Y %H:%M') }}</td>
-                    <td>
-                        {% if alerta.gravedad == "Alta" %}
-                            <span class="badge badge-inactivo">Alta</span>
-                        {% elif alerta.gravedad == "Media" %}
-                            <span class="badge badge-advertencia">Media</span>
-                        {% else %}
-                            <span class="badge badge-activo">Baja</span>
-                        {% endif %}
-                    </td>
-                    <td><span class="badge badge-neutral">{{ alerta.estado }}</span></td>
-                    <td>{{ alerta.tipo_alerta }}</td>
-                    <td>
-                        <a href="{{ url_for('expedientes.detalle', expediente_id=alerta.expediente.id) }}">
-                            {{ alerta.expediente.no_sp }}
-                        </a>
-                    </td>
-                    <td>{{ alerta.titulo }}</td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="6">No hay alertas registradas.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+    <h2>Actividad reciente de Coordinación</h2>
+    <div class="tabla-contenedor"><table>
+        <thead><tr><th>Fecha</th><th>Tipo</th><th>SP</th><th>RC</th><th>Estado</th><th>Registrado por</th><th>Acción</th></tr></thead>
+        <tbody>
+        {% for item in recientes_coord %}
+            <tr><td>{{ item.fecha_recepcion.strftime('%d/%m/%Y') if item.fecha_recepcion else 'Sin fecha' }}</td><td>{{ item.tipo }}</td><td>{{ item.no_sp_referencia or '—' }}</td><td>{{ item.rc or '—' }}</td><td>{{ item.estado }}</td><td>{{ item.usuario.nombre if item.usuario else item.usuario_origen or '—' }}</td><td><a href="{{ url_for('coordinacion.detalle', registro_id=item.id) }}">Ver</a></td></tr>
+        {% else %}<tr><td colspan="7">Sin actividad registrada.</td></tr>{% endfor %}
+        </tbody>
+    </table></div>
 
     <h2>Últimos eventos de bitácora</h2>
+    <div class="tabla-contenedor"><table>
+        <thead><tr><th>Fecha</th><th>Acción</th><th>Módulo</th><th>Descripción</th></tr></thead>
+        <tbody>{% for evento in ultimos_eventos %}<tr><td>{{ evento.creado_en.strftime('%d/%m/%Y %H:%M') if evento.creado_en else '—' }}</td><td>{{ evento.accion }}</td><td>{{ evento.modulo }}</td><td>{{ evento.descripcion or 'Sin descripción' }}</td></tr>{% else %}<tr><td colspan="4">Sin eventos.</td></tr>{% endfor %}</tbody>
+    </table></div>
 
-    <div class="tabla-contenedor">
-        <table>
-            <thead>
-                <tr>
-                    <th>Fecha</th>
-                    <th>Acción</th>
-                    <th>Módulo</th>
-                    <th>Descripción</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for evento in ultimos_eventos %}
-                <tr>
-                    <td>{{ evento.creado_en.strftime('%d/%m/%Y %H:%M') }}</td>
-                    <td>{{ evento.accion }}</td>
-                    <td>{{ evento.modulo }}</td>
-                    <td>{{ evento.descripcion or "Sin descripción" }}</td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="4">No hay eventos registrados.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    <div class="aviso">
-        <strong>Nota institucional:</strong>
-        SICODE-UCT registrará únicamente metadatos administrativos, ubicación, foliación, observaciones, préstamos, alertas, reportes y bitácora.
-    </div>
+    <div class="aviso"><strong>Principio de SICODE:</strong> la información se relaciona por SP/expediente y se conserva como metadatos administrativos; no se almacenan copias completas de expedientes sensibles.</div>
 </section>
 {% endblock %}
