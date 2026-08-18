@@ -1,4 +1,7 @@
-from datetime import datetime
+from datetime import date, datetime
+
+from sqlalchemy.orm import validates
+
 from app import db
 
 
@@ -6,16 +9,17 @@ class Expediente(db.Model):
     __tablename__ = "expedientes"
 
     id = db.Column(db.Integer, primary_key=True)
-
     codigo_interno = db.Column(db.String(50), unique=True, nullable=False)
-    no_sp = db.Column(db.String(50), unique=True, nullable=False)
+    no_sp = db.Column(db.String(50), unique=True, nullable=False, index=True)
 
     nombre_referencia = db.Column(db.String(150), nullable=True)
     estado_administrativo = db.Column(db.String(80), nullable=False, default="Activo")
     estado_fisico_documental = db.Column(db.String(80), nullable=False, default="Pendiente de verificación")
 
-    # Datos maestros provenientes de la manta diaria de Sujetos Portadores.
-    # Se mantienen separados de los estados administrativos/documentales de SICODE.
+    # El registro maestro del SP y la existencia del expediente físico no son
+    # sinónimos. Portadores puede conocer un SP antes de recibir su expediente.
+    expediente_fisico_registrado = db.Column(db.Boolean, nullable=False, default=True, index=True)
+
     nombres = db.Column(db.String(150), nullable=True)
     apellidos = db.Column(db.String(150), nullable=True)
     genero = db.Column(db.String(30), nullable=True)
@@ -47,6 +51,81 @@ class Expediente(db.Model):
 
     creado_en = db.Column(db.DateTime, default=datetime.utcnow)
     actualizado_en = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @validates("no_sp")
+    def _normalizar_no_sp(self, _clave, valor):
+        # Se implementa aquí también para que cualquier escritura (no solo una
+        # ruta concreta) respete la representación canónica.
+        import re
+
+        if valor is None:
+            return valor
+        texto = str(valor).strip()
+        texto = re.sub(r"^SP\s*[-:#]?\s*", "", texto, flags=re.IGNORECASE).strip()
+        if texto.endswith(".0") and texto[:-2].isdigit():
+            texto = texto[:-2]
+        return str(int(texto)) if texto.isdigit() else texto.upper()
+
+    @validates("estado_administrativo")
+    def _estado_administrativo_sin_prestamo(self, _clave, valor):
+        # Compatibilidad con código/histórico anterior: disponibilidad de
+        # préstamo se deriva exclusivamente de PrestamoExpediente.
+        if valor in {"En préstamo", "Devuelto"}:
+            return "Activo"
+        return valor
+
+    @property
+    def prestamo_activo(self):
+        return next(
+            (prestamo for prestamo in self.prestamos if prestamo.activo and prestamo.estado == "En préstamo"),
+            None,
+        )
+
+    @property
+    def disponibilidad(self):
+        if not self.expediente_fisico_registrado:
+            return "Sin expediente físico"
+        if not self.activo:
+            return "Inactivo"
+        return "En préstamo" if self.prestamo_activo else "Disponible"
+
+    @property
+    def documentos_activos(self):
+        return [documento for documento in self.documentos_indice if documento.activo]
+
+    @property
+    def total_folios_activos(self):
+        return sum(documento.total_folios or 0 for documento in self.documentos_activos)
+
+    @property
+    def alertas_pendientes(self):
+        return [alerta for alerta in self.alertas if alerta.estado in {"Abierta", "En revisión"}]
+
+    @property
+    def alertas_altas_pendientes(self):
+        return [alerta for alerta in self.alertas_pendientes if alerta.gravedad == "Alta"]
+
+    @property
+    def prestamos_activos(self):
+        return [prestamo for prestamo in self.prestamos if prestamo.activo and prestamo.estado == "En préstamo"]
+
+    @property
+    def prestamos_vencidos(self):
+        hoy = date.today()
+        return [
+            prestamo
+            for prestamo in self.prestamos_activos
+            if prestamo.fecha_estimada_devolucion and prestamo.fecha_estimada_devolucion < hoy
+        ]
+
+    @property
+    def ultimo_prestamo(self):
+        if not self.prestamos:
+            return None
+        return max(
+            self.prestamos,
+            key=lambda prestamo: prestamo.fecha_prestamo or datetime.min,
+        )
 
     def __repr__(self):
         return f"<Expediente SP {self.no_sp}>"

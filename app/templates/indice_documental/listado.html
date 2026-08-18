@@ -1,79 +1,71 @@
 {% extends "base.html" %}
-
 {% block title %}Índice documental — SICODE-UCT{% endblock %}
-
 {% block content %}
-<section class="panel">
+<section class="panel panel-ancho">
     <div class="encabezado-modulo">
-        <div>
-            <h1>Índice documental y foliación</h1>
-            <p>Expediente: <strong>{{ expediente.no_sp }}</strong> / {{ expediente.codigo_interno }}</p>
-        </div>
-        <div class="acciones-detalle">
-            <a class="boton-secundario" href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Volver al expediente</a>
-            <a class="boton-cancelar" href="{{ url_for('expedientes.listado') }}">Volver al listado</a>
-        </div>
+        <div><h1>Índice documental y foliación</h1><p>SP <strong>{{ expediente.no_sp }}</strong> · {{ expediente.codigo_interno }}</p></div>
+        <a class="boton-cancelar" href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Volver al expediente</a>
     </div>
 
-    <div class="aviso"><strong>Regla institucional:</strong> registre únicamente el índice, foliación, anexos y observaciones. No cargue documentos sensibles ni copias completas del expediente.</div>
+    <div class="aviso"><strong>Regla institucional:</strong> registre únicamente metadatos, rangos de folios y observaciones. No cargue documentos sensibles ni copias completas.</div>
 
-    <h2>Agregar documento o anexo</h2>
+    {% if anexos_pendientes %}
+    <h2>Anexos recibidos pendientes de incorporar</h2>
+    <p>Estos registros ya existen en Coordinación. Use <strong>Incorporar</strong> para reutilizar la recepción y evitar volver a escribir el mismo anexo.</p>
+    <div class="tabla-contenedor">
+        <table>
+            <thead><tr><th>Fecha</th><th>Anexo</th><th>Tipo</th><th>Folios recibidos</th><th>RC</th><th>Acción</th></tr></thead>
+            <tbody>
+            {% for anexo in anexos_pendientes %}
+                <tr>
+                    <td>{{ anexo.registro.fecha_recepcion.strftime('%d/%m/%Y') if anexo.registro.fecha_recepcion else 'Sin fecha' }}</td>
+                    <td>{{ anexo.numero_anexo or 'Sin número' }}</td>
+                    <td>{{ anexo.tipo_anexo or 'Sin tipo' }}</td>
+                    <td>{{ anexo.folios or 'Sin dato' }}</td>
+                    <td>{{ anexo.registro.rc or '—' }}</td>
+                    <td><a class="boton-tabla" href="{{ url_for('indice_documental.listado', expediente_id=expediente.id, anexo_id=anexo.id) }}">Incorporar</a></td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <h2>{% if form.anexo_coordinacion_id.data %}Incorporar anexo recibido{% else %}Agregar documento o anexo{% endif %}</h2>
+    {% if form.anexo_coordinacion_id.data %}<div class="aviso">El formulario está vinculado a una recepción de Coordinación. Al guardar, ambos registros quedarán relacionados.</div>{% endif %}
     <form method="POST" class="formulario">
         {{ form.hidden_tag() }}
         <div class="grid-form">
-            <div class="campo">
-                {{ form.nombre_documento.label }}
-                {{ form.nombre_documento(placeholder="Ej. Oficio inicial, resolución, acta, anexo") }}
-                {% for error in form.nombre_documento.errors %}<small class="error">{{ error }}</small>{% endfor %}
-            </div>
+            <div class="campo">{{ form.nombre_documento.label }}{{ form.nombre_documento(placeholder='Ej. Oficio inicial, resolución, acta, anexo') }}{% for e in form.nombre_documento.errors %}<small class="error">{{ e }}</small>{% endfor %}</div>
             <div class="campo">{{ form.tipo_documento.label }}{{ form.tipo_documento() }}</div>
-            <div class="campo">
-                {{ form.folio_inicio.label }}{{ form.folio_inicio(placeholder="Ej. 1") }}
-                {% for error in form.folio_inicio.errors %}<small class="error">{{ error }}</small>{% endfor %}
-            </div>
-            <div class="campo">
-                {{ form.folio_fin.label }}{{ form.folio_fin(placeholder="Ej. 10") }}
-                {% for error in form.folio_fin.errors %}<small class="error">{{ error }}</small>{% endfor %}
-            </div>
+            <div class="campo">{{ form.folio_inicio.label }}{{ form.folio_inicio(placeholder='Ej. 1') }}{% for e in form.folio_inicio.errors %}<small class="error">{{ e }}</small>{% endfor %}</div>
+            <div class="campo">{{ form.folio_fin.label }}{{ form.folio_fin(placeholder='Ej. 10') }}{% for e in form.folio_fin.errors %}<small class="error">{{ e }}</small>{% endfor %}</div>
             <div class="campo">{{ form.estado_revision.label }}{{ form.estado_revision() }}</div>
         </div>
-        <div class="campo">{{ form.observaciones.label }}{{ form.observaciones(rows="3", placeholder="Observaciones sobre foliación, anexos o revisión documental") }}</div>
-        <div class="acciones">{{ form.submit(class="boton") }}</div>
+        <div class="campo">{{ form.observaciones.label }}{{ form.observaciones(rows='3') }}</div>
+        <div class="acciones">{{ form.submit(class_='boton') }}{% if form.anexo_coordinacion_id.data %}<a class="boton-cancelar" href="{{ url_for('indice_documental.listado', expediente_id=expediente.id) }}">Cancelar vínculo</a>{% endif %}</div>
     </form>
 
-    <h2>Documentos activos del índice</h2>
-    <p class="contador-resultados">Registros activos: <strong>{{ documentos|length }}</strong> / Total de folios registrados: <strong>{{ total_folios }}</strong></p>
-
+    <h2>Documentos activos</h2>
+    <p class="contador-resultados">Registros: <strong>{{ documentos|length }}</strong> · Folios registrados: <strong>{{ total_folios }}</strong></p>
     <div class="tabla-contenedor">
         <table>
-            <thead><tr><th>Orden</th><th>Documento</th><th>Tipo</th><th>Folio inicial</th><th>Folio final</th><th>Total folios</th><th>Estado revisión</th><th>Observaciones</th><th>Acción</th></tr></thead>
+            <thead><tr><th>Orden</th><th>Documento</th><th>Tipo</th><th>Folios</th><th>Total</th><th>Revisión</th><th>Origen</th><th>Acción</th></tr></thead>
             <tbody>
-                {% for documento in documentos %}
+            {% for documento in documentos %}
                 <tr>
-                    <td>{{ loop.index }}</td>
-                    <td>{{ documento.nombre_documento }}</td>
-                    <td>{% if documento.es_anexo %}<span class="badge badge-neutral">Anexo</span>{% else %}{{ documento.tipo_documento }}{% endif %}</td>
-                    <td>{{ documento.folio_inicio }}</td><td>{{ documento.folio_fin }}</td><td>{{ documento.total_folios }}</td><td>{{ documento.estado_revision }}</td><td>{{ documento.observaciones or "Sin observaciones" }}</td>
-                    <td>
-                        <form method="POST" action="{{ url_for('indice_documental.anular', expediente_id=expediente.id, documento_id=documento.id) }}" class="form-inline">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="boton-peligro" onclick="return confirm('¿Desea anular este registro documental? Se conservará para trazabilidad.');">Anular</button>
-                        </form>
-                    </td>
+                    <td>{{ loop.index }}</td><td>{{ documento.nombre_documento }}</td><td>{{ documento.tipo_documento }}</td><td>{{ documento.folio_inicio }}–{{ documento.folio_fin }}</td><td>{{ documento.total_folios }}</td><td>{{ documento.estado_revision }}</td>
+                    <td>{% if documento.anexo_recepcion %}<a href="{{ url_for('coordinacion.detalle', registro_id=documento.anexo_recepcion.registro.id) }}">Coordinación</a>{% else %}Manual{% endif %}</td>
+                    <td><form method="POST" action="{{ url_for('indice_documental.anular', expediente_id=expediente.id, documento_id=documento.id) }}" class="form-inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="boton-peligro" onclick="return confirm('¿Anular este registro? Se conservará para trazabilidad.');">Anular</button></form></td>
                 </tr>
-                {% else %}<tr><td colspan="9">No hay documentos registrados en el índice.</td></tr>{% endfor %}
+            {% else %}<tr><td colspan="8">No hay documentos registrados.</td></tr>{% endfor %}
             </tbody>
         </table>
     </div>
 
     {% if documentos_inactivos %}
-    <h2>Registros documentales anulados</h2>
-    <div class="tabla-contenedor">
-        <table>
-            <thead><tr><th>Documento</th><th>Tipo</th><th>Folios</th><th>Total</th><th>Estado revisión</th></tr></thead>
-            <tbody>{% for documento in documentos_inactivos %}<tr><td>{{ documento.nombre_documento }}</td><td>{{ documento.tipo_documento }}</td><td>{{ documento.folio_inicio }} - {{ documento.folio_fin }}</td><td>{{ documento.total_folios }}</td><td>{{ documento.estado_revision }}</td></tr>{% endfor %}</tbody>
-        </table>
-    </div>
+    <h2>Registros anulados</h2>
+    <div class="tabla-contenedor"><table><thead><tr><th>Documento</th><th>Tipo</th><th>Folios</th><th>Estado</th></tr></thead><tbody>{% for documento in documentos_inactivos %}<tr><td>{{ documento.nombre_documento }}</td><td>{{ documento.tipo_documento }}</td><td>{{ documento.folio_inicio }}–{{ documento.folio_fin }}</td><td>{{ documento.estado_revision }}</td></tr>{% endfor %}</tbody></table></div>
     {% endif %}
 </section>
 {% endblock %}

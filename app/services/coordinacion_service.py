@@ -1,47 +1,10 @@
 import re
-from app.models.expediente import Expediente
+
+from app.services.sp_service import normalizar_sp, resolver_expediente
 
 
-def normalizar_sp(valor):
-    if valor is None:
-        return None
-
-    texto = str(valor).strip()
-    if not texto:
-        return None
-
-    texto = re.sub(r"^SP\s*[-:#]?\s*", "", texto, flags=re.IGNORECASE).strip()
-
-    if texto.endswith(".0") and texto[:-2].isdigit():
-        texto = texto[:-2]
-
-    # La manta diaria usa valores como SP01, SP02, etc. Para que SP01,
-    # SP-001, 001 y 1 representen el mismo sujeto, los SP numéricos se
-    # guardan/comparan sin ceros a la izquierda.
-    if texto.isdigit():
-        return str(int(texto))
-
-    return texto.upper()
-
-
-def resolver_expediente(valor_sp):
-    no_sp = normalizar_sp(valor_sp)
-    if not no_sp:
-        return None, None
-
-    # Los expedientes nuevos se guardan normalizados, por lo que este es
-    # el camino habitual y eficiente.
-    expediente = Expediente.query.filter_by(no_sp=no_sp).first()
-    if expediente:
-        return expediente, no_sp
-
-    # Compatibilidad con expedientes anteriores creados como SP-001, SP01,
-    # etc. Esto evita crear duplicados lógicos durante la primera carga.
-    for candidato in Expediente.query.all():
-        if normalizar_sp(candidato.no_sp) == no_sp:
-            return candidato, no_sp
-
-    return None, no_sp
+# Se reexportan `normalizar_sp` y `resolver_expediente` por compatibilidad con
+# importaciones existentes. La implementación canónica vive en sp_service.
 
 
 def determinar_estado(expediente, no_sp, campos_clave=None, estado_preferido=None):
@@ -108,8 +71,6 @@ def recalcular_estado_registro(registro):
             return "Pendiente de remisión"
         if any(item.expediente_id is None for item in detalle.expedientes_remitidos):
             return "Pendiente de vincular"
-        # Si el registro histórico estaba explícitamente pendiente de ser
-        # remitido, conservar ese estado aunque todos los SP ya estén ligados.
         if registro.estado == "Pendiente de remisión":
             return "Pendiente de remisión"
 
@@ -133,4 +94,4 @@ def separar_sp_remision(valor):
             resultado.extend([x for x in parte.split(".") if x])
         else:
             resultado.append(parte)
-    return resultado
+    return [normalizar_sp(item) or item for item in resultado]

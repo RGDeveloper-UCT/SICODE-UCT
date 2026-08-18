@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Registrar expediente físico — SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel">
+    <div class="encabezado-modulo">
+        <div>
+            <h1>Registrar expediente físico</h1>
+            <p>SP <strong>{{ expediente.no_sp }}</strong> · {{ expediente.nombre_referencia or 'Sin nombre' }}</p>
+        </div>
+        <a class="boton-cancelar" href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Cancelar</a>
+    </div>
+
+    <div class="aviso">
+        El SP ya existe en SICODE por la manta de Portadores. Esta acción registra la existencia física del expediente sobre el mismo registro; no crea otro SP.
+    </div>
+
+    <form method="POST" class="formulario">
+        {{ form.hidden_tag() }}
+        <div class="grid-form">
+            <div class="campo">{{ form.estado_administrativo.label }}{{ form.estado_administrativo() }}</div>
+            <div class="campo">{{ form.estado_fisico_documental.label }}{{ form.estado_fisico_documental() }}</div>
+            <div class="campo">{{ form.archivador.label }}{{ form.archivador() }}</div>
+            <div class="campo">{{ form.sicoin.label }}{{ form.sicoin() }}</div>
+            <div class="campo">{{ form.estante.label }}{{ form.estante() }}</div>
+            <div class="campo">{{ form.caja.label }}{{ form.caja() }}</div>
+            <div class="campo">{{ form.modulo.label }}{{ form.modulo() }}</div>
+            <div class="campo">{{ form.posicion.label }}{{ form.posicion() }}</div>
+        </div>
+        <div class="campo">{{ form.observaciones.label }}{{ form.observaciones(rows='3') }}</div>
+        <div class="acciones">{{ form.submit(class_='boton') }}</div>
+    </form>
+</section>
+{% endblock %}

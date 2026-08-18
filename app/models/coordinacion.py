@@ -1,4 +1,5 @@
 from datetime import datetime
+
 from app import db
 
 
@@ -12,7 +13,7 @@ class RegistroCoordinacion(db.Model):
     rc = db.Column(db.String(80), nullable=True, index=True)
     providencia = db.Column(db.String(120), nullable=True, index=True)
     fecha_recepcion = db.Column(db.Date, nullable=True, index=True)
-    usuario_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False)
+    usuario_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False, index=True)
     usuario_origen = db.Column(db.String(120), nullable=True)
     estado = db.Column(db.String(50), nullable=False, default="Completo", index=True)
     observaciones = db.Column(db.Text, nullable=True)
@@ -65,6 +66,13 @@ class AnexoCoordinacion(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     registro_id = db.Column(db.Integer, db.ForeignKey("registros_coordinacion.id"), nullable=False, unique=True)
+    documento_expediente_id = db.Column(
+        db.Integer,
+        db.ForeignKey("documentos_expediente.id"),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
     tipo_anexo = db.Column(db.String(120), nullable=True)
     folios = db.Column(db.String(80), nullable=True)
     escaneado = db.Column(db.Boolean, nullable=False, default=False)
@@ -72,6 +80,10 @@ class AnexoCoordinacion(db.Model):
     numero_anexo = db.Column(db.String(50), nullable=True)
 
     registro = db.relationship("RegistroCoordinacion", backref=db.backref("anexo_coordinacion", uselist=False, cascade="all, delete-orphan"))
+    documento_expediente = db.relationship(
+        "DocumentoExpediente",
+        backref=db.backref("anexo_recepcion", uselist=False),
+    )
 
 
 class ReporteMonitoreo(db.Model):
@@ -135,3 +147,7 @@ class RemisionExpediente(db.Model):
 
     remision = db.relationship("RemisionCoordinacion", backref=db.backref("expedientes_remitidos", lazy=True, cascade="all, delete-orphan"))
     expediente = db.relationship("Expediente", backref=db.backref("remisiones_coordinacion", lazy=True))
+
+    __table_args__ = (
+        db.UniqueConstraint("remision_id", "no_sp_referencia", name="uq_remision_sp"),
+    )
