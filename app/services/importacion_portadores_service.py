@@ -10,7 +10,8 @@ from app import db
 from app.models.coordinacion import RegistroCoordinacion, RemisionExpediente
 from app.models.expediente import Expediente
 from app.models.importacion_portadores import ImportacionPortadores
-from app.services.coordinacion_service import normalizar_sp, recalcular_estado_registro
+from app.services.coordinacion_service import recalcular_estado_registro
+from app.services.sp_service import normalizar_sp
 
 
 MAPEO_COLUMNAS = {
@@ -75,7 +76,6 @@ def _valor_fecha(libro, hoja, fila, columna):
 
     if celda.ctype == xlrd.XL_CELL_DATE:
         return xlrd.xldate_as_datetime(valor, libro.datemode).date()
-
     if isinstance(valor, datetime):
         return valor.date()
     if isinstance(valor, date):
@@ -123,7 +123,6 @@ def leer_manta_portadores(ruta):
 
         hoja = libro.sheet_by_index(0)
         fila_encabezado, encabezados = _encontrar_encabezado(hoja)
-
         columnas = {}
         for indice, encabezado in enumerate(encabezados):
             campo = MAPEO_COLUMNAS.get(encabezado)
@@ -141,9 +140,8 @@ def leer_manta_portadores(ruta):
 
             datos = {"no_sp": no_sp, "fila_origen": fila + 1}
             for campo, columna in columnas.items():
-                if campo == "no_sp":
-                    continue
-                datos[campo] = _valor_celda(libro, hoja, fila, columna, campo)
+                if campo != "no_sp":
+                    datos[campo] = _valor_celda(libro, hoja, fila, columna, campo)
 
             if not datos.get("nombre_referencia"):
                 nombre = " ".join(
@@ -155,7 +153,6 @@ def leer_manta_portadores(ruta):
 
         if not registros:
             raise ErrorMantaPortadores("No se encontraron Sujetos Portadores con número de SP en el archivo.")
-
         return registros
     finally:
         libro.release_resources()
@@ -179,8 +176,6 @@ def _campos_con_cambio(expediente, datos):
     cambios = []
     for campo in CAMPOS_ACTUALIZABLES:
         nuevo = datos.get(campo)
-        # La manta diaria complementa/actualiza, pero un vacío del reporte no
-        # borra información previamente guardada en SICODE.
         if nuevo is None or (isinstance(nuevo, str) and not nuevo.strip()):
             continue
         if getattr(expediente, campo, None) != nuevo:
@@ -223,7 +218,7 @@ def analizar_manta(ruta, limite_previsualizacion=100):
             expediente = mapa.get(no_sp)
             if expediente is None:
                 resumen["nuevos"] += 1
-                accion = "Crear"
+                accion = "Crear SP"
             else:
                 cambios = _campos_con_cambio(expediente, datos)
                 if cambios:
@@ -234,22 +229,19 @@ def analizar_manta(ruta, limite_previsualizacion=100):
                     accion = "Sin cambios"
 
         if len(resumen["previsualizacion"]) < limite_previsualizacion:
-            resumen["previsualizacion"].append(
-                {
-                    "fila": datos["fila_origen"],
-                    "no_sp": no_sp,
-                    "nombre": datos.get("nombre_referencia"),
-                    "estado_monitoreo": datos.get("estado_monitoreo"),
-                    "fecha_instalacion": datos.get("fecha_instalacion"),
-                    "accion": accion,
-                }
-            )
+            resumen["previsualizacion"].append({
+                "fila": datos["fila_origen"],
+                "no_sp": no_sp,
+                "nombre": datos.get("nombre_referencia"),
+                "estado_monitoreo": datos.get("estado_monitoreo"),
+                "fecha_instalacion": datos.get("fecha_instalacion"),
+                "accion": accion,
+            })
 
     if duplicados_archivo:
         resumen["advertencias"].append(
             "La manta contiene SP repetidos: " + ", ".join(sorted(duplicados_archivo)) + ". Las repeticiones posteriores se omitirán."
         )
-
     return resumen
 
 
@@ -270,14 +262,12 @@ def _generador_codigos():
                 usados.add(candidato)
                 maximo = max(maximo, int(no_sp))
                 return candidato
-
         while True:
             maximo += 1
             candidato = f"SICODE-UCT-{maximo:04d}"
             if candidato not in usados:
                 usados.add(candidato)
                 return candidato
-
     return generar
 
 
@@ -298,32 +288,25 @@ def reconciliar_coordinacion():
         RegistroCoordinacion.expediente_id.is_(None),
         RegistroCoordinacion.no_sp_referencia.isnot(None),
     ).all()
-
     for registro in pendientes:
         expediente = mapa.get(normalizar_sp(registro.no_sp_referencia))
-        if not expediente:
-            continue
-        registro.expediente_id = expediente.id
-        registro.estado = recalcular_estado_registro(registro)
-        vinculados += 1
+        if expediente:
+            registro.expediente_id = expediente.id
+            registro.estado = recalcular_estado_registro(registro)
+            vinculados += 1
 
-    detalles_remision = RemisionExpediente.query.filter(
-        RemisionExpediente.expediente_id.is_(None)
-    ).all()
+    detalles_remision = RemisionExpediente.query.filter(RemisionExpediente.expediente_id.is_(None)).all()
     remisiones_afectadas = set()
     for detalle in detalles_remision:
         expediente = mapa.get(normalizar_sp(detalle.no_sp_referencia))
-        if not expediente:
-            continue
-        detalle.expediente_id = expediente.id
-        remisiones_afectadas.add(detalle.remision_id)
-        vinculados += 1
+        if expediente:
+            detalle.expediente_id = expediente.id
+            remisiones_afectadas.add(detalle.remision_id)
+            vinculados += 1
 
-    if remisiones_afectadas:
-        for detalle in detalles_remision:
-            if detalle.remision_id in remisiones_afectadas:
-                detalle.remision.registro.estado = recalcular_estado_registro(detalle.remision.registro)
-
+    for detalle in detalles_remision:
+        if detalle.remision_id in remisiones_afectadas:
+            detalle.remision.registro.estado = recalcular_estado_registro(detalle.remision.registro)
     return vinculados
 
 
@@ -337,14 +320,9 @@ def importar_manta(ruta, usuario_id, archivo_nombre):
     generar_codigo = _generador_codigos()
     momento = datetime.utcnow()
     vistos = set()
-
     resultado = {
-        "total": len(registros),
-        "nuevos": 0,
-        "actualizados": 0,
-        "sin_cambios": 0,
-        "omitidos": 0,
-        "duplicados": 0,
+        "total": len(registros), "nuevos": 0, "actualizados": 0,
+        "sin_cambios": 0, "omitidos": 0, "duplicados": 0,
         "vinculados_coordinacion": 0,
     }
 
@@ -368,7 +346,8 @@ def importar_manta(ruta, usuario_id, archivo_nombre):
                     no_sp=no_sp,
                     nombre_referencia=datos.get("nombre_referencia"),
                     estado_administrativo="Activo",
-                    estado_fisico_documental="Pendiente de verificación",
+                    estado_fisico_documental="Sin expediente físico",
+                    expediente_fisico_registrado=False,
                     activo=True,
                 )
                 _aplicar_datos(expediente, datos, momento)
