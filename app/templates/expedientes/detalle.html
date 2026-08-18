@@ -11,49 +11,31 @@
         </div>
 
         <div class="acciones-detalle">
-            <a class="boton-exito" href="{{ url_for('expedientes.reporte_completo_pdf', expediente_id=expediente.id) }}">
-                Reporte completo PDF
-            </a>
-
-            <a class="boton-secundario" href="{{ url_for('expedientes.editar', expediente_id=expediente.id) }}">
-                Editar expediente
-            </a>
-
-            <a class="boton-exito" href="{{ url_for('expedientes.exportar_pdf', expediente_id=expediente.id) }}">
-                Exportar PDF
-            </a>
-
-            <a class="boton-secundario" href="{{ url_for('indice_documental.listado', expediente_id=expediente.id) }}">
-                Índice documental
-            </a>
+            <a class="boton-exito" href="{{ url_for('expedientes.reporte_completo_pdf', expediente_id=expediente.id) }}">Reporte completo PDF</a>
+            <a class="boton-secundario" href="{{ url_for('expedientes.editar', expediente_id=expediente.id) }}">Editar expediente</a>
+            <a class="boton-exito" href="{{ url_for('expedientes.exportar_pdf', expediente_id=expediente.id) }}">Exportar PDF</a>
+            <a class="boton-secundario" href="{{ url_for('indice_documental.listado', expediente_id=expediente.id) }}">Índice documental</a>
 
             {% set tiene_prestamo_activo = expediente.prestamos|selectattr("estado", "equalto", "En préstamo")|list|length > 0 %}
-
             {% if expediente.activo and not tiene_prestamo_activo %}
-                <a class="boton-secundario" href="{{ url_for('prestamos.nuevo', expediente_id=expediente.id) }}">
-                    Registrar préstamo
-                </a>
+                <a class="boton-secundario" href="{{ url_for('prestamos.nuevo', expediente_id=expediente.id) }}">Registrar préstamo</a>
             {% elif tiene_prestamo_activo %}
                 <span class="badge badge-advertencia">Expediente en préstamo</span>
             {% else %}
                 <span class="badge badge-inactivo">Expediente inactivo</span>
             {% endif %}
 
-            <a class="boton-cancelar" href="{{ url_for('expedientes.listado') }}">
-                Volver al listado
-            </a>
+            <a class="boton-cancelar" href="{{ url_for('expedientes.listado') }}">Volver al listado</a>
 
             {% if expediente.activo %}
             <form method="POST" action="{{ url_for('expedientes.desactivar', expediente_id=expediente.id) }}" class="form-inline">
-                <button type="submit" class="boton-peligro" onclick="return confirm('¿Desea desactivar este expediente? El registro no se eliminará, solo quedará inactivo.');">
-                    Desactivar
-                </button>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="boton-peligro" onclick="return confirm('¿Desea desactivar este expediente? El registro no se eliminará, solo quedará inactivo.');">Desactivar</button>
             </form>
             {% else %}
             <form method="POST" action="{{ url_for('expedientes.reactivar', expediente_id=expediente.id) }}" class="form-inline">
-                <button type="submit" class="boton-exito">
-                    Reactivar
-                </button>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="boton-exito">Reactivar</button>
             </form>
             {% endif %}
         </div>
@@ -61,252 +43,120 @@
 
     <div class="grid">
         <div class="tarjeta">
-            
-    <h2>Resumen rápido del expediente</h2>
+            <h2>Resumen rápido del expediente</h2>
 
-    <div class="grid">
-        <div class="tarjeta indicador">
-            <h2>Documentos activos</h2>
-            <p class="numero-indicador">{{ total_documentos_activos }}</p>
-            <a href="{{ url_for('indice_documental.listado', expediente_id=expediente.id) }}">
-                Ver índice documental
-            </a>
-        </div>
+            <div class="grid">
+                <div class="tarjeta indicador">
+                    <h2>Documentos activos</h2>
+                    <p class="numero-indicador">{{ total_documentos_activos }}</p>
+                    <a href="{{ url_for('indice_documental.listado', expediente_id=expediente.id) }}">Ver índice documental</a>
+                </div>
+                <div class="tarjeta indicador">
+                    <h2>Folios registrados</h2>
+                    <p class="numero-indicador">{{ total_folios_registrados }}</p>
+                    <a href="{{ url_for('indice_documental.listado', expediente_id=expediente.id) }}">Revisar foliación</a>
+                </div>
+                <div class="tarjeta indicador">
+                    <h2>Alertas abiertas / revisión</h2>
+                    <p class="numero-indicador indicador-alerta">{{ alertas_abiertas_revision }}</p>
+                    <a href="{{ url_for('alertas.listado', q=expediente.no_sp) }}">Ver alertas</a>
+                </div>
+            </div>
 
-        <div class="tarjeta indicador">
-            <h2>Folios registrados</h2>
-            <p class="numero-indicador">{{ total_folios_registrados }}</p>
-            <a href="{{ url_for('indice_documental.listado', expediente_id=expediente.id) }}">
-                Revisar foliación
-            </a>
-        </div>
+            <div class="grid">
+                <div class="tarjeta indicador">
+                    <h2>Alertas alta gravedad</h2>
+                    <p class="numero-indicador indicador-peligro">{{ alertas_gravedad_alta }}</p>
+                    <a href="{{ url_for('alertas.listado', q=expediente.no_sp, gravedad='Alta') }}">Revisar alertas críticas</a>
+                </div>
+                <div class="tarjeta indicador">
+                    <h2>Préstamos activos</h2>
+                    <p class="numero-indicador indicador-alerta">{{ prestamos_activos }}</p>
+                    <a href="{{ url_for('prestamos.listado', q=expediente.no_sp, estado='En préstamo') }}">Ver préstamos activos</a>
+                </div>
+                <div class="tarjeta indicador">
+                    <h2>Préstamos vencidos</h2>
+                    <p class="numero-indicador indicador-peligro">{{ prestamos_vencidos }}</p>
+                    <a href="{{ url_for('prestamos.listado', q=expediente.no_sp, estado='Vencidos') }}">Ver vencidos</a>
+                </div>
+            </div>
 
-        <div class="tarjeta indicador">
-            <h2>Alertas abiertas / revisión</h2>
-            <p class="numero-indicador indicador-alerta">{{ alertas_abiertas_revision }}</p>
-            <a href="{{ url_for('alertas.listado', q=expediente.no_sp) }}">
-                Ver alertas
-            </a>
-        </div>
-    </div>
-
-    <div class="grid">
-        <div class="tarjeta indicador">
-            <h2>Alertas alta gravedad</h2>
-            <p class="numero-indicador indicador-peligro">{{ alertas_gravedad_alta }}</p>
-            <a href="{{ url_for('alertas.listado', q=expediente.no_sp, gravedad='Alta') }}">
-                Revisar alertas críticas
-            </a>
-        </div>
-
-        <div class="tarjeta indicador">
-            <h2>Préstamos activos</h2>
-            <p class="numero-indicador indicador-alerta">{{ prestamos_activos }}</p>
-            <a href="{{ url_for('prestamos.listado', q=expediente.no_sp, estado='En préstamo') }}">
-                Ver préstamos activos
-            </a>
-        </div>
-
-        <div class="tarjeta indicador">
-            <h2>Préstamos vencidos</h2>
-            <p class="numero-indicador indicador-peligro">{{ prestamos_vencidos }}</p>
-            <a href="{{ url_for('prestamos.listado', q=expediente.no_sp, estado='Vencidos') }}">
-                Ver vencidos
-            </a>
-        </div>
-    </div>
-
-    <h2>Último movimiento de préstamo</h2>
-
-    <div class="tarjeta">
-        {% if ultimo_prestamo %}
-            <p>
-                <strong>Número de control:</strong>
-                <a href="{{ url_for('prestamos.detalle', prestamo_id=ultimo_prestamo.id) }}">
-                    {{ ultimo_prestamo.numero_control }}
-                </a>
-            </p>
-
-            <p><strong>Solicitante:</strong> {{ ultimo_prestamo.solicitante }}</p>
-
-            <p>
-                <strong>Fecha préstamo:</strong>
-                {{ ultimo_prestamo.fecha_prestamo.strftime('%d/%m/%Y %H:%M') if ultimo_prestamo.fecha_prestamo else "Sin dato" }}
-            </p>
-
-            <p>
-                <strong>Estado:</strong>
-                {% if ultimo_prestamo.estado == "En préstamo" %}
-                    <span class="badge badge-advertencia">En préstamo</span>
+            <h2>Último movimiento de préstamo</h2>
+            <div class="tarjeta">
+                {% if ultimo_prestamo %}
+                    <p><strong>Número de control:</strong> <a href="{{ url_for('prestamos.detalle', prestamo_id=ultimo_prestamo.id) }}">{{ ultimo_prestamo.numero_control }}</a></p>
+                    <p><strong>Solicitante:</strong> {{ ultimo_prestamo.solicitante }}</p>
+                    <p><strong>Fecha préstamo:</strong> {{ ultimo_prestamo.fecha_prestamo.strftime('%d/%m/%Y %H:%M') if ultimo_prestamo.fecha_prestamo else "Sin dato" }}</p>
+                    <p><strong>Estado:</strong> {% if ultimo_prestamo.estado == "En préstamo" %}<span class="badge badge-advertencia">En préstamo</span>{% else %}<span class="badge badge-activo">Devuelto</span>{% endif %}</p>
+                    <a class="boton-tabla boton-tabla-neutral" href="{{ url_for('prestamos.detalle', prestamo_id=ultimo_prestamo.id) }}">Ver detalle del préstamo</a>
                 {% else %}
-                    <span class="badge badge-activo">Devuelto</span>
+                    <p>Este expediente todavía no tiene movimientos de préstamo registrados.</p>
                 {% endif %}
-            </p>
+            </div>
 
-            <a class="boton-tabla boton-tabla-neutral" href="{{ url_for('prestamos.detalle', prestamo_id=ultimo_prestamo.id) }}">
-                Ver detalle del préstamo
-            </a>
-        {% else %}
-            <p>Este expediente todavía no tiene movimientos de préstamo registrados.</p>
-        {% endif %}
-    </div>
-
-<h2>Código interno</h2>
+            <h2>Código interno</h2>
             <p>{{ expediente.codigo_interno }}</p>
         </div>
 
-        <div class="tarjeta">
-            <h2>No. de SP</h2>
-            <p>{{ expediente.no_sp }}</p>
-        </div>
-
-        <div class="tarjeta">
-            <h2>Nombre referencia</h2>
-            <p>{{ expediente.nombre_referencia or "Sin dato" }}</p>
-        </div>
+        <div class="tarjeta"><h2>No. de SP</h2><p>{{ expediente.no_sp }}</p></div>
+        <div class="tarjeta"><h2>Nombre referencia</h2><p>{{ expediente.nombre_referencia or "Sin dato" }}</p></div>
     </div>
 
     <h2>Estado</h2>
-
     <div class="grid">
-        <div class="tarjeta">
-            <h2>Administrativo</h2>
-            <p>{{ expediente.estado_administrativo }}</p>
-        </div>
-
-        <div class="tarjeta">
-            <h2>Físico/documental</h2>
-            <p>{{ expediente.estado_fisico_documental }}</p>
-        </div>
-
-        <div class="tarjeta">
-            <h2>Activo</h2>
-            <p>{% if expediente.activo %}Sí{% else %}No{% endif %}</p>
-        </div>
+        <div class="tarjeta"><h2>Administrativo</h2><p>{{ expediente.estado_administrativo }}</p></div>
+        <div class="tarjeta"><h2>Físico/documental</h2><p>{{ expediente.estado_fisico_documental }}</p></div>
+        <div class="tarjeta"><h2>Activo</h2><p>{% if expediente.activo %}Sí{% else %}No{% endif %}</p></div>
     </div>
 
     <h2>Ubicación física</h2>
-
     {% if ubicacion %}
     <div class="tabla-contenedor">
-        <table>
-            <tbody>
-                <tr><th>Archivador</th><td>{{ ubicacion.archivador or "Sin dato" }}</td></tr>
-                <tr><th>SICOIN</th><td>{{ ubicacion.sicoin or "Sin dato" }}</td></tr>
-                <tr><th>Estante</th><td>{{ ubicacion.estante or "Sin dato" }}</td></tr>
-                <tr><th>Caja</th><td>{{ ubicacion.caja or "Sin dato" }}</td></tr>
-                <tr><th>Módulo</th><td>{{ ubicacion.modulo or "Sin dato" }}</td></tr>
-                <tr><th>Posición</th><td>{{ ubicacion.posicion or "Sin dato" }}</td></tr>
-            </tbody>
-        </table>
+        <table><tbody>
+            <tr><th>Archivador</th><td>{{ ubicacion.archivador or "Sin dato" }}</td></tr>
+            <tr><th>SICOIN</th><td>{{ ubicacion.sicoin or "Sin dato" }}</td></tr>
+            <tr><th>Estante</th><td>{{ ubicacion.estante or "Sin dato" }}</td></tr>
+            <tr><th>Caja</th><td>{{ ubicacion.caja or "Sin dato" }}</td></tr>
+            <tr><th>Módulo</th><td>{{ ubicacion.modulo or "Sin dato" }}</td></tr>
+            <tr><th>Posición</th><td>{{ ubicacion.posicion or "Sin dato" }}</td></tr>
+        </tbody></table>
     </div>
-    {% else %}
-    <p>No hay ubicación física registrada.</p>
-    {% endif %}
+    {% else %}<p>No hay ubicación física registrada.</p>{% endif %}
 
     <h2>Observaciones</h2>
     <p>{{ expediente.observaciones or "Sin observaciones registradas." }}</p>
 
     <h2>Historial de préstamos y devoluciones</h2>
-
     <div class="tabla-contenedor">
         <table class="tabla-prestamos">
-            <thead>
-                <tr>
-                    <th>Número control</th>
-                    <th>Solicitante</th>
-                    <th>Movimiento</th>
-                    <th>Fechas</th>
-                    <th>Estado</th>
-                    <th class="columna-accion">Acción</th>
-                </tr>
-            </thead>
+            <thead><tr><th>Número control</th><th>Solicitante</th><th>Movimiento</th><th>Fechas</th><th>Estado</th><th class="columna-accion">Acción</th></tr></thead>
             <tbody>
                 {% for prestamo in expediente.prestamos|sort(attribute='fecha_prestamo', reverse=True) %}
                 {% set esta_vencido = prestamo.estado == "En préstamo" and prestamo.fecha_estimada_devolucion and prestamo.fecha_estimada_devolucion < fecha_hoy %}
-
                 <tr class="{% if esta_vencido %}fila-vencida{% endif %}">
-                    <td>
-                        <a href="{{ url_for('prestamos.detalle', prestamo_id=prestamo.id) }}">
-                            <strong>{{ prestamo.numero_control }}</strong>
-                        </a>
-                    </td>
-
+                    <td><a href="{{ url_for('prestamos.detalle', prestamo_id=prestamo.id) }}"><strong>{{ prestamo.numero_control }}</strong></a></td>
                     <td>{{ prestamo.solicitante }}</td>
-
                     <td>
                         <strong>Entrega:</strong> {{ prestamo.persona_entrega }}<br>
                         <strong>Recibe:</strong> {{ prestamo.persona_recibe }}<br>
-
-                        {% if prestamo.persona_devuelve %}
-                            <strong>Devuelve:</strong> {{ prestamo.persona_devuelve }}<br>
-                        {% endif %}
-
-                        {% if prestamo.persona_recibe_devolucion %}
-                            <strong>Recibe devolución:</strong> {{ prestamo.persona_recibe_devolucion }}
-                        {% endif %}
+                        {% if prestamo.persona_devuelve %}<strong>Devuelve:</strong> {{ prestamo.persona_devuelve }}<br>{% endif %}
+                        {% if prestamo.persona_recibe_devolucion %}<strong>Recibe devolución:</strong> {{ prestamo.persona_recibe_devolucion }}{% endif %}
                     </td>
-
                     <td>
-                        <strong>Préstamo:</strong>
-                        {{ prestamo.fecha_prestamo.strftime('%d/%m/%Y %H:%M') if prestamo.fecha_prestamo else "Sin dato" }}
-                        <br>
-
-                        <strong>Estimada:</strong>
-                        {% if prestamo.fecha_estimada_devolucion %}
-                            {{ prestamo.fecha_estimada_devolucion.strftime('%d/%m/%Y') }}
-                        {% else %}
-                            Sin dato
-                        {% endif %}
-                        <br>
-
-                        <strong>Real:</strong>
-                        {% if prestamo.fecha_real_devolucion %}
-                            {{ prestamo.fecha_real_devolucion.strftime('%d/%m/%Y %H:%M') }}
-                        {% else %}
-                            Pendiente
-                        {% endif %}
+                        <strong>Préstamo:</strong> {{ prestamo.fecha_prestamo.strftime('%d/%m/%Y %H:%M') if prestamo.fecha_prestamo else "Sin dato" }}<br>
+                        <strong>Estimada:</strong> {% if prestamo.fecha_estimada_devolucion %}{{ prestamo.fecha_estimada_devolucion.strftime('%d/%m/%Y') }}{% else %}Sin dato{% endif %}<br>
+                        <strong>Real:</strong> {% if prestamo.fecha_real_devolucion %}{{ prestamo.fecha_real_devolucion.strftime('%d/%m/%Y %H:%M') }}{% else %}Pendiente{% endif %}
                     </td>
-
-                    <td>
-                        {% if esta_vencido %}
-                            <span class="badge badge-vencido">Vencido</span>
-                        {% elif prestamo.estado == "En préstamo" %}
-                            <span class="badge badge-advertencia">En préstamo</span>
-                        {% else %}
-                            <span class="badge badge-activo">Devuelto</span>
-                        {% endif %}
-                    </td>
-
+                    <td>{% if esta_vencido %}<span class="badge badge-vencido">Vencido</span>{% elif prestamo.estado == "En préstamo" %}<span class="badge badge-advertencia">En préstamo</span>{% else %}<span class="badge badge-activo">Devuelto</span>{% endif %}</td>
                     <td class="columna-accion">
-                        <a class="boton-tabla boton-tabla-neutral" href="{{ url_for('prestamos.detalle', prestamo_id=prestamo.id) }}">
-                            Ver detalle
-                        </a>
-
-                        <br><br>
-
-                        <a class="boton-tabla boton-tabla-secundario" href="{{ url_for('prestamos.comprobante_pdf', prestamo_id=prestamo.id) }}">
-                            Comprobante PDF
-                        </a>
-
-                        {% if prestamo.estado == "En préstamo" %}
-                            <br><br>
-                            <a class="boton-tabla" href="{{ url_for('prestamos.devolver', prestamo_id=prestamo.id) }}">
-                                Registrar devolución
-                            </a>
-                        {% endif %}
+                        <a class="boton-tabla boton-tabla-neutral" href="{{ url_for('prestamos.detalle', prestamo_id=prestamo.id) }}">Ver detalle</a><br><br>
+                        <a class="boton-tabla boton-tabla-secundario" href="{{ url_for('prestamos.comprobante_pdf', prestamo_id=prestamo.id) }}">Comprobante PDF</a>
+                        {% if prestamo.estado == "En préstamo" %}<br><br><a class="boton-tabla" href="{{ url_for('prestamos.devolver', prestamo_id=prestamo.id) }}">Registrar devolución</a>{% endif %}
                     </td>
                 </tr>
-                {% else %}
-                <tr>
-                    <td colspan="6">
-                        Este expediente todavía no tiene préstamos registrados.
-                    </td>
-                </tr>
-                {% endfor %}
+                {% else %}<tr><td colspan="6">Este expediente todavía no tiene préstamos registrados.</td></tr>{% endfor %}
             </tbody>
         </table>
     </div>
-
 </section>
 {% endblock %}
