@@ -41,6 +41,10 @@ def create_app():
         ImportacionPortadores,
     )
 
+    # Eventos de integridad trabajan en la misma transacción SQLAlchemy.
+    from app.services.integridad_events import registrar_eventos_integridad
+    registrar_eventos_integridad()
+
     @login_manager.user_loader
     def load_user(usuario_id):
         try:
@@ -55,6 +59,7 @@ def create_app():
         auth_bp,
         dashboard_bp,
         expedientes_bp,
+        expediente_fisico_bp,
         bitacora_bp,
         indice_documental_bp,
         alertas_bp,
@@ -67,6 +72,7 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(expedientes_bp)
+    app.register_blueprint(expediente_fisico_bp)
     app.register_blueprint(bitacora_bp)
     app.register_blueprint(indice_documental_bp)
     app.register_blueprint(alertas_bp)
