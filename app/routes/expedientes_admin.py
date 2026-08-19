@@ -7,6 +7,7 @@ from app.security import admin_required
 from app.services.expedientes_admin_service import (
     AlineacionCodigosError,
     EliminacionExpedienteBloqueada,
+    dependencias_purgables,
     eliminar_registro_administrativo,
 )
 
@@ -20,6 +21,7 @@ expedientes_admin_bp = Blueprint("expedientes_admin", __name__)
 def eliminar(expediente_id):
     expediente = Expediente.query.get_or_404(expediente_id)
     no_sp = expediente.no_sp
+    historial_local = dependencias_purgables(expediente.id)
 
     try:
         cambios = eliminar_registro_administrativo(expediente, current_user.id)
@@ -30,8 +32,8 @@ def eliminar(expediente_id):
             f"{nombre}: {cantidad}" for nombre, cantidad in error.dependencias.items()
         )
         flash(
-            "No se puede eliminar este SP porque ya tiene historial operativo asociado "
-            f"({detalle}). Desactívelo para conservar trazabilidad.",
+            "No se puede purgar este SP porque está vinculado con trazabilidad institucional "
+            f"({detalle}). En este caso debe conservarse y desactivarse.",
             "danger",
         )
         return redirect(url_for("expedientes.detalle", expediente_id=expediente_id))
@@ -43,8 +45,15 @@ def eliminar(expediente_id):
         db.session.rollback()
         raise
 
+    detalle_historial = (
+        "; historial local eliminado: "
+        + ", ".join(f"{nombre} {cantidad}" for nombre, cantidad in historial_local.items())
+        if historial_local
+        else ""
+    )
     flash(
-        f"SP {no_sp} eliminado. Se realinearon {len(cambios)} códigos internos SICODE con su No. de SP.",
+        f"SP {no_sp} eliminado definitivamente{detalle_historial}. "
+        f"Se realinearon {len(cambios)} códigos internos SICODE con su No. de SP.",
         "success",
     )
     return redirect(url_for("expedientes.listado"))
