@@ -21,7 +21,7 @@
 
     {% if current_user.rol == 'administrador' %}
     <div class="aviso">
-        <strong>Administración:</strong> la opción <em>Eliminar</em> es solo para registros de prueba o creados por error y sin historial operativo. Si el SP ya tiene documentos, alertas, préstamos, verificaciones, Coordinación o remisiones, SICODE bloqueará el borrado y deberá conservarse mediante desactivación. Al eliminar un registro válido para borrado, los códigos internos numéricos se realinean con el No. SP (por ejemplo, SP 3 → SICODE-UCT-0003) sin cambiar los ID técnicos ni las relaciones de los demás registros.
+        <strong>Administración:</strong> la opción <em>Eliminar</em> está destinada únicamente a registros de prueba o creados por error. Puede purgar su historial local de documentos, alertas, préstamos y verificaciones. SICODE seguirá bloqueando el borrado si el SP está relacionado con Coordinación, remisiones o anexos de Coordinación. Después del borrado, los códigos internos numéricos se realinean con el No. SP sin cambiar los ID técnicos de los demás registros.
     </div>
     {% endif %}
 
@@ -44,7 +44,7 @@
                         {% if current_user.rol == 'administrador' %}
                         <form method="POST" action="{{ url_for('expedientes_admin.eliminar', expediente_id=expediente.id) }}" class="form-inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="boton-link-peligro" onclick="return confirm('ATENCIÓN: esta opción elimina definitivamente el registro SP {{ expediente.no_sp }} solo si no tiene historial operativo. Después SICODE realineará los códigos internos con el No. SP. ¿Desea continuar?');">Eliminar</button>
+                            <button type="submit" class="boton-link-peligro" onclick="return confirm('ATENCIÓN: esta acción elimina definitivamente el SP {{ expediente.no_sp }} y también su historial local de prueba (documentos, alertas, préstamos y verificaciones). No se permitirá si existe vínculo con Coordinación o remisiones. Después SICODE realineará los códigos internos con el No. SP. ¿Desea continuar?');">Eliminar</button>
                         </form>
                         {% endif %}
                     </td>
