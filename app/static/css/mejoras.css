@@ -186,6 +186,104 @@
     font-size: 12px;
 }
 
+/* Préstamos: vista maestra del universo de SP, no solo del historial. */
+.panel-prestamos-maestro {
+    max-width: 1450px;
+}
+
+.resumen-prestamos {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0 0 16px;
+}
+
+.resumen-prestamo-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 14px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    border-radius: 10px;
+}
+
+.resumen-prestamo-item span {
+    color: #475569;
+    font-weight: bold;
+}
+
+.resumen-prestamo-item strong {
+    color: #17233c;
+    font-size: 22px;
+}
+
+.filtros-prestamos-maestro {
+    grid-template-columns: minmax(320px, 2.4fr) minmax(180px, .8fr) auto;
+}
+
+.tabla-prestamos-maestro-contenedor {
+    max-height: 620px;
+    overflow: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 9px;
+}
+
+.tabla-prestamos-maestro {
+    min-width: 1120px;
+    font-size: 13px;
+}
+
+.tabla-prestamos-maestro th,
+.tabla-prestamos-maestro td {
+    padding: 9px 10px;
+    vertical-align: top;
+}
+
+.tabla-prestamos-maestro thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.movimiento-prestamo {
+    min-width: 230px;
+    line-height: 1.35;
+}
+
+.acciones-prestamo-sp {
+    min-width: 185px;
+}
+
+.acciones-prestamo-sp .boton-tabla,
+.acciones-prestamo-sp .boton-tabla-deshabilitado {
+    display: block;
+    width: 100%;
+    margin-bottom: 7px;
+}
+
+.boton-tabla-deshabilitado {
+    padding: 9px 12px;
+    border-radius: 8px;
+    background: #e5e7eb;
+    color: #64748b;
+    font-weight: bold;
+    text-align: center;
+    cursor: not-allowed;
+}
+
+.enlace-secundario-tabla {
+    display: block;
+    text-align: center;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.texto-muted {
+    color: #64748b;
+}
+
 @media (min-width: 1500px) {
     .dashboard-layout-superior {
         grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr);
@@ -208,6 +306,13 @@
 
     .dashboard-grid-6 {
         grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 900px) {
+    .resumen-prestamos,
+    .filtros-prestamos-maestro {
+        grid-template-columns: 1fr;
     }
 }
 
