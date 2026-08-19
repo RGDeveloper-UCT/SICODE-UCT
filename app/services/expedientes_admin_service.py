@@ -3,7 +3,7 @@ from collections import defaultdict
 from app import db
 from app.models.alerta import Alerta
 from app.models.bitacora import Bitacora
-from app.models.coordinacion import RegistroCoordinacion, RemisionExpediente
+from app.models.coordinacion import AnexoCoordinacion, RegistroCoordinacion, RemisionExpediente
 from app.models.documento_expediente import DocumentoExpediente
 from app.models.expediente import Expediente
 from app.models.prestamo import PrestamoExpediente
@@ -24,17 +24,36 @@ class AlineacionCodigosError(ValueError):
     pass
 
 
-def dependencias_operativas(expediente_id):
-    """Devuelve únicamente relaciones históricas/operativas que impiden borrado duro."""
+def dependencias_purgables(expediente_id):
+    """Historial local que un administrador puede purgar junto con un registro de prueba/error."""
     conteos = {
         "documentos": DocumentoExpediente.query.filter_by(expediente_id=expediente_id).count(),
         "alertas": Alerta.query.filter_by(expediente_id=expediente_id).count(),
         "préstamos": PrestamoExpediente.query.filter_by(expediente_id=expediente_id).count(),
         "verificaciones": VerificacionExpediente.query.filter_by(expediente_id=expediente_id).count(),
-        "coordinación": RegistroCoordinacion.query.filter_by(expediente_id=expediente_id).count(),
-        "remisiones": RemisionExpediente.query.filter_by(expediente_id=expediente_id).count(),
     }
     return {nombre: cantidad for nombre, cantidad in conteos.items() if cantidad}
+
+
+def dependencias_criticas(expediente_id):
+    """Relaciones institucionales que nunca se borran con la purga administrativa."""
+    anexos_vinculados = (
+        AnexoCoordinacion.query
+        .join(DocumentoExpediente, AnexoCoordinacion.documento_expediente_id == DocumentoExpediente.id)
+        .filter(DocumentoExpediente.expediente_id == expediente_id)
+        .count()
+    )
+    conteos = {
+        "coordinación": RegistroCoordinacion.query.filter_by(expediente_id=expediente_id).count(),
+        "remisiones": RemisionExpediente.query.filter_by(expediente_id=expediente_id).count(),
+        "anexos de coordinación vinculados": anexos_vinculados,
+    }
+    return {nombre: cantidad for nombre, cantidad in conteos.items() if cantidad}
+
+
+def dependencias_operativas(expediente_id):
+    """Resumen completo de relaciones; útil para interfaz y auditoría."""
+    return {**dependencias_purgables(expediente_id), **dependencias_criticas(expediente_id)}
 
 
 def recalcular_codigos_sicode():
@@ -95,7 +114,7 @@ def recalcular_codigos_sicode():
     por_id = {expediente.id: expediente for expediente in expedientes}
     usados = {expediente.codigo_interno for expediente in expedientes}
 
-    # Fase 1: liberar los códigos actualmente ocupados por los registros que cambiarán.
+    # Fase 1: liberar códigos ocupados por registros que van a cambiar.
     for indice, cambio in enumerate(cambios, start=1):
         expediente = por_id[cambio["expediente_id"]]
         temporal = f"__TMP_SICODE_{expediente.id}_{indice}__"
@@ -105,7 +124,7 @@ def recalcular_codigos_sicode():
         expediente.codigo_interno = temporal
     db.session.flush()
 
-    # Fase 2: asignar los códigos canónicos vinculados al No. SP.
+    # Fase 2: asignar códigos canónicos vinculados al No. SP.
     for cambio in cambios:
         por_id[cambio["expediente_id"]].codigo_interno = cambio["nuevo"]
     db.session.flush()
@@ -114,17 +133,20 @@ def recalcular_codigos_sicode():
 
 
 def eliminar_registro_administrativo(expediente, usuario_id):
-    """Elimina un registro erróneo sin destruir historial operativo y realinea códigos.
+    """Purga un registro de prueba/error y realinea los códigos SICODE.
 
-    Ubicación física vacía/administrativa puede eliminarse con el registro. La
-    bitácora existente se conserva y se desvincula del FK antes del borrado.
-    Cualquier documento, alerta, préstamo, verificación, Coordinación o remisión
-    bloquea la operación para impedir pérdida de historia institucional.
+    Solo un administrador llega a esta función desde la ruta protegida. El
+    historial local (documentos, alertas, préstamos y verificaciones) se puede
+    eliminar junto con el registro porque forma parte del mismo dato de prueba o
+    captura errónea. En cambio, cualquier vínculo con Coordinación, remisiones o
+    anexos de Coordinación bloquea la operación para proteger trazabilidad
+    institucional real.
     """
-    bloqueos = dependencias_operativas(expediente.id)
+    bloqueos = dependencias_criticas(expediente.id)
     if bloqueos:
         raise EliminacionExpedienteBloqueada(bloqueos)
 
+    historial_purgado = dependencias_purgables(expediente.id)
     datos_anteriores = {
         "id": expediente.id,
         "no_sp": expediente.no_sp,
@@ -132,21 +154,26 @@ def eliminar_registro_administrativo(expediente, usuario_id):
         "nombre_referencia": expediente.nombre_referencia,
         "expediente_fisico_registrado": expediente.expediente_fisico_registrado,
         "activo": expediente.activo,
+        "historial_local_purgado": historial_purgado,
     }
     expediente_id = expediente.id
     no_sp = expediente.no_sp
     codigo_interno = expediente.codigo_interno
 
-    # Conservar auditoría previa sin dejar una FK apuntando a un registro eliminado.
+    # La bitácora previa se conserva, únicamente se libera la FK al registro que
+    # será eliminado. Así las acciones antiguas siguen visibles para auditoría.
     Bitacora.query.filter_by(expediente_id=expediente_id).update(
         {Bitacora.expediente_id: None},
         synchronize_session=False,
     )
-    # La ubicación es un dato dependiente del registro maestro y no tiene valor
-    # autónomo una vez que el registro erróneo deja de existir.
-    UbicacionFisica.query.filter_by(expediente_id=expediente_id).delete(
-        synchronize_session=False,
-    )
+
+    # Orden de borrado deliberado por llaves foráneas: alertas pueden apuntar a
+    # documentos, por lo que se eliminan antes que el índice documental.
+    Alerta.query.filter_by(expediente_id=expediente_id).delete(synchronize_session=False)
+    PrestamoExpediente.query.filter_by(expediente_id=expediente_id).delete(synchronize_session=False)
+    VerificacionExpediente.query.filter_by(expediente_id=expediente_id).delete(synchronize_session=False)
+    DocumentoExpediente.query.filter_by(expediente_id=expediente_id).delete(synchronize_session=False)
+    UbicacionFisica.query.filter_by(expediente_id=expediente_id).delete(synchronize_session=False)
 
     db.session.delete(expediente)
     db.session.flush()
@@ -154,11 +181,13 @@ def eliminar_registro_administrativo(expediente, usuario_id):
     cambios = recalcular_codigos_sicode()
 
     registrar_bitacora(
-        accion="ELIMINAR_EXPEDIENTE_ADMIN",
+        accion="PURGAR_EXPEDIENTE_ADMIN",
         modulo="Expedientes",
         descripcion=(
             f"Administrador eliminó definitivamente el registro SP {no_sp} "
-            f"({codigo_interno}). Se realinearon {len(cambios)} códigos SICODE con su No. SP."
+            f"({codigo_interno}), incluyendo historial local asociado: "
+            f"{historial_purgado or 'sin historial local'}. "
+            f"Se realinearon {len(cambios)} códigos SICODE con su No. SP."
         ),
         usuario_id=usuario_id,
         expediente_id=None,
@@ -167,9 +196,10 @@ def eliminar_registro_administrativo(expediente, usuario_id):
         datos_anteriores=datos_anteriores,
         datos_posteriores={
             "eliminado": True,
+            "historial_local_purgado": historial_purgado,
             "codigos_realineados": cambios,
         },
-        motivo="Eliminación administrativa de registro erróneo o de prueba.",
+        motivo="Purga administrativa de registro de prueba o creado por error.",
         commit=False,
     )
 
