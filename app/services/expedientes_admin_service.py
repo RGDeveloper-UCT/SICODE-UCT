@@ -7,6 +7,7 @@ from app.models.coordinacion import AnexoCoordinacion, RegistroCoordinacion, Rem
 from app.models.documento_expediente import DocumentoExpediente
 from app.models.expediente import Expediente
 from app.models.prestamo import PrestamoExpediente
+from app.models.traslado_virtual import TrasladoVirtualExpediente
 from app.models.ubicacion import UbicacionFisica
 from app.models.verificacion import VerificacionExpediente
 from app.services.bitacora_service import registrar_bitacora
@@ -47,6 +48,7 @@ def dependencias_criticas(expediente_id):
         "coordinación": RegistroCoordinacion.query.filter_by(expediente_id=expediente_id).count(),
         "remisiones": RemisionExpediente.query.filter_by(expediente_id=expediente_id).count(),
         "anexos de coordinación vinculados": anexos_vinculados,
+        "constancias de traslado virtual": TrasladoVirtualExpediente.query.filter_by(expediente_id=expediente_id).count(),
     }
     return {nombre: cantidad for nombre, cantidad in conteos.items() if cantidad}
 
@@ -138,9 +140,9 @@ def eliminar_registro_administrativo(expediente, usuario_id):
     Solo un administrador llega a esta función desde la ruta protegida. El
     historial local (documentos, alertas, préstamos y verificaciones) se puede
     eliminar junto con el registro porque forma parte del mismo dato de prueba o
-    captura errónea. En cambio, cualquier vínculo con Coordinación, remisiones o
-    anexos de Coordinación bloquea la operación para proteger trazabilidad
-    institucional real.
+    captura errónea. En cambio, cualquier vínculo con Coordinación, remisiones,
+    anexos de Coordinación o constancias de traslado virtual bloquea la operación
+    para proteger trazabilidad institucional real.
     """
     bloqueos = dependencias_criticas(expediente.id)
     if bloqueos:
