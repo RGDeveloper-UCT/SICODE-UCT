@@ -19,6 +19,12 @@
         <div class="acciones-filtro"><button type="submit">Aplicar filtros</button><a href="{{ url_for('expedientes.listado') }}">Limpiar</a></div>
     </form>
 
+    {% if current_user.rol == 'administrador' %}
+    <div class="aviso">
+        <strong>Administración:</strong> la opción <em>Eliminar</em> es solo para registros de prueba o creados por error y sin historial operativo. Si el SP ya tiene documentos, alertas, préstamos, verificaciones, Coordinación o remisiones, SICODE bloqueará el borrado y deberá conservarse mediante desactivación. Al eliminar un registro válido para borrado, los códigos internos numéricos se realinean con el No. SP (por ejemplo, SP 3 → SICODE-UCT-0003) sin cambiar los ID técnicos ni las relaciones de los demás registros.
+    </div>
+    {% endif %}
+
     <p class="contador-resultados">SP encontrados: <strong>{{ expedientes|length }}</strong></p>
     <div class="tabla-contenedor">
         <table>
@@ -32,7 +38,16 @@
                     <td>{{ expediente.disponibilidad }}</td>
                     <td>{{ expediente.estado_fisico_documental }}</td>
                     <td>{{ expediente.codigo_interno }}</td>
-                    <td><a href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Ver</a>{% if expediente.expediente_fisico_registrado %} | <a href="{{ url_for('expedientes.editar', expediente_id=expediente.id) }}">Editar</a>{% else %} | <a href="{{ url_for('expediente_fisico.registrar', expediente_id=expediente.id) }}">Registrar físico</a>{% endif %}</td>
+                    <td>
+                        <a href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Ver</a>
+                        {% if expediente.expediente_fisico_registrado %} | <a href="{{ url_for('expedientes.editar', expediente_id=expediente.id) }}">Editar</a>{% else %} | <a href="{{ url_for('expediente_fisico.registrar', expediente_id=expediente.id) }}">Registrar físico</a>{% endif %}
+                        {% if current_user.rol == 'administrador' %}
+                        <form method="POST" action="{{ url_for('expedientes_admin.eliminar', expediente_id=expediente.id) }}" class="form-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="boton-link-peligro" onclick="return confirm('ATENCIÓN: esta opción elimina definitivamente el registro SP {{ expediente.no_sp }} solo si no tiene historial operativo. Después SICODE realineará los códigos internos con el No. SP. ¿Desea continuar?');">Eliminar</button>
+                        </form>
+                        {% endif %}
+                    </td>
                 </tr>
             {% else %}<tr><td colspan="7">No hay registros con los filtros seleccionados.</td></tr>{% endfor %}
             </tbody>
