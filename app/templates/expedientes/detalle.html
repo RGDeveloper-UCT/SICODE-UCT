@@ -20,6 +20,9 @@
             {% else %}
                 <a class="boton-exito" href="{{ url_for('expediente_fisico.registrar', expediente_id=expediente.id) }}">Registrar expediente físico</a>
             {% endif %}
+            {% if expediente.activo %}
+                <a class="boton-secundario" href="{{ url_for('prestamos.nuevo_traslado_virtual', expediente_id=expediente.id) }}">Constancia traslado virtual</a>
+            {% endif %}
             <a class="boton-cancelar" href="{{ url_for('expedientes.listado') }}">Volver</a>
         </div>
     </div>
@@ -39,6 +42,7 @@
         <div class="tarjeta indicador"><h2>Alertas pendientes</h2><p class="numero-indicador indicador-alerta">{{ expediente.alertas_pendientes|length }}</p><a href="{{ url_for('alertas.listado', q=expediente.no_sp) }}">Ver alertas</a></div>
         <div class="tarjeta indicador"><h2>Préstamos activos</h2><p class="numero-indicador indicador-alerta">{{ expediente.prestamos_activos|length }}</p></div>
         <div class="tarjeta indicador"><h2>Préstamos vencidos</h2><p class="numero-indicador indicador-peligro">{{ expediente.prestamos_vencidos|length }}</p></div>
+        <div class="tarjeta indicador"><h2>Traslados virtuales</h2><p class="numero-indicador">{{ expediente.traslados_virtuales|length }}</p></div>
     </div>
 
     <h2>Datos maestros del sujeto portador</h2>
@@ -108,6 +112,26 @@
                     <td><a href="{{ url_for('prestamos.detalle', prestamo_id=prestamo.id) }}">Ver</a>{% if prestamo.estado == 'En préstamo' %} · <a href="{{ url_for('prestamos.devolver', prestamo_id=prestamo.id) }}">Devolver</a>{% endif %}</td>
                 </tr>
             {% else %}<tr><td colspan="6">Sin préstamos registrados.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h2>Historial de traslados virtuales</h2>
+    <div class="tabla-contenedor">
+        <table>
+            <thead><tr><th>Fecha y hora</th><th>Constancia</th><th>Destinatario</th><th>Dependencia</th><th>Plataforma</th><th>Asunto</th><th>Acción</th></tr></thead>
+            <tbody>
+            {% for traslado in expediente.traslados_virtuales|sort(attribute='creado_en', reverse=true) %}
+                <tr>
+                    <td>{{ traslado.creado_en.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+                    <td><strong>{{ traslado.numero_constancia }}</strong></td>
+                    <td>{{ traslado.destinatario }}</td>
+                    <td>{{ traslado.dependencia_destino or '—' }}</td>
+                    <td>{{ traslado.plataforma }}</td>
+                    <td>{{ traslado.asunto }}</td>
+                    <td><a href="{{ url_for('prestamos.constancia_virtual_pdf', traslado_id=traslado.id) }}">Constancia PDF</a></td>
+                </tr>
+            {% else %}<tr><td colspan="7">Sin traslados virtuales registrados.</td></tr>{% endfor %}
             </tbody>
         </table>
     </div>
