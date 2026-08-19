@@ -49,6 +49,149 @@
     text-align: right;
 }
 
+/* Dashboard panorámico: usa el ancho útil y reduce desplazamiento vertical. */
+.vista-dashboard .contenedor {
+    max-width: none;
+    width: 100%;
+    margin: 18px auto;
+    padding: 0 22px;
+}
+
+.vista-dashboard .pie-sicode {
+    max-width: none;
+    margin: 8px 22px 16px;
+    padding: 0;
+}
+
+.dashboard-panel {
+    width: 100%;
+    max-width: none;
+    padding: 20px 22px 16px;
+}
+
+.dashboard-encabezado {
+    margin-bottom: 12px;
+}
+
+.dashboard-encabezado h1 {
+    margin-bottom: 4px;
+}
+
+.dashboard-encabezado p {
+    margin: 0;
+}
+
+.dashboard-layout-superior {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.85fr);
+    gap: 18px;
+    align-items: start;
+}
+
+.dashboard-bloque > h2 {
+    margin: 4px 0 8px;
+    font-size: 17px;
+}
+
+.dashboard-grid {
+    display: grid;
+    gap: 10px;
+}
+
+.dashboard-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dashboard-grid-6 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dashboard-panel .tarjeta {
+    padding: 10px 12px;
+    min-height: 96px;
+}
+
+.dashboard-panel .tarjeta h2 {
+    margin-bottom: 3px;
+    font-size: 13px;
+    line-height: 1.2;
+}
+
+.dashboard-panel .numero-indicador {
+    font-size: 28px;
+    line-height: 1;
+    margin: 5px 0;
+}
+
+.dashboard-panel .tarjeta-enlace span {
+    font-size: 12px;
+}
+
+.dashboard-layout-inferior {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: 18px;
+    margin-top: 14px;
+}
+
+.dashboard-tabla-bloque {
+    min-width: 0;
+}
+
+.dashboard-panel table {
+    font-size: 12px;
+}
+
+.dashboard-panel th,
+.dashboard-panel td {
+    padding: 6px 8px;
+    line-height: 1.15;
+}
+
+.dashboard-panel .tabla-contenedor {
+    max-height: 248px;
+    overflow: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+}
+
+.dashboard-panel thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.dashboard-aviso {
+    margin-top: 12px;
+    padding: 10px 12px;
+    font-size: 12px;
+}
+
+@media (min-width: 1500px) {
+    .dashboard-layout-superior {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr);
+    }
+
+    .dashboard-panel .tarjeta {
+        min-height: 90px;
+    }
+}
+
+@media (max-width: 1180px) {
+    .dashboard-layout-superior,
+    .dashboard-layout-inferior {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-grid-4 {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .dashboard-grid-6 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
 @media (max-width: 800px) {
     .topbar nav {
         width: 100%;
@@ -67,5 +210,26 @@
 
     .pie-sicode {
         text-align: left;
+    }
+
+    .vista-dashboard .contenedor {
+        padding: 0 12px;
+    }
+
+    .dashboard-grid-4,
+    .dashboard-grid-6 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .dashboard-layout-superior,
+    .dashboard-layout-inferior {
+        gap: 12px;
+    }
+}
+
+@media (max-width: 560px) {
+    .dashboard-grid-4,
+    .dashboard-grid-6 {
+        grid-template-columns: 1fr;
     }
 }
