@@ -38,6 +38,7 @@ def create_app():
         DocumentoExpediente,
         Alerta,
         PrestamoExpediente,
+        TrasladoVirtualExpediente,
         ImportacionPortadores,
         VerificacionExpediente,
     )
