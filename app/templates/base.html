@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/estilos.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/mejoras.css') }}">
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
     <header class="topbar">
         <div class="marca-sicode"><strong>SICODE-UCT</strong><span>Sistema de Control y Ordenamiento de Expedientes</span></div>
         {% if current_user.is_authenticated %}
