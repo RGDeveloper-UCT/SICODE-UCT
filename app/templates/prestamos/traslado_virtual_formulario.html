@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Traslado virtual SP {{ expediente.no_sp }} — SICODE-UCT{% endblock %}
+{% block body_class %}vista-prestamos{% endblock %}
+
+{% block content %}
+<section class="panel panel-ancho formulario formulario-traslado-virtual">
+    <div class="encabezado-modulo">
+        <div>
+            <h1>Constancia de traslado virtual</h1>
+            <p>SP {{ expediente.no_sp }} · {{ expediente.nombre_referencia or 'Sin nombre de referencia' }} · {{ expediente.codigo_interno }}</p>
+        </div>
+        <a class="boton-cancelar" href="{{ url_for('prestamos.listado', q=expediente.no_sp) }}">Volver a préstamos</a>
+    </div>
+
+    <div class="aviso">
+        <strong>Constancia administrativa sin firma.</strong>
+        SICODE registrará automáticamente la fecha, hora, usuario que genera la constancia y los datos maestros del SP. El expediente no se almacena en SICODE; únicamente se registra el enlace y los metadatos del traslado.
+    </div>
+
+    <form method="POST">
+        {{ form.hidden_tag() }}
+
+        <div class="grid-form grid-form-traslado-virtual">
+            <div class="campo">
+                {{ form.destinatario.label }}
+                {{ form.destinatario(placeholder="Nombre completo de la persona destinataria") }}
+                {% for error in form.destinatario.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+            </div>
+
+            <div class="campo">
+                {{ form.dependencia_destino.label }}
+                {{ form.dependencia_destino(placeholder="Ej. Juzgado, coordinación, unidad o institución") }}
+                {% for error in form.dependencia_destino.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+            </div>
+
+            <div class="campo">
+                {{ form.plataforma.label }}
+                {{ form.plataforma() }}
+                {% for error in form.plataforma.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+            </div>
+
+            <div class="campo">
+                {{ form.enlace_corto.label }}
+                {{ form.enlace_corto(placeholder="https://... o enlace acortado") }}
+                <small class="nota-mini">Puede ser Google Drive, Proton Drive, OneDrive, Dropbox u otra plataforma autorizada.</small>
+                {% for error in form.enlace_corto.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+            </div>
+
+            <div class="campo campo-ancho-completo">
+                {{ form.asunto.label }}
+                {{ form.asunto(placeholder="Motivo por el cual se traslada virtualmente el expediente") }}
+                {% for error in form.asunto.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+            </div>
+
+            <div class="campo campo-ancho-completo">
+                {{ form.observaciones.label }}
+                {{ form.observaciones(rows="4", placeholder="Datos adicionales de control, instrucciones o referencia del traslado") }}
+                {% for error in form.observaciones.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+            </div>
+        </div>
+
+        <div class="acciones acciones-traslado-virtual">
+            {{ form.submit(class_="boton-exito") }}
+            <a class="boton-cancelar" href="{{ url_for('prestamos.listado', q=expediente.no_sp) }}">Cancelar</a>
+        </div>
+    </form>
+</section>
+{% endblock %}
