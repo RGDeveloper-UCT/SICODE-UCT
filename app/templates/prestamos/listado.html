@@ -1,38 +1,41 @@
 {% extends "base.html" %}
 
 {% block title %}Préstamos — SICODE-UCT{% endblock %}
+{% block body_class %}vista-prestamos{% endblock %}
 
 {% block content %}
 <section class="panel panel-ancho panel-prestamos-maestro">
-    <div class="encabezado-modulo">
+    <div class="encabezado-modulo encabezado-prestamos-maestro">
         <div>
             <h1>Préstamos y devoluciones</h1>
-            <p>Maestro de SP para controlar préstamos, devoluciones y disponibilidad del expediente físico.</p>
+            <p>Maestro de SP para préstamos físicos y constancias de traslado virtual de expedientes.</p>
         </div>
         <div class="acciones-detalle">
             <a class="boton-exito" href="{{ url_for('prestamos.exportar_excel', q=busqueda, estado=filtro_estado) }}">Exportar Excel</a>
         </div>
     </div>
 
-    <div class="resumen-prestamos">
+    <div class="resumen-prestamos resumen-prestamos-4">
         <div class="resumen-prestamo-item"><span>SP registrados</span><strong>{{ total_sp }}</strong></div>
-        <div class="resumen-prestamo-item"><span>Disponibles para préstamo</span><strong>{{ total_disponibles }}</strong></div>
-        <div class="resumen-prestamo-item"><span>En préstamo</span><strong>{{ total_en_prestamo }}</strong></div>
+        <div class="resumen-prestamo-item"><span>Disponibles físico</span><strong>{{ total_disponibles }}</strong></div>
+        <div class="resumen-prestamo-item"><span>En préstamo físico</span><strong>{{ total_en_prestamo }}</strong></div>
+        <div class="resumen-prestamo-item"><span>Constancias virtuales</span><strong>{{ total_virtuales }}</strong></div>
     </div>
 
-    <div class="filtros-rapidos">
+    <div class="filtros-rapidos filtros-rapidos-prestamos">
         <a class="{% if filtro_estado == '' %}filtro-activo{% endif %}" href="{{ url_for('prestamos.listado') }}">Todos los SP</a>
         <a class="{% if filtro_estado == 'Disponibles' %}filtro-activo{% endif %}" href="{{ url_for('prestamos.listado', estado='Disponibles') }}">Disponibles</a>
         <a class="{% if filtro_estado == 'En préstamo' %}filtro-activo{% endif %}" href="{{ url_for('prestamos.listado', estado='En préstamo') }}">En préstamo</a>
         <a class="{% if filtro_estado == 'Devuelto' %}filtro-activo{% endif %}" href="{{ url_for('prestamos.listado', estado='Devuelto') }}">Devueltos</a>
         <a class="{% if filtro_estado == 'Vencidos' %}filtro-activo{% endif %}" href="{{ url_for('prestamos.listado', estado='Vencidos') }}">Vencidos</a>
-        <a class="{% if filtro_estado == 'Sin préstamo' %}filtro-activo{% endif %}" href="{{ url_for('prestamos.listado', estado='Sin préstamo') }}">Sin historial</a>
+        <a class="{% if filtro_estado == 'Sin préstamo' %}filtro-activo{% endif %}" href="{{ url_for('prestamos.listado', estado='Sin préstamo') }}">Sin historial físico</a>
+        <a class="{% if filtro_estado == 'Traslado virtual' %}filtro-activo{% endif %}" href="{{ url_for('prestamos.listado', estado='Traslado virtual') }}">Con traslado virtual</a>
     </div>
 
     <form method="GET" class="filtros-expedientes filtros-prestamos-maestro">
         <div class="campo-filtro campo-filtro-grande">
-            <label>Buscar SP o préstamo</label>
-            <input type="text" name="q" value="{{ busqueda }}" placeholder="No. SP, nombre, código SICODE, número de control o solicitante" autofocus>
+            <label>Buscar SP, préstamo o traslado virtual</label>
+            <input type="text" name="q" value="{{ busqueda }}" placeholder="SP, nombre, código SICODE, control, destinatario, plataforma o enlace" autofocus>
         </div>
         <div class="campo-filtro">
             <label>Estado</label>
@@ -49,7 +52,7 @@
         </div>
     </form>
 
-    <p class="contador-resultados">
+    <p class="contador-resultados contador-prestamos">
         SP encontrados: <strong>{{ filas|length }}</strong> de {{ total_sp }}.
         {% if busqueda %} Búsqueda: <strong>{{ busqueda }}</strong>.{% endif %}
     </p>
@@ -62,21 +65,22 @@
                     <th>Nombre</th>
                     <th>Expediente físico</th>
                     <th>Código SICODE</th>
-                    <th>Estado préstamo</th>
-                    <th>Último movimiento</th>
-                    <th class="columna-accion">Acción</th>
+                    <th>Préstamo físico</th>
+                    <th>Último traslado virtual</th>
+                    <th class="columna-accion columna-acciones-prestamos">Acciones</th>
                 </tr>
             </thead>
             <tbody>
                 {% for fila in filas %}
                     {% set expediente = fila.expediente %}
                     {% set movimiento = fila.prestamo_activo or fila.ultimo_prestamo %}
+                    {% set virtual = fila.ultimo_virtual %}
                     <tr class="{% if fila.estado_prestamo == 'Vencido' %}fila-vencida{% endif %}">
-                        <td>
+                        <td class="columna-sp-prestamo">
                             <a href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}"><strong>SP {{ expediente.no_sp }}</strong></a>
                         </td>
-                        <td>
-                            {{ expediente.nombre_referencia or 'Sin dato' }}
+                        <td class="columna-nombre-prestamo">
+                            <strong>{{ expediente.nombre_referencia or 'Sin dato' }}</strong>
                             {% if not expediente.activo %}<br><span class="badge badge-inactivo">Inactivo</span>{% endif %}
                         </td>
                         <td>
@@ -86,8 +90,8 @@
                                 <span class="badge badge-advertencia">Sin expediente físico</span>
                             {% endif %}
                         </td>
-                        <td>{{ expediente.codigo_interno }}</td>
-                        <td>
+                        <td><strong>{{ expediente.codigo_interno }}</strong></td>
+                        <td class="movimiento-prestamo">
                             {% if fila.estado_prestamo == 'Vencido' %}
                                 <span class="badge badge-vencido">Vencido</span>
                             {% elif fila.estado_prestamo == 'En préstamo' %}
@@ -97,29 +101,51 @@
                             {% else %}
                                 <span class="badge badge-neutral">Sin préstamo</span>
                             {% endif %}
-                        </td>
-                        <td class="movimiento-prestamo">
+
                             {% if movimiento %}
-                                <a href="{{ url_for('prestamos.detalle', prestamo_id=movimiento.id) }}"><strong>{{ movimiento.numero_control }}</strong></a><br>
-                                <span>{{ movimiento.solicitante }}</span><br>
-                                <small>{{ movimiento.fecha_prestamo.strftime('%d/%m/%Y %H:%M') if movimiento.fecha_prestamo else 'Sin fecha' }}</small>
+                                <br><a href="{{ url_for('prestamos.detalle', prestamo_id=movimiento.id) }}"><strong>{{ movimiento.numero_control }}</strong></a>
+                                <br><span>{{ movimiento.solicitante }}</span>
+                                <br><small>{{ movimiento.fecha_prestamo.strftime('%d/%m/%Y %H:%M') if movimiento.fecha_prestamo else 'Sin fecha' }}</small>
                                 {% if fila.prestamo_activo and fila.prestamo_activo.fecha_estimada_devolucion %}
-                                    <br><small>Devolución estimada: {{ fila.prestamo_activo.fecha_estimada_devolucion.strftime('%d/%m/%Y') }}</small>
+                                    <br><small>Dev. estimada: {{ fila.prestamo_activo.fecha_estimada_devolucion.strftime('%d/%m/%Y') }}</small>
                                 {% endif %}
+                            {% endif %}
+                        </td>
+                        <td class="movimiento-virtual">
+                            {% if virtual %}
+                                <span class="badge badge-virtual">Traslado virtual</span>
+                                <br><strong>{{ virtual.destinatario }}</strong>
+                                {% if virtual.dependencia_destino %}<br><small>{{ virtual.dependencia_destino }}</small>{% endif %}
+                                <br><small>{{ virtual.plataforma }} · {{ virtual.creado_en.strftime('%d/%m/%Y %H:%M') }}</small>
+                                <br><a href="{{ url_for('prestamos.constancia_virtual_pdf', traslado_id=virtual.id) }}">Descargar constancia</a>
                             {% else %}
-                                <span class="texto-muted">Sin movimientos</span>
+                                <span class="texto-muted">Sin traslados virtuales</span>
                             {% endif %}
                         </td>
                         <td class="columna-accion acciones-prestamo-sp">
-                            {% if fila.prestamo_activo %}
-                                <a class="boton-tabla" href="{{ url_for('prestamos.devolver', prestamo_id=fila.prestamo_activo.id) }}">Registrar devolución</a>
-                                <a class="boton-tabla boton-tabla-neutral" href="{{ url_for('prestamos.detalle', prestamo_id=fila.prestamo_activo.id) }}">Ver préstamo</a>
-                            {% elif fila.puede_prestar %}
-                                <a class="boton-tabla boton-tabla-secundario" href="{{ url_for('prestamos.nuevo', expediente_id=expediente.id) }}">Generar préstamo</a>
-                            {% else %}
-                                <span class="boton-tabla-deshabilitado">{{ fila.motivo_bloqueo }}</span>
-                            {% endif %}
-                            <a class="enlace-secundario-tabla" href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Ver expediente</a>
+                            <div class="acciones-prestamo-doble">
+                                <div class="accion-modalidad-prestamo">
+                                    <span class="etiqueta-modalidad">Físico</span>
+                                    {% if fila.prestamo_activo %}
+                                        <a class="boton-tabla" href="{{ url_for('prestamos.devolver', prestamo_id=fila.prestamo_activo.id) }}">Registrar devolución</a>
+                                        <a class="enlace-secundario-tabla" href="{{ url_for('prestamos.detalle', prestamo_id=fila.prestamo_activo.id) }}">Ver préstamo</a>
+                                    {% elif fila.puede_prestar %}
+                                        <a class="boton-tabla boton-tabla-secundario" href="{{ url_for('prestamos.nuevo', expediente_id=expediente.id) }}">Generar préstamo físico</a>
+                                    {% else %}
+                                        <span class="boton-tabla-deshabilitado">{{ fila.motivo_bloqueo }}</span>
+                                    {% endif %}
+                                </div>
+
+                                <div class="accion-modalidad-prestamo accion-modalidad-virtual">
+                                    <span class="etiqueta-modalidad">Virtual</span>
+                                    {% if fila.puede_traslado_virtual %}
+                                        <a class="boton-tabla boton-traslado-virtual" href="{{ url_for('prestamos.nuevo_traslado_virtual', expediente_id=expediente.id) }}">Generar constancia de traslado de expediente virtual</a>
+                                    {% else %}
+                                        <span class="boton-tabla-deshabilitado">SP inactivo</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <a class="enlace-secundario-tabla enlace-ver-expediente" href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Ver expediente</a>
                         </td>
                     </tr>
                 {% else %}
