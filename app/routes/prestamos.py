@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from io import BytesIO
 import re
+from urllib.parse import urlparse
 from xml.sax.saxutils import escape
 
 from flask import Blueprint, flash, redirect, render_template, request, send_file, url_for
@@ -15,9 +16,10 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 from sqlalchemy import or_
 
 from app import db
-from app.forms.prestamo_form import DevolucionForm, PrestamoForm
+from app.forms.prestamo_form import DevolucionForm, PrestamoForm, TrasladoVirtualForm
 from app.models.expediente import Expediente
 from app.models.prestamo import PrestamoExpediente
+from app.models.traslado_virtual import TrasladoVirtualExpediente
 from app.services.alertas_service import detectar_prestamos_vencidos
 from app.services.bitacora_service import registrar_bitacora
 from app.services.sp_service import normalizar_sp
@@ -32,6 +34,24 @@ def generar_numero_control(expediente):
     return f"PRE-{no_sp_limpio}-{marca_tiempo}"
 
 
+def generar_numero_constancia_virtual(expediente):
+    no_sp_limpio = re.sub(r"[^A-Za-z0-9_-]", "-", expediente.no_sp)
+    marca_tiempo = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
+    return f"TVE-{no_sp_limpio}-{marca_tiempo}"
+
+
+def _normalizar_enlace_virtual(valor):
+    texto = (valor or "").strip()
+    if not texto:
+        return None
+    if not re.match(r"^https?://", texto, flags=re.IGNORECASE):
+        texto = f"https://{texto}"
+    analizado = urlparse(texto)
+    if analizado.scheme.lower() not in {"http", "https"} or not analizado.netloc:
+        return None
+    return texto
+
+
 def _ids_prestamos_activos():
     return db.session.query(PrestamoExpediente.expediente_id).filter(
         PrestamoExpediente.estado == "En préstamo",
@@ -40,12 +60,7 @@ def _ids_prestamos_activos():
 
 
 def _consulta_expedientes_panel(busqueda="", filtro_estado=""):
-    """Consulta maestra del panel de préstamos.
-
-    El módulo de préstamos parte del maestro de SP/expedientes y no del historial
-    de movimientos. De esa manera aparecen todos los SP aunque nunca hayan sido
-    prestados y se puede iniciar el préstamo desde la misma fila.
-    """
+    """Consulta maestra: todos los SP, con préstamo físico y traslado virtual relacionados."""
     consulta = Expediente.query
     ids_activos = _ids_prestamos_activos()
 
@@ -59,6 +74,16 @@ def _consulta_expedientes_panel(busqueda="", filtro_estado=""):
                 PrestamoExpediente.persona_recibe.ilike(filtro),
             )
         )
+        ids_por_virtual = db.session.query(TrasladoVirtualExpediente.expediente_id).filter(
+            or_(
+                TrasladoVirtualExpediente.numero_constancia.ilike(filtro),
+                TrasladoVirtualExpediente.destinatario.ilike(filtro),
+                TrasladoVirtualExpediente.dependencia_destino.ilike(filtro),
+                TrasladoVirtualExpediente.plataforma.ilike(filtro),
+                TrasladoVirtualExpediente.enlace_corto.ilike(filtro),
+                TrasladoVirtualExpediente.asunto.ilike(filtro),
+            )
+        )
         consulta = consulta.filter(
             or_(
                 Expediente.no_sp.ilike(filtro),
@@ -67,6 +92,7 @@ def _consulta_expedientes_panel(busqueda="", filtro_estado=""):
                 Expediente.nombres.ilike(filtro),
                 Expediente.apellidos.ilike(filtro),
                 Expediente.id.in_(ids_por_prestamo),
+                Expediente.id.in_(ids_por_virtual),
             )
         )
 
@@ -97,6 +123,9 @@ def _consulta_expedientes_panel(busqueda="", filtro_estado=""):
     elif filtro_estado == "Sin préstamo":
         ids_con_historial = db.session.query(PrestamoExpediente.expediente_id)
         consulta = consulta.filter(~Expediente.id.in_(ids_con_historial))
+    elif filtro_estado == "Traslado virtual":
+        ids_virtuales = db.session.query(TrasladoVirtualExpediente.expediente_id)
+        consulta = consulta.filter(Expediente.id.in_(ids_virtuales))
 
     return consulta
 
@@ -111,6 +140,7 @@ def _clave_orden_sp(expediente):
 def _construir_filas_panel(expedientes):
     ids = [expediente.id for expediente in expedientes]
     prestamos = []
+    virtuales = []
     if ids:
         prestamos = (
             PrestamoExpediente.query
@@ -118,9 +148,16 @@ def _construir_filas_panel(expedientes):
             .order_by(PrestamoExpediente.fecha_prestamo.desc(), PrestamoExpediente.id.desc())
             .all()
         )
+        virtuales = (
+            TrasladoVirtualExpediente.query
+            .filter(TrasladoVirtualExpediente.expediente_id.in_(ids))
+            .order_by(TrasladoVirtualExpediente.creado_en.desc(), TrasladoVirtualExpediente.id.desc())
+            .all()
+        )
 
     ultimo_por_expediente = {}
     activo_por_expediente = {}
+    ultimo_virtual_por_expediente = {}
     for prestamo in prestamos:
         ultimo_por_expediente.setdefault(prestamo.expediente_id, prestamo)
         if (
@@ -129,12 +166,15 @@ def _construir_filas_panel(expedientes):
             and prestamo.expediente_id not in activo_por_expediente
         ):
             activo_por_expediente[prestamo.expediente_id] = prestamo
+    for traslado in virtuales:
+        ultimo_virtual_por_expediente.setdefault(traslado.expediente_id, traslado)
 
     filas = []
     hoy = date.today()
     for expediente in sorted(expedientes, key=_clave_orden_sp):
         prestamo_activo = activo_por_expediente.get(expediente.id)
         ultimo_prestamo = ultimo_por_expediente.get(expediente.id)
+        ultimo_virtual = ultimo_virtual_por_expediente.get(expediente.id)
 
         if prestamo_activo and prestamo_activo.fecha_estimada_devolucion and prestamo_activo.fecha_estimada_devolucion < hoy:
             estado_prestamo = "Vencido"
@@ -150,6 +190,7 @@ def _construir_filas_panel(expedientes):
             and expediente.expediente_fisico_registrado
             and prestamo_activo is None
         )
+        puede_traslado_virtual = bool(expediente.activo)
 
         if not expediente.activo:
             motivo_bloqueo = "SP inactivo"
@@ -164,8 +205,10 @@ def _construir_filas_panel(expedientes):
             "expediente": expediente,
             "prestamo_activo": prestamo_activo,
             "ultimo_prestamo": ultimo_prestamo,
+            "ultimo_virtual": ultimo_virtual,
             "estado_prestamo": estado_prestamo,
             "puede_prestar": puede_prestar,
+            "puede_traslado_virtual": puede_traslado_virtual,
             "motivo_bloqueo": motivo_bloqueo,
         })
     return filas
@@ -188,7 +231,14 @@ def listado():
 
     busqueda = request.args.get("q", "").strip()
     filtro_estado = request.args.get("estado", "").strip()
-    estados = ["Disponibles", "En préstamo", "Devuelto", "Vencidos", "Sin préstamo"]
+    estados = [
+        "Disponibles",
+        "En préstamo",
+        "Devuelto",
+        "Vencidos",
+        "Sin préstamo",
+        "Traslado virtual",
+    ]
 
     expedientes = _consulta_expedientes_panel(busqueda, filtro_estado).all()
     filas = _construir_filas_panel(expedientes)
@@ -201,6 +251,7 @@ def listado():
         Expediente.expediente_fisico_registrado.is_(True),
         ~Expediente.id.in_(ids_activos),
     ).count()
+    total_virtuales = TrasladoVirtualExpediente.query.count()
 
     return render_template(
         "prestamos/listado.html",
@@ -211,6 +262,7 @@ def listado():
         total_sp=total_sp,
         total_en_prestamo=total_en_prestamo,
         total_disponibles=total_disponibles,
+        total_virtuales=total_virtuales,
     )
 
 
@@ -270,6 +322,170 @@ def nuevo(expediente_id):
         return redirect(url_for("prestamos.listado", q=expediente.no_sp))
 
     return render_template("prestamos/formulario.html", form=form, expediente=expediente)
+
+
+@prestamos_bp.route("/expedientes/<int:expediente_id>/traslado-virtual/nuevo", methods=["GET", "POST"])
+@login_required
+def nuevo_traslado_virtual(expediente_id):
+    expediente = Expediente.query.get_or_404(expediente_id)
+    if not expediente.activo:
+        flash("No se puede registrar un traslado virtual para un SP inactivo.", "danger")
+        return redirect(url_for("prestamos.listado", q=expediente.no_sp))
+
+    form = TrasladoVirtualForm()
+    if form.validate_on_submit():
+        enlace = _normalizar_enlace_virtual(form.enlace_corto.data)
+        if not enlace:
+            flash("El enlace debe ser una dirección web válida (http o https).", "danger")
+            return render_template(
+                "prestamos/traslado_virtual_formulario.html",
+                form=form,
+                expediente=expediente,
+            )
+
+        traslado = TrasladoVirtualExpediente(
+            expediente_id=expediente.id,
+            usuario_id=current_user.id,
+            numero_constancia=generar_numero_constancia_virtual(expediente),
+            destinatario=form.destinatario.data.strip(),
+            dependencia_destino=(form.dependencia_destino.data or "").strip() or None,
+            plataforma=form.plataforma.data,
+            enlace_corto=enlace,
+            asunto=form.asunto.data.strip(),
+            observaciones=form.observaciones.data,
+            creado_en=datetime.utcnow(),
+        )
+        db.session.add(traslado)
+        db.session.commit()
+
+        registrar_bitacora(
+            accion="REGISTRAR_TRASLADO_VIRTUAL",
+            modulo="Préstamos",
+            descripcion=(
+                f"Se registró constancia de traslado virtual del SP {expediente.no_sp} "
+                f"a {traslado.destinatario} mediante {traslado.plataforma}. "
+                f"Constancia: {traslado.numero_constancia}."
+            ),
+            usuario_id=current_user.id,
+            expediente_id=expediente.id,
+            entidad="TrasladoVirtualExpediente",
+            entidad_id=traslado.id,
+            datos_posteriores={
+                "numero_constancia": traslado.numero_constancia,
+                "destinatario": traslado.destinatario,
+                "dependencia_destino": traslado.dependencia_destino,
+                "plataforma": traslado.plataforma,
+                "enlace_corto": traslado.enlace_corto,
+                "asunto": traslado.asunto,
+            },
+        )
+        return redirect(url_for("prestamos.constancia_virtual_pdf", traslado_id=traslado.id))
+
+    return render_template(
+        "prestamos/traslado_virtual_formulario.html",
+        form=form,
+        expediente=expediente,
+    )
+
+
+@prestamos_bp.route("/prestamos/traslado-virtual/<int:traslado_id>/constancia/pdf")
+@login_required
+def constancia_virtual_pdf(traslado_id):
+    traslado = TrasladoVirtualExpediente.query.get_or_404(traslado_id)
+    expediente = traslado.expediente
+
+    def valor_pdf(valor):
+        if valor is None or valor == "":
+            return "Sin dato"
+        return escape(str(valor))
+
+    archivo_pdf = BytesIO()
+    doc = SimpleDocTemplate(
+        archivo_pdf,
+        pagesize=letter,
+        rightMargin=42,
+        leftMargin=42,
+        topMargin=42,
+        bottomMargin=42,
+    )
+    estilos = getSampleStyleSheet()
+    elementos = [
+        Paragraph("SICODE-UCT", estilos["Title"]),
+        Paragraph("CONSTANCIA DE TRASLADO VIRTUAL DE EXPEDIENTE", estilos["Heading2"]),
+        Spacer(1, 12),
+        Paragraph(
+            "Por medio de la presente se deja constancia administrativa del traslado virtual "
+            "del expediente identificado a continuación. Esta constancia registra el envío y "
+            "sus metadatos de control; no requiere firma y no sustituye un acuse de recepción del destinatario.",
+            estilos["Normal"],
+        ),
+        Spacer(1, 18),
+    ]
+
+    datos = [
+        ["Campo", "Información registrada"],
+        ["No. de constancia", valor_pdf(traslado.numero_constancia)],
+        ["Fecha y hora del traslado", traslado.creado_en.strftime("%d/%m/%Y %H:%M:%S")],
+        ["No. SP", valor_pdf(expediente.no_sp)],
+        ["Código SICODE", valor_pdf(expediente.codigo_interno)],
+        ["Nombre de referencia", valor_pdf(expediente.nombre_referencia)],
+        ["Persona destinataria", valor_pdf(traslado.destinatario)],
+        ["Institución / dependencia / área", valor_pdf(traslado.dependencia_destino)],
+        ["Plataforma utilizada", valor_pdf(traslado.plataforma)],
+        ["Enlace de acceso registrado", valor_pdf(traslado.enlace_corto)],
+        ["Motivo o asunto", valor_pdf(traslado.asunto)],
+        ["Registrado por", valor_pdf(traslado.usuario.nombre if traslado.usuario else None)],
+    ]
+    tabla = Table(datos, colWidths=[2.25 * inch, 4.75 * inch])
+    tabla.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#17233c")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTNAME", (0, 1), (0, -1), "Helvetica-Bold"),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+    ]))
+    elementos.extend([
+        tabla,
+        Spacer(1, 18),
+        Paragraph("Observaciones", estilos["Heading3"]),
+        Paragraph(valor_pdf(traslado.observaciones), estilos["Normal"]),
+        Spacer(1, 18),
+        Paragraph(
+            "SICODE-UCT registra esta constancia y el enlace utilizado como metadatos de control. "
+            "El sistema no almacena una copia completa del expediente trasladado. Documento sin firma.",
+            estilos["Italic"],
+        ),
+    ])
+
+    doc.build(elementos)
+    archivo_pdf.seek(0)
+
+    registrar_bitacora(
+        accion="EXPORTAR_CONSTANCIA_TRASLADO_VIRTUAL_PDF",
+        modulo="Préstamos",
+        descripcion=(
+            f"Se generó PDF de la constancia {traslado.numero_constancia} "
+            f"correspondiente al SP {expediente.no_sp}."
+        ),
+        usuario_id=current_user.id,
+        expediente_id=expediente.id,
+        entidad="TrasladoVirtualExpediente",
+        entidad_id=traslado.id,
+    )
+
+    nombre_archivo = f"constancia_traslado_virtual_SP_{expediente.no_sp}_{traslado.numero_constancia}.pdf"
+    nombre_archivo = nombre_archivo.replace(" ", "_").replace("/", "-")
+    return send_file(
+        archivo_pdf,
+        as_attachment=True,
+        download_name=nombre_archivo,
+        mimetype="application/pdf",
+    )
 
 
 @prestamos_bp.route("/prestamos/<int:prestamo_id>/devolver", methods=["GET", "POST"])
@@ -460,13 +676,19 @@ def exportar_excel():
         "Código interno",
         "Nombre",
         "Expediente físico",
-        "Estado préstamo",
-        "Número control actual/último",
-        "Solicitante",
-        "Fecha préstamo",
+        "Estado préstamo físico",
+        "Número control físico actual/último",
+        "Solicitante físico",
+        "Fecha préstamo físico",
         "Fecha estimada devolución",
         "Fecha real devolución",
         "Disponibilidad",
+        "Última constancia virtual",
+        "Destinatario virtual",
+        "Dependencia destino virtual",
+        "Plataforma virtual",
+        "Fecha traslado virtual",
+        "Enlace virtual",
     ]
     ws.append(encabezados)
     for celda in ws[1]:
@@ -476,6 +698,7 @@ def exportar_excel():
     for fila in filas:
         expediente = fila["expediente"]
         movimiento = fila["prestamo_activo"] or fila["ultimo_prestamo"]
+        virtual = fila["ultimo_virtual"]
         ws.append([
             expediente.no_sp,
             expediente.codigo_interno,
@@ -488,9 +711,19 @@ def exportar_excel():
             movimiento.fecha_estimada_devolucion.strftime("%d/%m/%Y") if movimiento and movimiento.fecha_estimada_devolucion else "",
             movimiento.fecha_real_devolucion.strftime("%d/%m/%Y %H:%M") if movimiento and movimiento.fecha_real_devolucion else "",
             expediente.disponibilidad,
+            virtual.numero_constancia if virtual else "",
+            virtual.destinatario if virtual else "",
+            virtual.dependencia_destino if virtual else "",
+            virtual.plataforma if virtual else "",
+            virtual.creado_en.strftime("%d/%m/%Y %H:%M:%S") if virtual else "",
+            virtual.enlace_corto if virtual else "",
         ])
 
-    anchos = {"A": 14, "B": 22, "C": 32, "D": 18, "E": 18, "F": 32, "G": 28, "H": 22, "I": 24, "J": 24, "K": 22}
+    anchos = {
+        "A": 14, "B": 22, "C": 32, "D": 18, "E": 20, "F": 32, "G": 28,
+        "H": 22, "I": 24, "J": 24, "K": 22, "L": 34, "M": 28, "N": 30,
+        "O": 20, "P": 24, "Q": 45,
+    }
     for columna, ancho in anchos.items():
         ws.column_dimensions[columna].width = ancho
     ws.freeze_panes = "A2"
@@ -499,7 +732,7 @@ def exportar_excel():
     registrar_bitacora(
         accion="EXPORTAR_PRESTAMOS_EXCEL",
         modulo="Reportes",
-        descripcion=f"Se exportó el panel maestro de préstamos a Excel. SP exportados: {len(filas)}.",
+        descripcion=f"Se exportó el panel maestro de préstamos y traslados virtuales. SP exportados: {len(filas)}.",
         usuario_id=current_user.id,
     )
 
@@ -509,7 +742,7 @@ def exportar_excel():
     return send_file(
         archivo_excel,
         as_attachment=True,
-        download_name="control_prestamos_sicode_uct.xlsx",
+        download_name="control_prestamos_y_traslados_virtuales_sicode_uct.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
