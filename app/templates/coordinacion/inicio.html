@@ -6,7 +6,7 @@
     <div class="encabezado-modulo encabezado-coordinacion-inicio">
         <div class="encabezado-coordinacion-texto">
             <h1>Coordinación</h1>
-            <p>Registro operativo diario de la Coordinación de Sistematización y Ordenamiento de Datos.</p>
+            <p>{% if current_user.es_visor %}Consulta operativa de la Coordinación de Sistematización y Ordenamiento de Datos.{% else %}Registro operativo diario de la Coordinación de Sistematización y Ordenamiento de Datos.{% endif %}</p>
         </div>
         <div class="acciones-detalle acciones-coordinacion-inicio">
             <a class="boton-secundario" href="{{ url_for('coordinacion.listado') }}">Ver registros</a>
@@ -20,7 +20,11 @@
     <div class="layout-coordinacion-inicio">
         <section class="columna-coordinacion-registros" aria-labelledby="titulo-registros-coordinacion">
             <div class="aviso aviso-coordinacion-inicio">
+                {% if current_user.es_visor %}
+                <strong>Consulta por tipo:</strong> seleccione una categoría para ver sus registros. Este usuario no puede crear, modificar ni eliminar información.
+                {% else %}
                 <strong>Registro simplificado:</strong> seleccione el tipo de registro. El usuario se toma de la sesión y el SP se vincula al expediente existente cuando sea posible.
+                {% endif %}
             </div>
 
             <div class="resumen-coordinacion-inicio">
@@ -42,8 +46,8 @@
             </div>
 
             <div class="encabezado-registros-coordinacion">
-                <h2 id="titulo-registros-coordinacion">REGISTROS</h2>
-                <span>Seleccione una opción para registrar</span>
+                <h2 id="titulo-registros-coordinacion">{% if current_user.es_visor %}CONSULTA POR TIPO{% else %}REGISTROS{% endif %}</h2>
+                <span>{% if current_user.es_visor %}Seleccione una opción para consultar{% else %}Seleccione una opción para registrar{% endif %}</span>
             </div>
 
             <div class="grid-registros-coordinacion">
@@ -54,7 +58,11 @@
                         <span class="contador-tipo-registro">{{ conteos.get(item.codigo, 0) }}</span>
                     </div>
                     <p>{{ item.descripcion }}</p>
+                    {% if current_user.es_visor %}
+                    <a href="{{ url_for('coordinacion.listado', tipo=item.codigo) }}">Ver {{ item.titulo|lower }}</a>
+                    {% else %}
                     <a href="{{ url_for('coordinacion.registrar', tipo=clave) }}">Registrar {{ item.titulo|lower }}</a>
+                    {% endif %}
                 </article>
                 {% endfor %}
             </div>
