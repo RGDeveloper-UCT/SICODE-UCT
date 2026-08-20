@@ -52,11 +52,12 @@ def app_operacion():
 @pytest.fixture()
 def cliente(app_operacion):
     cliente = app_operacion.test_client()
-    with cliente.session_transaction() as sesion:
-        with app_operacion.app_context():
-            usuario = Usuario.query.filter_by(usuario="admin-op").one()
-            sesion["_user_id"] = str(usuario.id)
-            sesion["_fresh"] = True
+    respuesta = cliente.post(
+        "/login",
+        data={"usuario": "admin-op", "password": "Password123"},
+        follow_redirects=False,
+    )
+    assert respuesta.status_code == 302
     return cliente
 
 
