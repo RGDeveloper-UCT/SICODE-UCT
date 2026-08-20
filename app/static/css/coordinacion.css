@@ -214,3 +214,413 @@
         max-height: calc(100vh - 335px);
     }
 }
+
+/* Inicio operativo de Coordinación: registro a la izquierda y actividad reciente a la derecha. */
+body.vista-coordinacion-inicio {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.vista-coordinacion-inicio .topbar {
+    flex: 0 0 auto;
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.vista-coordinacion-inicio .contenedor {
+    width: 100%;
+    max-width: none;
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: 0;
+    padding: 12px 18px 10px;
+}
+
+.vista-coordinacion-inicio .pie-sicode {
+    display: none;
+}
+
+.panel-coordinacion-inicio {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    min-height: 0;
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.encabezado-coordinacion-inicio {
+    flex: 0 0 auto;
+    margin-bottom: 10px;
+    align-items: flex-start;
+}
+
+.encabezado-coordinacion-texto h1 {
+    margin-bottom: 4px;
+}
+
+.encabezado-coordinacion-texto p {
+    margin: 0;
+    color: #64748b;
+    font-size: 13px;
+}
+
+.acciones-coordinacion-inicio {
+    justify-content: flex-end;
+}
+
+.acciones-coordinacion-inicio .boton-cancelar {
+    margin-left: 0;
+}
+
+.boton-exportar {
+    display: inline-block;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: #166534;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.boton-exportar:hover {
+    background: #14532d;
+}
+
+.layout-coordinacion-inicio {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1.65fr) minmax(480px, 1fr);
+    gap: 14px;
+    align-items: stretch;
+}
+
+.columna-coordinacion-registros,
+.columna-coordinacion-recientes {
+    min-width: 0;
+    min-height: 0;
+}
+
+.columna-coordinacion-registros {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.aviso-coordinacion-inicio {
+    flex: 0 0 auto;
+    margin: 0 0 10px;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.resumen-coordinacion-inicio {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: .85fr .85fr 1.3fr;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.resumen-coordinacion-inicio .tarjeta {
+    padding: 12px 14px;
+}
+
+.indicador-coordinacion-compacto h2,
+.tarjeta-expedientes-coordinacion h2 {
+    margin: 0;
+    font-size: 13px;
+}
+
+.indicador-coordinacion-compacto .numero-indicador {
+    margin-top: 5px;
+    font-size: 26px;
+    line-height: 1;
+}
+
+.tarjeta-expedientes-coordinacion {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.tarjeta-expedientes-coordinacion p {
+    margin: 4px 0 0;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.3;
+}
+
+.tarjeta-expedientes-coordinacion a {
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.encabezado-registros-coordinacion {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 8px;
+}
+
+.encabezado-registros-coordinacion h2 {
+    margin: 0;
+    font-size: 18px;
+    letter-spacing: .04em;
+    color: #17233c;
+}
+
+.encabezado-registros-coordinacion span {
+    color: #64748b;
+    font-size: 11px;
+}
+
+.grid-registros-coordinacion {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.tarjeta-registro-coordinacion {
+    padding: 12px 13px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+
+.tarjeta-registro-coordinacion:hover {
+    border-color: #94a3b8;
+    box-shadow: 0 4px 12px rgba(23, 35, 60, .08);
+    transform: translateY(-1px);
+}
+
+.tarjeta-registro-cabecera {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.tarjeta-registro-coordinacion h3 {
+    margin: 0;
+    font-size: 13px;
+    color: #17233c;
+}
+
+.contador-tipo-registro {
+    display: inline-flex;
+    min-width: 28px;
+    height: 22px;
+    padding: 0 7px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: #e8eef7;
+    color: #17233c;
+    font-size: 11px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.tarjeta-registro-coordinacion p {
+    margin: 6px 0 8px;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+.tarjeta-registro-coordinacion a {
+    margin-top: auto;
+    font-size: 11px;
+    font-weight: 800;
+    color: #17233c;
+}
+
+.columna-coordinacion-recientes {
+    display: flex;
+}
+
+.panel-recientes-coordinacion {
+    width: 100%;
+    min-height: 0;
+    padding: 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #f8fafc;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.encabezado-recientes-coordinacion {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.encabezado-recientes-coordinacion h2 {
+    margin: 0 0 3px;
+    font-size: 17px;
+    color: #17233c;
+}
+
+.encabezado-recientes-coordinacion p {
+    margin: 0;
+    color: #64748b;
+    font-size: 11px;
+}
+
+.encabezado-recientes-coordinacion > a {
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 800;
+    color: #17233c;
+}
+
+.tabla-recientes-coordinacion-contenedor {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.tabla-recientes-coordinacion {
+    width: 100%;
+    min-width: 720px;
+    font-size: 11px;
+}
+
+.tabla-recientes-coordinacion th,
+.tabla-recientes-coordinacion td {
+    padding: 8px 9px;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.tabla-recientes-coordinacion thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #eef2f7;
+}
+
+.tabla-recientes-coordinacion .badge {
+    font-size: 10px;
+    padding: 3px 6px;
+}
+
+.tipo-reciente {
+    font-size: 10px;
+    font-weight: 800;
+    color: #334155;
+}
+
+.accion-reciente {
+    text-align: right;
+}
+
+.sin-registros-recientes {
+    text-align: center;
+    color: #64748b;
+    padding: 24px !important;
+}
+
+@media (max-width: 1600px) {
+    .layout-coordinacion-inicio {
+        grid-template-columns: minmax(0, 1.5fr) minmax(430px, 1fr);
+    }
+
+    .grid-registros-coordinacion {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-rows: repeat(3, minmax(0, 1fr));
+    }
+
+    .tarjeta-registro-coordinacion {
+        padding: 10px 11px;
+    }
+}
+
+@media (max-width: 1200px) {
+    body.vista-coordinacion-inicio {
+        height: auto;
+        min-height: 100vh;
+        display: block;
+        overflow: auto;
+    }
+
+    .vista-coordinacion-inicio .contenedor {
+        margin: 16px auto;
+        padding: 0 14px;
+    }
+
+    .vista-coordinacion-inicio .pie-sicode {
+        display: block;
+    }
+
+    .panel-coordinacion-inicio {
+        height: auto;
+        overflow: visible;
+    }
+
+    .layout-coordinacion-inicio {
+        grid-template-columns: 1fr;
+    }
+
+    .columna-coordinacion-registros {
+        overflow: visible;
+    }
+
+    .grid-registros-coordinacion {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-rows: auto;
+    }
+
+    .panel-recientes-coordinacion {
+        min-height: 440px;
+    }
+}
+
+@media (max-width: 760px) {
+    .encabezado-coordinacion-inicio,
+    .acciones-coordinacion-inicio,
+    .encabezado-registros-coordinacion,
+    .tarjeta-expedientes-coordinacion {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .resumen-coordinacion-inicio,
+    .grid-registros-coordinacion {
+        grid-template-columns: 1fr;
+    }
+
+    .encabezado-registros-coordinacion span {
+        display: none;
+    }
+
+    .boton-exportar,
+    .acciones-coordinacion-inicio a {
+        text-align: center;
+    }
+}
