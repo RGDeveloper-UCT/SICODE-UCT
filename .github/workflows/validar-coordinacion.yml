@@ -59,6 +59,7 @@ jobs:
           assert '/coordinacion/registros' in rutas
           assert '/coordinacion/registrar/<tipo>' in rutas
           assert '/coordinacion/importar' in rutas
+          assert '/coordinacion/exportar' in rutas
 
           plantillas = [
               'coordinacion/inicio.html',
