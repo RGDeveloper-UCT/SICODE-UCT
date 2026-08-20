@@ -10,9 +10,11 @@
             <h1>Préstamos y devoluciones</h1>
             <p>Maestro de SP para préstamos físicos y constancias de traslado virtual de expedientes.</p>
         </div>
+        {% if current_user.puede_modificar %}
         <div class="acciones-detalle">
             <a class="boton-exito" href="{{ url_for('prestamos.exportar_excel', q=busqueda, estado=filtro_estado) }}">Exportar Excel</a>
         </div>
+        {% endif %}
     </div>
 
     <div class="resumen-prestamos resumen-prestamos-4">
@@ -67,7 +69,7 @@
                     <th>Código SICODE</th>
                     <th>Préstamo físico</th>
                     <th>Último traslado virtual</th>
-                    <th class="columna-accion columna-acciones-prestamos">Acciones</th>
+                    <th class="columna-accion columna-acciones-prestamos">{% if current_user.es_visor %}Consulta{% else %}Acciones{% endif %}</th>
                 </tr>
             </thead>
             <tbody>
@@ -123,6 +125,10 @@
                             {% endif %}
                         </td>
                         <td class="columna-accion acciones-prestamo-sp">
+                            {% if current_user.es_visor %}
+                                {% if movimiento %}<a class="boton-tabla" href="{{ url_for('prestamos.detalle', prestamo_id=movimiento.id) }}">Ver préstamo</a>{% endif %}
+                                <a class="enlace-secundario-tabla enlace-ver-expediente" href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Ver expediente</a>
+                            {% else %}
                             <div class="acciones-prestamo-doble">
                                 <div class="accion-modalidad-prestamo">
                                     <span class="etiqueta-modalidad">Físico</span>
@@ -146,6 +152,7 @@
                                 </div>
                             </div>
                             <a class="enlace-secundario-tabla enlace-ver-expediente" href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Ver expediente</a>
+                            {% endif %}
                         </td>
                     </tr>
                 {% else %}
