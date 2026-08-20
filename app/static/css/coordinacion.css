@@ -1,0 +1,142 @@
+/* Vista panorámica del listado de Coordinación. */
+.vista-coordinacion-listado .contenedor {
+    width: 100%;
+    max-width: none;
+    margin: 16px auto;
+    padding: 0 20px;
+}
+
+.vista-coordinacion-listado .pie-sicode {
+    max-width: none;
+    margin: 8px 20px 16px;
+    padding: 0;
+}
+
+.vista-coordinacion-listado .panel-coordinacion-listado {
+    width: 100%;
+    max-width: none;
+    padding: 20px 22px 18px;
+}
+
+.vista-coordinacion-listado .encabezado-coordinacion-listado {
+    margin-bottom: 14px;
+}
+
+.vista-coordinacion-listado .filtros-coordinacion {
+    grid-template-columns: minmax(420px, 2.5fr) minmax(180px, .8fr) minmax(180px, .8fr) auto;
+    gap: 12px;
+    margin-bottom: 10px;
+    padding: 12px;
+}
+
+.vista-coordinacion-listado .contador-resultados {
+    margin: 8px 0 10px;
+}
+
+.tabla-coordinacion-contenedor {
+    width: 100%;
+    max-height: calc(100vh - 285px);
+    min-height: 430px;
+    overflow: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 9px;
+}
+
+.tabla-coordinacion {
+    width: 100%;
+    min-width: 1510px;
+    table-layout: auto;
+    font-size: 12.5px;
+}
+
+.tabla-coordinacion th,
+.tabla-coordinacion td {
+    padding: 8px 9px;
+    vertical-align: middle;
+}
+
+.tabla-coordinacion thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    white-space: nowrap;
+}
+
+.tabla-coordinacion .col-fecha,
+.tabla-coordinacion .col-sp,
+.tabla-coordinacion .col-rc,
+.tabla-coordinacion .col-folios,
+.tabla-coordinacion .col-estado,
+.tabla-coordinacion .col-accion {
+    white-space: nowrap;
+}
+
+.tabla-coordinacion .col-entrega {
+    min-width: 170px;
+}
+
+.tabla-coordinacion .col-periodo {
+    min-width: 185px;
+}
+
+.tabla-coordinacion .col-boleta {
+    min-width: 120px;
+    white-space: nowrap;
+}
+
+.tabla-coordinacion .col-total {
+    min-width: 105px;
+    white-space: nowrap;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.tabla-coordinacion .dato-pago {
+    font-weight: 600;
+    color: #17233c;
+}
+
+.tabla-coordinacion .sin-dato {
+    color: #94a3b8;
+}
+
+@media (min-width: 1700px) {
+    .tabla-coordinacion {
+        min-width: 100%;
+    }
+}
+
+@media (max-width: 1100px) {
+    .vista-coordinacion-listado .filtros-coordinacion {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .vista-coordinacion-listado .filtros-coordinacion .campo-filtro:first-child,
+    .vista-coordinacion-listado .filtros-coordinacion .acciones-filtro {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 800px) {
+    .vista-coordinacion-listado .contenedor {
+        padding: 0 10px;
+    }
+
+    .vista-coordinacion-listado .panel-coordinacion-listado {
+        padding: 16px 14px;
+    }
+
+    .vista-coordinacion-listado .filtros-coordinacion {
+        grid-template-columns: 1fr;
+    }
+
+    .vista-coordinacion-listado .filtros-coordinacion .campo-filtro:first-child,
+    .vista-coordinacion-listado .filtros-coordinacion .acciones-filtro {
+        grid-column: auto;
+    }
+
+    .tabla-coordinacion-contenedor {
+        min-height: 360px;
+        max-height: calc(100vh - 335px);
+    }
+}
