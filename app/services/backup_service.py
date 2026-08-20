@@ -30,6 +30,55 @@ def listar_backups():
     return sorted(archivos, key=lambda item: item["modificado"], reverse=True)
 
 
+def _version_postgresql_desde_ruta(ruta):
+    try:
+        nombre = Path(ruta).parents[1].name
+        return tuple(int(parte) for parte in nombre.split(".") if parte.isdigit())
+    except (IndexError, ValueError):
+        return ()
+
+
+def resolver_pg_dump():
+    """Localiza pg_dump incluso cuando systemd/Gunicorn usa un PATH reducido.
+
+    Prioridad:
+    1. PG_DUMP_PATH configurado explícitamente.
+    2. Ejecutable visible mediante PATH.
+    3. Instalaciones versionadas habituales de PostgreSQL en Linux.
+    4. Rutas estándar adicionales.
+    """
+    configurado = (current_app.config.get("PG_DUMP_PATH") or os.getenv("PG_DUMP_PATH") or "").strip()
+    if configurado:
+        ruta_configurada = Path(configurado)
+        if ruta_configurada.is_file() and os.access(ruta_configurada, os.X_OK):
+            return str(ruta_configurada.resolve())
+
+    encontrado = shutil.which("pg_dump")
+    if encontrado:
+        return encontrado
+
+    candidatos_versionados = []
+    raiz_postgresql = Path("/usr/lib/postgresql")
+    if raiz_postgresql.exists():
+        candidatos_versionados = list(raiz_postgresql.glob("*/bin/pg_dump"))
+        candidatos_versionados.sort(
+            key=lambda ruta: _version_postgresql_desde_ruta(ruta),
+            reverse=True,
+        )
+
+    candidatos = candidatos_versionados + [
+        Path("/usr/bin/pg_dump"),
+        Path("/usr/local/bin/pg_dump"),
+        Path("/opt/homebrew/bin/pg_dump"),
+    ]
+
+    for candidato in candidatos:
+        if candidato.is_file() and os.access(candidato, os.X_OK):
+            return str(candidato.resolve())
+
+    return None
+
+
 def _validar_dump(ruta):
     if not ruta.exists() or ruta.stat().st_size <= 0:
         raise BackupError("El respaldo generado está vacío.")
@@ -50,9 +99,11 @@ def generar_backup(database_url, timeout=180):
     if not url.drivername.startswith("postgresql"):
         raise BackupError("La generación de backups institucionales requiere PostgreSQL.")
 
-    pg_dump = shutil.which("pg_dump")
+    pg_dump = resolver_pg_dump()
     if not pg_dump:
-        raise BackupError("No se encontró pg_dump en el servidor.")
+        raise BackupError(
+            "No se encontró pg_dump en el servidor. Instale PostgreSQL Client o configure PG_DUMP_PATH."
+        )
 
     directorio = obtener_directorio_backups()
     marca_tiempo = datetime.now().strftime("%Y%m%d_%H%M%S")

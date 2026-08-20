@@ -53,7 +53,10 @@ SESSION_COOKIE_SECURE=false
 MAX_UPLOAD_MB=16
 SICODE_VERSION=
 UO_ONLINE_TTL_SECONDS=75
+PG_DUMP_PATH=
 ```
+
+`PG_DUMP_PATH` normalmente puede dejarse vacío. SICODE busca `pg_dump` en el `PATH` y también en instalaciones Linux versionadas como `/usr/lib/postgresql/<version>/bin/pg_dump`. Úselo únicamente si el servidor tiene PostgreSQL Client instalado en una ruta no estándar.
 
 En producción, `SECRET_KEY` y `DATABASE_URL` son obligatorias. SICODE no arranca con una clave secreta de respaldo conocida.
 

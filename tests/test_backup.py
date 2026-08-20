@@ -39,6 +39,30 @@ def test_pg_dump_no_expone_password_en_argumentos(app_backup, tmp_path, monkeypa
     assert capturado["env"]["PGPASSWORD"] == "secreto-super"
 
 
+def test_pg_dump_admite_ruta_explicitamente_configurada(app_backup, tmp_path, monkeypatch):
+    ejecutable = tmp_path / "pg_dump"
+    ejecutable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    ejecutable.chmod(0o755)
+
+    monkeypatch.setattr(backup_service.shutil, "which", lambda _nombre: None)
+    app_backup.config["PG_DUMP_PATH"] = str(ejecutable)
+
+    with app_backup.app_context():
+        encontrado = backup_service.resolver_pg_dump()
+
+    assert encontrado == str(ejecutable.resolve())
+
+
+def test_pg_dump_prioriza_path_si_no_hay_configuracion(app_backup, monkeypatch):
+    app_backup.config["PG_DUMP_PATH"] = None
+    monkeypatch.setattr(backup_service.shutil, "which", lambda nombre: "/ruta/desde/path/pg_dump")
+
+    with app_backup.app_context():
+        encontrado = backup_service.resolver_pg_dump()
+
+    assert encontrado == "/ruta/desde/path/pg_dump"
+
+
 def test_resolver_backup_impide_escape_de_directorio(app_backup, tmp_path, monkeypatch):
     monkeypatch.setattr(backup_service, "obtener_directorio_backups", lambda: tmp_path)
 
