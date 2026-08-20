@@ -13,4 +13,5 @@ from app.routes.integridad import integridad_bp
 from app.routes.busqueda import busqueda_bp
 from app.routes.cuenta import cuenta_bp
 from app.routes.coordinacion import coordinacion_bp
+from app.routes.coordinacion_export import coordinacion_export_bp
 from app.routes.portadores import portadores_bp
