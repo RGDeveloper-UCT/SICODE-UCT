@@ -36,7 +36,6 @@ def pulso():
         usuario_id=current_user.id,
         ruta=ruta,
         pagina=datos.get("pagina"),
-        user_agent=request.headers.get("User-Agent"),
     )
     return jsonify({"ok": True})
 
