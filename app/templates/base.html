@@ -4,13 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}SICODE-UCT{% endblock %}</title>
+    {% if current_user.is_authenticated %}<meta name="csrf-token" content="{{ csrf_token() }}">{% endif %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/estilos.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/mejoras.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/coordinacion.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/visor.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/busqueda.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/uo.css') }}">
 </head>
-<body class="{% block body_class %}{% endblock %}{% if modo_solo_lectura %} modo-visor{% endif %}">
+<body class="{% block body_class %}{% endblock %}{% if modo_solo_lectura %} modo-visor{% endif %}"{% if current_user.is_authenticated %} data-presencia-url="{{ url_for('uo.pulso') }}"{% endif %}>
     <header class="topbar">
         <div class="marca-sicode">
             <strong>SICODE-UCT</strong>
@@ -27,7 +29,7 @@
             <a href="{{ url_for('alertas.listado') }}">Alertas</a>
             <a href="{{ url_for('bitacora.listado') }}">Bitácora</a>
             <a href="{{ url_for('cuenta.detalle') }}">Mi cuenta</a>
-            {% if current_user.rol == "administrador" %}<a href="{{ url_for('admin.usuarios') }}">Usuarios</a><a href="{{ url_for('admin.sistema') }}">Sistema</a>{% endif %}
+            {% if current_user.rol == "administrador" %}<a href="{{ url_for('uo.panel') }}">UO</a><a href="{{ url_for('admin.usuarios') }}">Usuarios</a><a href="{{ url_for('admin.sistema') }}">Sistema</a>{% endif %}
             <a href="{{ url_for('auth.logout') }}">Salir</a>
         </nav>
         {% endif %}
@@ -42,5 +44,7 @@
         {% block content %}{% endblock %}
     </main>
     <footer class="pie-sicode">SICODE-UCT · versión {{ sicode_version }}</footer>
+    {% if current_user.is_authenticated %}<script src="{{ url_for('static', filename='js/presencia.js') }}" defer></script>{% endif %}
+    {% block scripts %}{% endblock %}
 </body>
 </html>
