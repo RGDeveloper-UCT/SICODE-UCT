@@ -11,7 +11,7 @@
 
     <form method="GET" class="filtros-expedientes">
         <div class="campo-filtro campo-filtro-grande"><label>Buscar</label><input type="text" name="q" value="{{ busqueda }}" placeholder="Nombre, usuario o correo"></div>
-        <div class="campo-filtro"><label>Rol</label><select name="rol"><option value="">Todos</option><option value="administrador" {% if filtro_rol == "administrador" %}selected{% endif %}>Administrador</option><option value="usuario_autorizado" {% if filtro_rol == "usuario_autorizado" %}selected{% endif %}>Usuario autorizado</option></select></div>
+        <div class="campo-filtro"><label>Rol</label><select name="rol"><option value="">Todos</option><option value="administrador" {% if filtro_rol == "administrador" %}selected{% endif %}>Administrador</option><option value="usuario_autorizado" {% if filtro_rol == "usuario_autorizado" %}selected{% endif %}>Usuario autorizado</option><option value="visor" {% if filtro_rol == "visor" %}selected{% endif %}>Visor · solo consulta</option></select></div>
         <div class="campo-filtro"><label>Estado</label><select name="activo"><option value="">Todos</option><option value="activo" {% if filtro_activo == "activo" %}selected{% endif %}>Activos</option><option value="inactivo" {% if filtro_activo == "inactivo" %}selected{% endif %}>Inactivos</option></select></div>
         <div class="acciones-filtro"><button type="submit">Aplicar filtros</button><a href="{{ url_for('admin.usuarios') }}">Limpiar</a></div>
     </form>
@@ -23,7 +23,7 @@
             <tbody>
                 {% for usuario in usuarios %}
                 <tr>
-                    <td>{{ usuario.nombre }}</td><td><strong>{{ usuario.usuario }}</strong></td><td>{{ usuario.correo or "Sin dato" }}</td><td>{{ usuario.rol }}</td>
+                    <td>{{ usuario.nombre }}</td><td><strong>{{ usuario.usuario }}</strong></td><td>{{ usuario.correo or "Sin dato" }}</td><td>{{ usuario.etiqueta_rol }}</td>
                     <td>{% if usuario.activo %}<span class="badge badge-activo">Activo</span>{% else %}<span class="badge badge-inactivo">Inactivo</span>{% endif %}</td>
                     <td>{{ usuario.creado_en.strftime('%d/%m/%Y %H:%M') if usuario.creado_en else "Sin dato" }}</td>
                     <td class="columna-accion">
