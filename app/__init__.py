@@ -1,4 +1,4 @@
-from flask import Flask, flash, redirect, render_template, request, url_for
+from flask import Flask, abort, flash, redirect, render_template, request, url_for
 from flask_login import LoginManager, current_user
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -12,6 +12,30 @@ db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
 csrf = CSRFProtect()
+
+
+_ACCIONES_ESCRITURA_VISOR = {
+    "nuevo",
+    "registrar",
+    "editar",
+    "eliminar",
+    "importar",
+    "exportar",
+    "generar",
+    "devolver",
+    "desactivar",
+    "reactivar",
+    "actualizar",
+    "crear",
+    "agregar",
+    "quitar",
+    "cambiar_estado",
+}
+
+
+def _endpoint_es_accion_escritura(endpoint):
+    accion = (endpoint or "").rsplit(".", 1)[-1].lower()
+    return any(token in accion for token in _ACCIONES_ESCRITURA_VISOR)
 
 
 def create_app():
@@ -78,9 +102,36 @@ def create_app():
         flash("Debe cambiar su contraseña temporal antes de continuar en SICODE.", "warning")
         return redirect(url_for("cuenta.cambiar_password"))
 
+    @app.before_request
+    def restringir_visor_solo_lectura():
+        """Impide escrituras y acceso directo a formularios de acción del rol Visor."""
+        if not current_user.is_authenticated or not getattr(current_user, "es_visor", False):
+            return None
+
+        # La cuenta debe poder cambiar su propia contraseña temporal y cerrar sesión.
+        if request.endpoint in {"cuenta.cambiar_password", "auth.logout", "static"}:
+            return None
+
+        # Defensa principal: ningún POST/PUT/PATCH/DELETE del sistema puede ser
+        # ejecutado por una cuenta de consulta, aunque intente llamar la URL a mano.
+        if request.method not in {"GET", "HEAD", "OPTIONS"}:
+            abort(403)
+
+        # También se bloquean por GET los formularios/rutas orientados a crear,
+        # editar, eliminar, importar o exportar información.
+        if _endpoint_es_accion_escritura(request.endpoint):
+            abort(403)
+
+        return None
+
     @app.context_processor
     def contexto_version():
-        return {"sicode_version": obtener_version()}
+        return {
+            "sicode_version": obtener_version(),
+            "modo_solo_lectura": bool(
+                current_user.is_authenticated and getattr(current_user, "es_visor", False)
+            ),
+        }
 
     @app.route("/")
     def inicio():
