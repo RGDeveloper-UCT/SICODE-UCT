@@ -44,9 +44,24 @@
 
 .tabla-coordinacion {
     width: 100%;
-    min-width: 1510px;
     table-layout: auto;
     font-size: 12.5px;
+}
+
+.tabla-coordinacion-amplia {
+    min-width: 1500px;
+}
+
+.tabla-coordinacion-media {
+    min-width: 1180px;
+}
+
+.tabla-coordinacion-compacta {
+    min-width: 920px;
+}
+
+.tabla-coordinacion-mixta {
+    min-width: 1280px;
 }
 
 .tabla-coordinacion th,
@@ -65,33 +80,72 @@
 .tabla-coordinacion .col-fecha,
 .tabla-coordinacion .col-sp,
 .tabla-coordinacion .col-rc,
+.tabla-coordinacion .col-providencia,
 .tabla-coordinacion .col-folios,
+.tabla-coordinacion .col-boleta,
+.tabla-coordinacion .col-monto,
 .tabla-coordinacion .col-estado,
 .tabla-coordinacion .col-accion {
     white-space: nowrap;
 }
 
+.tabla-coordinacion .col-fecha {
+    min-width: 94px;
+}
+
+.tabla-coordinacion .col-sp {
+    min-width: 62px;
+}
+
+.tabla-coordinacion .col-rc {
+    min-width: 98px;
+}
+
+.tabla-coordinacion .col-providencia {
+    min-width: 118px;
+}
+
 .tabla-coordinacion .col-entrega {
-    min-width: 170px;
+    min-width: 175px;
 }
 
-.tabla-coordinacion .col-detalle-1 {
-    min-width: 145px;
+.tabla-coordinacion .col-folios {
+    min-width: 92px;
 }
 
-.tabla-coordinacion .col-detalle-2 {
-    min-width: 150px;
+.tabla-coordinacion .col-periodo {
+    min-width: 190px;
 }
 
-.tabla-coordinacion .col-detalle-3 {
-    min-width: 155px;
+.tabla-coordinacion .col-boleta {
+    min-width: 120px;
 }
 
 .tabla-coordinacion .col-monto {
     min-width: 105px;
-    white-space: nowrap;
     text-align: right;
     font-variant-numeric: tabular-nums;
+}
+
+.tabla-coordinacion .col-descripcion {
+    min-width: 210px;
+    max-width: 390px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.3;
+}
+
+.tabla-coordinacion .col-evento {
+    min-width: 180px;
+    max-width: 300px;
+    white-space: normal;
+}
+
+.tabla-coordinacion .col-resumen {
+    min-width: 360px;
+    max-width: 560px;
+    white-space: normal;
+    line-height: 1.35;
 }
 
 .tabla-coordinacion .dato-especifico {
@@ -99,27 +153,17 @@
     color: #17233c;
 }
 
-.tabla-coordinacion .detalle-texto {
-    min-width: 190px;
-    max-width: 320px;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    line-height: 1.3;
-}
-
-.tabla-coordinacion .detalle-etiqueta {
-    display: none;
-}
-
-.tabla-coordinacion-mixta .detalle-etiqueta {
-    display: block;
-    margin-bottom: 2px;
-    color: #64748b;
+.tabla-coordinacion .resumen-etiqueta {
+    color: #475569;
     font-size: 10px;
-    font-weight: 700;
-    line-height: 1.1;
+    font-weight: 800;
     text-transform: uppercase;
     letter-spacing: .025em;
+}
+
+.tabla-coordinacion .resumen-separador {
+    margin: 0 5px;
+    color: #94a3b8;
 }
 
 .tabla-coordinacion .sin-dato {
@@ -128,7 +172,10 @@
 }
 
 @media (min-width: 1700px) {
-    .tabla-coordinacion {
+    .tabla-coordinacion-amplia,
+    .tabla-coordinacion-media,
+    .tabla-coordinacion-compacta,
+    .tabla-coordinacion-mixta {
         min-width: 100%;
     }
 }
