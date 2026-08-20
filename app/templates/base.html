@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/visor.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/busqueda.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/uo.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/visor_permisos.css') }}">
 </head>
 <body class="{% block body_class %}{% endblock %}{% if modo_solo_lectura %} modo-visor{% endif %}"{% if current_user.is_authenticated %} data-presencia-url="{{ url_for('uo.pulso') }}"{% endif %}>
     <header class="topbar">
