@@ -34,6 +34,7 @@ Aplicación web institucional interna para registrar, localizar, relacionar y au
 - **Préstamos:** entrega, devolución, vencimientos y comprobantes.
 - **Alertas:** control de observaciones e incidencias.
 - **Bitácora:** auditoría legible y campos estructurados de trazabilidad.
+- **UO · Usuarios Online:** panel exclusivo de administración para consultar presencias activas, página actual, última actividad y sesiones concurrentes sin exponer tokens ni credenciales.
 - **Administración:** usuarios, backups, estado técnico y Control de Integridad.
 - **Control de Integridad:** reglas determinísticas para SP, expedientes, ubicación, folios, préstamos, Coordinación, usuarios y backups.
 
@@ -51,6 +52,7 @@ SESSION_HOURS=8
 SESSION_COOKIE_SECURE=false
 MAX_UPLOAD_MB=16
 SICODE_VERSION=
+UO_ONLINE_TTL_SECONDS=75
 ```
 
 En producción, `SECRET_KEY` y `DATABASE_URL` son obligatorias. SICODE no arranca con una clave secreta de respaldo conocida.
