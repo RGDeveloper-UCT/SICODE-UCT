@@ -5,9 +5,9 @@
     <div class="encabezado-modulo">
         <div><h1>SP y expedientes</h1><p>Registro maestro de sujetos portadores y control de los expedientes físicos asociados.</p></div>
         <div class="acciones-detalle">
-            <a class="boton-secundario" href="{{ url_for('expedientes.nuevo') }}">Nuevo expediente</a>
+            {% if current_user.puede_modificar %}<a class="boton-secundario" href="{{ url_for('expedientes.nuevo') }}">Nuevo expediente</a>{% endif %}
             {% if current_user.rol == 'administrador' %}<a class="boton-secundario" href="{{ url_for('portadores.importar') }}">Importar Portadores</a>{% endif %}
-            <a class="boton-exito" href="{{ url_for('expedientes.exportar_excel', q=busqueda, activo=filtro_activo, estado_administrativo=filtro_estado_admin, estado_fisico_documental=filtro_estado_fisico) }}">Exportar Excel</a>
+            {% if current_user.puede_modificar %}<a class="boton-exito" href="{{ url_for('expedientes.exportar_excel', q=busqueda, activo=filtro_activo, estado_administrativo=filtro_estado_admin, estado_fisico_documental=filtro_estado_fisico) }}">Exportar Excel</a>{% endif %}
         </div>
     </div>
 
@@ -40,7 +40,9 @@
                     <td>{{ expediente.codigo_interno }}</td>
                     <td>
                         <a href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Ver</a>
-                        {% if expediente.expediente_fisico_registrado %} | <a href="{{ url_for('expedientes.editar', expediente_id=expediente.id) }}">Editar</a>{% else %} | <a href="{{ url_for('expediente_fisico.registrar', expediente_id=expediente.id) }}">Registrar físico</a>{% endif %}
+                        {% if current_user.puede_modificar %}
+                            {% if expediente.expediente_fisico_registrado %} | <a href="{{ url_for('expedientes.editar', expediente_id=expediente.id) }}">Editar</a>{% else %} | <a href="{{ url_for('expediente_fisico.registrar', expediente_id=expediente.id) }}">Registrar físico</a>{% endif %}
+                        {% endif %}
                         {% if current_user.rol == 'administrador' %}
                         <form method="POST" action="{{ url_for('expedientes_admin.eliminar', expediente_id=expediente.id) }}" class="form-inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
