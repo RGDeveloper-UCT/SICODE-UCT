@@ -5,7 +5,12 @@ from werkzeug.security import generate_password_hash
 
 from app import create_app, db
 from app.models.alerta import Alerta
-from app.models.coordinacion import MovimientoDispositivo, PagoCoordinacion, RegistroCoordinacion
+from app.models.coordinacion import (
+    AnexoCoordinacion,
+    MovimientoDispositivo,
+    PagoCoordinacion,
+    RegistroCoordinacion,
+)
 from app.models.expediente import Expediente
 from app.models.usuario import Usuario
 from app.models.verificacion import VerificacionExpediente
@@ -150,7 +155,7 @@ def test_listado_coordinacion_usa_paginacion(app_operacion, cliente):
     assert "Página 1 de 2" in texto
 
 
-def test_listado_coordinacion_muestra_detalle_dinamico_por_tipo(app_operacion, cliente):
+def test_listado_coordinacion_prioriza_campos_relevantes_por_tipo(app_operacion, cliente):
     with app_operacion.app_context():
         usuario = Usuario.query.filter_by(usuario="admin-op").one()
 
@@ -177,24 +182,46 @@ def test_listado_coordinacion_muestra_detalle_dinamico_por_tipo(app_operacion, c
             total=1500,
         ))
 
-        desinstalacion = RegistroCoordinacion(
-            tipo="DESINSTALACION",
+        instalacion = RegistroCoordinacion(
+            tipo="INSTALACION",
             no_sp_referencia="100",
-            rc="RC-DES",
-            providencia="PROV-DES",
+            rc="RC-INST",
+            providencia="PROV-INST",
             fecha_recepcion=date(2026, 8, 4),
             usuario_id=usuario.id,
             usuario_origen=usuario.nombre,
             estado="Completo",
             origen_registro="IMPORTACION_EXCEL",
         )
-        db.session.add(desinstalacion)
+        db.session.add(instalacion)
         db.session.flush()
         db.session.add(MovimientoDispositivo(
-            registro_id=desinstalacion.id,
-            movimiento="DESINSTALACION",
-            descripcion="Retiro de dispositivo",
-            folios="10-12",
+            registro_id=instalacion.id,
+            movimiento="INSTALACION",
+            descripcion="EXPEDIENTE",
+        ))
+
+        anexo = RegistroCoordinacion(
+            tipo="ANEXO",
+            no_sp_referencia="100",
+            rc="RC-ANEXO",
+            providencia="PROV-ANEXO",
+            fecha_recepcion=date(2026, 8, 5),
+            folios_recepcion="3",
+            usuario_id=usuario.id,
+            usuario_origen=usuario.nombre,
+            estado="Completo",
+            origen_registro="IMPORTACION_EXCEL",
+        )
+        db.session.add(anexo)
+        db.session.flush()
+        db.session.add(AnexoCoordinacion(
+            registro_id=anexo.id,
+            tipo_anexo="MOVILIZACION",
+            folios="3",
+            numero_anexo="4",
+            escaneado=True,
+            fecha_escaneado=date(2026, 8, 6),
         ))
         db.session.commit()
 
@@ -208,11 +235,31 @@ def test_listado_coordinacion_muestra_detalle_dinamico_por_tipo(app_operacion, c
     assert "36157837" in texto_pago
     assert "Q 1500.00" in texto_pago
 
-    respuesta_des = cliente.get("/coordinacion/registros?tipo=DESINSTALACION")
-    texto_des = respuesta_des.get_data(as_text=True)
-    assert respuesta_des.status_code == 200
-    assert ">Movimiento<" in texto_des
-    assert ">Descripción<" in texto_des
-    assert ">Folios movimiento<" in texto_des
-    assert "Retiro de dispositivo" in texto_des
-    assert "10-12" in texto_des
+    respuesta_inst = cliente.get("/coordinacion/registros?tipo=INSTALACION")
+    texto_inst = respuesta_inst.get_data(as_text=True)
+    assert respuesta_inst.status_code == 200
+    assert ">Fecha<" in texto_inst
+    assert ">RC<" in texto_inst
+    assert ">Providencia<" in texto_inst
+    assert ">Descripción<" in texto_inst
+    assert "RC-INST" in texto_inst
+    assert "PROV-INST" in texto_inst
+    assert "EXPEDIENTE" in texto_inst
+    assert ">Boleta<" not in texto_inst
+    assert ">Total<" not in texto_inst
+
+    respuesta_anexo = cliente.get("/coordinacion/registros?tipo=ANEXO")
+    texto_anexo = respuesta_anexo.get_data(as_text=True)
+    assert respuesta_anexo.status_code == 200
+    assert ">Fecha<" in texto_anexo
+    assert ">RC<" in texto_anexo
+    assert ">Providencia<" in texto_anexo
+    assert ">Tipo de anexo<" in texto_anexo
+    assert ">Anexo No.<" in texto_anexo
+    assert ">Escaneado<" in texto_anexo
+    assert "05/08/2026" in texto_anexo
+    assert "RC-ANEXO" in texto_anexo
+    assert "PROV-ANEXO" in texto_anexo
+    assert "MOVILIZACION" in texto_anexo
+    assert ">Boleta<" not in texto_anexo
+    assert ">Total<" not in texto_anexo
