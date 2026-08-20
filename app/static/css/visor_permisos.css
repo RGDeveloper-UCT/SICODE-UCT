@@ -1,0 +1,10 @@
+/* Excepciones visuales estrictas para operaciones POST permitidas al rol Visor.
+   La autorización real permanece en app/__init__.py; este archivo solo evita
+   que la capa visual oculte acciones de consulta/cuenta que el backend sí permite. */
+
+body.modo-visor form.visor-post-permitido[method="POST"],
+body.modo-visor form.visor-post-permitido[method="post"],
+body.modo-visor form[action*="/buscar/ia"][method="POST"],
+body.modo-visor form[action*="/buscar/ia"][method="post"] {
+    display: block !important;
+}
