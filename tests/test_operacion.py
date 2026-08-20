@@ -5,7 +5,7 @@ from werkzeug.security import generate_password_hash
 
 from app import create_app, db
 from app.models.alerta import Alerta
-from app.models.coordinacion import RegistroCoordinacion
+from app.models.coordinacion import MovimientoDispositivo, PagoCoordinacion, RegistroCoordinacion
 from app.models.expediente import Expediente
 from app.models.usuario import Usuario
 from app.models.verificacion import VerificacionExpediente
@@ -148,3 +148,71 @@ def test_listado_coordinacion_usa_paginacion(app_operacion, cliente):
     assert respuesta.status_code == 200
     assert "Mostrando <strong>75</strong>" in texto
     assert "Página 1 de 2" in texto
+
+
+def test_listado_coordinacion_muestra_detalle_dinamico_por_tipo(app_operacion, cliente):
+    with app_operacion.app_context():
+        usuario = Usuario.query.filter_by(usuario="admin-op").one()
+
+        pago = RegistroCoordinacion(
+            tipo="PAGO",
+            no_sp_referencia="100",
+            rc="RC-PAGO",
+            providencia="PROV-PAGO",
+            fecha_recepcion=date(2026, 8, 3),
+            folios_recepcion="3",
+            usuario_id=usuario.id,
+            usuario_origen=usuario.nombre,
+            estado="Completo",
+            origen_registro="MANUAL",
+        )
+        db.session.add(pago)
+        db.session.flush()
+        db.session.add(PagoCoordinacion(
+            registro_id=pago.id,
+            folios="3",
+            periodo_desde=date(2026, 6, 27),
+            periodo_hasta=date(2026, 7, 26),
+            boleta="36157837",
+            total=1500,
+        ))
+
+        desinstalacion = RegistroCoordinacion(
+            tipo="DESINSTALACION",
+            no_sp_referencia="100",
+            rc="RC-DES",
+            providencia="PROV-DES",
+            fecha_recepcion=date(2026, 8, 4),
+            usuario_id=usuario.id,
+            usuario_origen=usuario.nombre,
+            estado="Completo",
+            origen_registro="IMPORTACION_EXCEL",
+        )
+        db.session.add(desinstalacion)
+        db.session.flush()
+        db.session.add(MovimientoDispositivo(
+            registro_id=desinstalacion.id,
+            movimiento="DESINSTALACION",
+            descripcion="Retiro de dispositivo",
+            folios="10-12",
+        ))
+        db.session.commit()
+
+    respuesta_pago = cliente.get("/coordinacion/registros?tipo=PAGO")
+    texto_pago = respuesta_pago.get_data(as_text=True)
+    assert respuesta_pago.status_code == 200
+    assert ">Período<" in texto_pago
+    assert ">Boleta<" in texto_pago
+    assert ">Total<" in texto_pago
+    assert "27/06/2026 al 26/07/2026" in texto_pago
+    assert "36157837" in texto_pago
+    assert "Q 1500.00" in texto_pago
+
+    respuesta_des = cliente.get("/coordinacion/registros?tipo=DESINSTALACION")
+    texto_des = respuesta_des.get_data(as_text=True)
+    assert respuesta_des.status_code == 200
+    assert ">Movimiento<" in texto_des
+    assert ">Descripción<" in texto_des
+    assert ">Folios movimiento<" in texto_des
+    assert "Retiro de dispositivo" in texto_des
+    assert "10-12" in texto_des
