@@ -18,7 +18,6 @@ class PresenciaUsuario(db.Model):
     ultimo_pulso_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
     ruta = db.Column(db.String(255), nullable=True)
     pagina = db.Column(db.String(180), nullable=True)
-    user_agent = db.Column(db.String(255), nullable=True)
 
     usuario = db.relationship("Usuario", lazy="joined")
 
