@@ -75,29 +75,56 @@
     min-width: 170px;
 }
 
-.tabla-coordinacion .col-periodo {
-    min-width: 185px;
+.tabla-coordinacion .col-detalle-1 {
+    min-width: 145px;
 }
 
-.tabla-coordinacion .col-boleta {
-    min-width: 120px;
-    white-space: nowrap;
+.tabla-coordinacion .col-detalle-2 {
+    min-width: 150px;
 }
 
-.tabla-coordinacion .col-total {
+.tabla-coordinacion .col-detalle-3 {
+    min-width: 155px;
+}
+
+.tabla-coordinacion .col-monto {
     min-width: 105px;
     white-space: nowrap;
     text-align: right;
     font-variant-numeric: tabular-nums;
 }
 
-.tabla-coordinacion .dato-pago {
+.tabla-coordinacion .dato-especifico {
     font-weight: 600;
     color: #17233c;
 }
 
+.tabla-coordinacion .detalle-texto {
+    min-width: 190px;
+    max-width: 320px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.3;
+}
+
+.tabla-coordinacion .detalle-etiqueta {
+    display: none;
+}
+
+.tabla-coordinacion-mixta .detalle-etiqueta {
+    display: block;
+    margin-bottom: 2px;
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.1;
+    text-transform: uppercase;
+    letter-spacing: .025em;
+}
+
 .tabla-coordinacion .sin-dato {
     color: #94a3b8;
+    font-weight: 400;
 }
 
 @media (min-width: 1700px) {
