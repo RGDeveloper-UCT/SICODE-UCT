@@ -2,6 +2,14 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, SelectField, PasswordField, SubmitField
 from wtforms.validators import DataRequired, Length, Optional, EqualTo
 
+
+ROLES_USUARIO = [
+    ("usuario_autorizado", "Usuario autorizado"),
+    ("visor", "Visor · solo consulta"),
+    ("administrador", "Administrador"),
+]
+
+
 class UsuarioCrearForm(FlaskForm):
     nombre = StringField(
         "Nombre completo",
@@ -29,10 +37,7 @@ class UsuarioCrearForm(FlaskForm):
 
     rol = SelectField(
         "Rol",
-        choices=[
-            ("usuario_autorizado", "Usuario autorizado"),
-            ("administrador", "Administrador"),
-        ],
+        choices=ROLES_USUARIO,
         validators=[DataRequired()],
     )
 
@@ -74,10 +79,7 @@ class UsuarioEditarForm(FlaskForm):
 
     rol = SelectField(
         "Rol",
-        choices=[
-            ("usuario_autorizado", "Usuario autorizado"),
-            ("administrador", "Administrador"),
-        ],
+        choices=ROLES_USUARIO,
         validators=[DataRequired()],
     )
 
