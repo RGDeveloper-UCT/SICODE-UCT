@@ -17,13 +17,15 @@
                 <h2>Búsqueda manual</h2>
                 <p>Use SP, nombre, RC, providencia, préstamo, anexo, reporte o ubicación.</p>
             </div>
-            <span class="badge badge-neutral">Precisa</span>
+            <span class="badge badge-neutral">Rápida y precisa</span>
         </div>
 
         <form method="GET" action="{{ url_for('busqueda.global_') }}" class="busqueda busqueda-formulario">
             <input type="search" name="q" value="{{ q }}" placeholder="Ej.: SP 124, RC-2026-18, archivador 2..." minlength="2" required>
             <button type="submit">Buscar</button>
         </form>
+
+        <p class="busqueda-ayuda-breve"><strong>Recomendación:</strong> si conoce el SP, RC, providencia u otro dato exacto, utilice esta búsqueda. Es la opción más rápida.</p>
 
         {% if q %}
             <div class="busqueda-resumen">
@@ -55,24 +57,63 @@
                 <h2>Búsqueda con IA local</h2>
                 <p>La IA interpreta la consulta y SICODE ejecuta únicamente filtros autorizados sobre sus propios datos.</p>
             </div>
-            <span class="badge badge-neutral">IA local</span>
+            <span class="badge badge-neutral">IA local · puede tardar</span>
         </div>
 
-        <form method="POST" action="{{ url_for('busqueda.ia') }}" class="busqueda-ia-formulario">
+        <div class="busqueda-ia-alerta-tiempo" role="note">
+            <div class="busqueda-ia-alerta-icono" aria-hidden="true">⏱</div>
+            <div>
+                <strong>La búsqueda con IA no es instantánea.</strong>
+                <p>El procesamiento se realiza dentro del servidor institucional y puede tardar varios segundos. Presione <strong>Buscar con IA</strong> una sola vez y espere a que aparezcan los resultados; no recargue la página mientras procesa.</p>
+            </div>
+        </div>
+
+        <div class="busqueda-ia-guia" aria-labelledby="titulo-guia-ia">
+            <div class="busqueda-ia-guia-cabecera">
+                <div>
+                    <span class="busqueda-ia-etiqueta">ANTES DE BUSCAR</span>
+                    <h3 id="titulo-guia-ia">Cómo usar la búsqueda con IA</h3>
+                </div>
+                <span class="badge badge-neutral">3 pasos</span>
+            </div>
+            <ol class="busqueda-ia-pasos">
+                <li><strong>Describa lo que necesita.</strong><span>Puede escribir una pregunta normal, por ejemplo: “¿Cuántos anexos tiene el SP 24?”</span></li>
+                <li><strong>Incluya datos concretos.</strong><span>Cuando los conozca, indique SP, persona, RC, providencia, ubicación, estado o tipo de documento.</span></li>
+                <li><strong>Espere la respuesta.</strong><span>SICODE mostrará qué interpretación aplicó y los registros reales que coinciden. Abra el registro para confirmar el detalle.</span></li>
+            </ol>
+            <div class="busqueda-ia-consejos">
+                <div><strong>Funciona mejor:</strong> una necesidad por consulta y frases claras.</div>
+                <div><strong>Ejemplo:</strong> “Muéstrame los préstamos vencidos del SP 18”.</div>
+                <div><strong>No es para modificar:</strong> no acepta órdenes para editar, borrar, prestar o devolver información.</div>
+            </div>
+        </div>
+
+        <form id="busqueda-ia-form" method="POST" action="{{ url_for('busqueda.ia') }}" class="busqueda-ia-formulario">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label for="consulta_ia">¿Qué necesita encontrar?</label>
             <div class="busqueda-ia-caja">
-                <textarea id="consulta_ia" name="consulta_ia" rows="3" minlength="3" maxlength="500" required placeholder="Ej.: Muéstrame los expedientes que están prestados y todavía no han sido devueltos.">{{ consulta_ia }}</textarea>
-                <button type="submit">Buscar con IA</button>
+                <textarea id="consulta_ia" name="consulta_ia" rows="3" minlength="3" maxlength="500" required placeholder="Ej.: ¿Cuántos anexos tiene el SP 24?">{{ consulta_ia }}</textarea>
+                <button id="busqueda-ia-boton" type="submit">Buscar con IA</button>
             </div>
+
+            <div id="busqueda-ia-cargando" class="busqueda-ia-cargando" role="status" aria-live="polite" hidden>
+                <div class="busqueda-ia-spinner" aria-hidden="true"></div>
+                <div class="busqueda-ia-cargando-texto">
+                    <strong id="busqueda-ia-cargando-titulo">IA procesando la consulta…</strong>
+                    <span id="busqueda-ia-cargando-detalle">SICODE está interpretando su solicitud. Esto puede tardar varios segundos.</span>
+                    <div class="busqueda-ia-progreso" aria-hidden="true"><span></span></div>
+                </div>
+            </div>
+            <noscript><div class="aviso busqueda-ia-aviso">La búsqueda funcionará, pero su navegador no podrá mostrar la animación de espera porque JavaScript está deshabilitado.</div></noscript>
         </form>
 
         <div class="busqueda-ejemplos" aria-label="Ejemplos de búsquedas con IA">
-            <span>Ejemplos:</span>
-            <span>¿Dónde está el expediente del SP 11?</span>
-            <span>Préstamos vencidos</span>
-            <span>Alertas pendientes de gravedad alta</span>
-            <span>Anexos del SP 24</span>
+            <span>Pruebe un ejemplo:</span>
+            <button type="button" class="busqueda-ejemplo-btn" data-consulta="¿Dónde está el expediente del SP 11?">¿Dónde está el expediente del SP 11?</button>
+            <button type="button" class="busqueda-ejemplo-btn" data-consulta="Muéstrame los préstamos vencidos">Préstamos vencidos</button>
+            <button type="button" class="busqueda-ejemplo-btn" data-consulta="Muéstrame las alertas pendientes de gravedad alta">Alertas pendientes de gravedad alta</button>
+            <button type="button" class="busqueda-ejemplo-btn" data-consulta="¿Cuántos anexos tiene el SP 24?">¿Cuántos anexos tiene el SP 24?</button>
+            <button type="button" class="busqueda-ejemplo-btn" data-consulta="Busca las instalaciones del SP 50">Instalaciones del SP 50</button>
         </div>
 
         {% if resultado_ia %}
@@ -105,15 +146,76 @@
                     <a class="boton-tabla" href="{{ url_for(item.endpoint, **item.params) }}">Abrir registro</a>
                 </article>
             {% else %}
-                <div class="aviso">La interpretación fue válida, pero no existen registros que cumplan esos filtros.</div>
+                <div class="aviso">La interpretación fue válida, pero no existen registros que cumplan esos filtros. Revise la interpretación aplicada o intente formular la consulta con un dato más específico.</div>
             {% endfor %}
             </div>
         {% endif %}
 
         <div class="busqueda-ia-seguridad">
             <strong>Consulta segura:</strong>
-            <span>la IA no puede borrar, editar, prestar ni devolver expedientes; únicamente interpreta búsquedas.</span>
+            <span>la IA únicamente interpreta búsquedas. No puede borrar, editar, prestar, devolver ni alterar registros de SICODE.</span>
         </div>
     </div>
 </section>
+
+<script>
+(function () {
+    const form = document.getElementById('busqueda-ia-form');
+    const textarea = document.getElementById('consulta_ia');
+    const boton = document.getElementById('busqueda-ia-boton');
+    const cargando = document.getElementById('busqueda-ia-cargando');
+    const titulo = document.getElementById('busqueda-ia-cargando-titulo');
+    const detalle = document.getElementById('busqueda-ia-cargando-detalle');
+    const ejemplos = document.querySelectorAll('.busqueda-ejemplo-btn');
+
+    if (!form || !textarea || !boton || !cargando) return;
+
+    ejemplos.forEach(function (ejemplo) {
+        ejemplo.addEventListener('click', function () {
+            textarea.value = ejemplo.dataset.consulta || '';
+            textarea.focus();
+        });
+    });
+
+    function restablecer() {
+        boton.disabled = false;
+        boton.textContent = 'Buscar con IA';
+        form.removeAttribute('aria-busy');
+        cargando.hidden = true;
+        titulo.textContent = 'IA procesando la consulta…';
+        detalle.textContent = 'SICODE está interpretando su solicitud. Esto puede tardar varios segundos.';
+    }
+
+    form.addEventListener('submit', function (evento) {
+        if (!form.checkValidity()) return;
+
+        evento.preventDefault();
+        boton.disabled = true;
+        boton.textContent = 'Procesando…';
+        form.setAttribute('aria-busy', 'true');
+        cargando.hidden = false;
+        cargando.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+
+        window.setTimeout(function () {
+            if (!cargando.hidden) {
+                titulo.textContent = 'La IA sigue trabajando…';
+                detalle.textContent = 'El servidor está analizando la consulta. No vuelva a presionar el botón ni recargue la página.';
+            }
+        }, 10000);
+
+        window.setTimeout(function () {
+            if (!cargando.hidden) {
+                titulo.textContent = 'Procesamiento en curso…';
+                detalle.textContent = 'Algunas consultas pueden tardar más. SICODE cambiará automáticamente a un modo básico seguro si la IA local no responde a tiempo.';
+            }
+        }, 30000);
+
+        window.requestAnimationFrame(function () {
+            window.setTimeout(function () { form.submit(); }, 80);
+        });
+    });
+
+    window.addEventListener('pageshow', restablecer);
+})();
+</script>
 {% endblock %}

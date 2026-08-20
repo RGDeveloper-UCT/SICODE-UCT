@@ -97,6 +97,24 @@ def test_busqueda_estructurada_encuentra_prestamo_vencido(app_busqueda_ia):
         assert "SP 11" in resultados[0]["detalle"]
 
 
+def test_panel_ia_explica_uso_y_muestra_estado_de_espera(cliente_ia):
+    respuesta = cliente_ia.get("/buscar")
+    texto = respuesta.get_data(as_text=True)
+
+    assert respuesta.status_code == 200
+    assert "Cómo usar la búsqueda con IA" in texto
+    assert "La búsqueda con IA no es instantánea" in texto
+    assert "IA procesando la consulta" in texto
+    assert "Presione" in texto and "una sola vez" in texto
+    assert "¿Cuántos anexos tiene el SP 24?" in texto
+    assert 'id="busqueda-ia-cargando"' in texto
+    assert 'data-consulta="¿Dónde está el expediente del SP 11?"' in texto
+
+
+def test_timeout_ia_da_margen_a_servidor_cpu(app_busqueda_ia):
+    assert float(app_busqueda_ia.config["OLLAMA_TIMEOUT"]) >= 45
+
+
 def test_ruta_ia_muestra_resultado_y_registra_bitacora(app_busqueda_ia, cliente_ia, monkeypatch):
     monkeypatch.setattr(
         "app.services.busqueda_ia_service._consultar_ollama",
