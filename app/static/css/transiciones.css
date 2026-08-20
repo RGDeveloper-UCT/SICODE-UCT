@@ -1,0 +1,119 @@
+.sicode-transicion {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(23, 35, 60, 0.97);
+    color: #ffffff;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 180ms ease, visibility 180ms ease;
+}
+
+.sicode-transicion--activa {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.sicode-transicion__contenido {
+    width: min(520px, 100%);
+    text-align: center;
+}
+
+.sicode-transicion__marca {
+    margin: 0;
+    font-size: clamp(2.4rem, 8vw, 4.8rem);
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+}
+
+.sicode-transicion--activa .sicode-transicion__marca {
+    animation: sicode-marca-entrada 420ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.sicode-transicion__subtitulo {
+    margin: 16px 0 0;
+    font-size: 0.95rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #cfd8e3;
+    opacity: 0;
+}
+
+.sicode-transicion--activa .sicode-transicion__subtitulo {
+    animation: sicode-texto-entrada 300ms ease 110ms forwards;
+}
+
+.sicode-transicion__linea {
+    position: relative;
+    width: min(260px, 72vw);
+    height: 3px;
+    margin: 24px auto 0;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.sicode-transicion__linea::after {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    left: -45%;
+    width: 45%;
+    border-radius: inherit;
+    background: #ffffff;
+}
+
+.sicode-transicion--activa .sicode-transicion__linea::after {
+    animation: sicode-linea 760ms ease-in-out infinite;
+}
+
+@keyframes sicode-marca-entrada {
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes sicode-texto-entrada {
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes sicode-linea {
+    from {
+        left: -45%;
+    }
+
+    to {
+        left: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sicode-transicion,
+    .sicode-transicion__marca,
+    .sicode-transicion__subtitulo,
+    .sicode-transicion__linea::after {
+        transition: none !important;
+        animation: none !important;
+    }
+
+    .sicode-transicion--activa .sicode-transicion__marca,
+    .sicode-transicion--activa .sicode-transicion__subtitulo {
+        opacity: 1;
+        transform: none;
+    }
+
+    .sicode-transicion--activa .sicode-transicion__linea::after {
+        left: 28%;
+    }
+}
