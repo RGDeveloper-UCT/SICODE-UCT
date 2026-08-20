@@ -20,6 +20,10 @@ class Config:
     # Limita cargas accidentales o maliciosas de archivos. Puede ajustarse por .env.
     MAX_CONTENT_LENGTH = int(os.getenv("MAX_UPLOAD_MB", "16")) * 1024 * 1024
 
+    # Herramienta PostgreSQL para respaldos. Normalmente se autodetecta; esta
+    # variable permite fijar la ruta cuando systemd/Gunicorn usa un PATH reducido.
+    PG_DUMP_PATH = os.getenv("PG_DUMP_PATH")
+
     # IA local para búsquedas. Ollama se mantiene en loopback para que los
     # metadatos consultados no salgan del servidor institucional.
     AI_SEARCH_ENABLED = os.getenv("AI_SEARCH_ENABLED", "true").lower() in {"1", "true", "yes", "si"}
