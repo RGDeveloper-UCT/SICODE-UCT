@@ -112,6 +112,11 @@ def create_app():
         if request.endpoint in {"cuenta.cambiar_password", "auth.logout", "static"}:
             return None
 
+        # La búsqueda IA usa POST para no exponer la consulta en la URL, pero es
+        # una operación de consulta. Su única escritura es el evento de auditoría.
+        if request.endpoint == "busqueda.ia":
+            return None
+
         # Defensa principal: ningún POST/PUT/PATCH/DELETE del sistema puede ser
         # ejecutado por una cuenta de consulta, aunque intente llamar la URL a mano.
         if request.method not in {"GET", "HEAD", "OPTIONS"}:

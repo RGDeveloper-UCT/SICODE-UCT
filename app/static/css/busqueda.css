@@ -1,0 +1,234 @@
+.busqueda-panel {
+    display: grid;
+    gap: 22px;
+}
+
+.busqueda-encabezado {
+    margin-bottom: 0;
+}
+
+.busqueda-kicker {
+    display: inline-block;
+    margin-bottom: 6px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    color: #667085;
+}
+
+.busqueda-bloque {
+    border: 1px solid #e4e7ec;
+    border-radius: 16px;
+    padding: 22px;
+    background: #fff;
+}
+
+.busqueda-ia {
+    background: linear-gradient(180deg, #fbfcff 0%, #ffffff 100%);
+    border-color: #d9e2f2;
+}
+
+.busqueda-bloque-cabecera {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 18px;
+}
+
+.busqueda-bloque-cabecera h2 {
+    margin: 3px 0 4px;
+    font-size: 1.1rem;
+}
+
+.busqueda-bloque-cabecera p {
+    margin: 0;
+    color: #667085;
+}
+
+.busqueda-numero {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    height: 24px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: #f2f4f7;
+    color: #475467;
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+.busqueda-numero-ia {
+    background: #eef4ff;
+    color: #344054;
+}
+
+.busqueda-formulario {
+    margin: 0;
+}
+
+.busqueda-separador {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #98a2b3;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+}
+
+.busqueda-separador::before,
+.busqueda-separador::after {
+    content: "";
+    height: 1px;
+    flex: 1;
+    background: #eaecf0;
+}
+
+.busqueda-ia-formulario label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 700;
+}
+
+.busqueda-ia-caja {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: stretch;
+}
+
+.busqueda-ia-caja textarea {
+    width: 100%;
+    min-height: 96px;
+    resize: vertical;
+    border: 1px solid #d0d5dd;
+    border-radius: 12px;
+    padding: 13px 14px;
+    font: inherit;
+    line-height: 1.45;
+    box-sizing: border-box;
+    background: #fff;
+}
+
+.busqueda-ia-caja textarea:focus {
+    outline: 2px solid #dbe7ff;
+    border-color: #98a2b3;
+}
+
+.busqueda-ia-caja button {
+    min-width: 150px;
+    border-radius: 12px;
+}
+
+.busqueda-ejemplos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: 12px;
+    font-size: 0.78rem;
+    color: #667085;
+}
+
+.busqueda-ejemplos span:not(:first-child) {
+    padding: 5px 8px;
+    border-radius: 999px;
+    background: #f2f4f7;
+    color: #475467;
+}
+
+.busqueda-ia-interpretacion,
+.busqueda-resumen,
+.busqueda-ia-seguridad {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.busqueda-ia-interpretacion {
+    margin-top: 18px;
+    padding: 14px 16px;
+    border: 1px solid #d9e2f2;
+    border-radius: 12px;
+    background: #f8faff;
+}
+
+.busqueda-ia-interpretacion strong {
+    display: block;
+    margin-top: 3px;
+}
+
+.busqueda-ia-etiqueta {
+    display: block;
+    color: #667085;
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-weight: 800;
+}
+
+.busqueda-resumen {
+    margin: 18px 0 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid #eaecf0;
+    color: #475467;
+}
+
+.busqueda-resumen > strong {
+    min-width: 32px;
+    text-align: center;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #f2f4f7;
+    color: #101828;
+}
+
+.busqueda-resultados {
+    margin-top: 0;
+}
+
+.busqueda-resultado {
+    gap: 12px;
+}
+
+.busqueda-ia-aviso {
+    margin-top: 12px;
+}
+
+.busqueda-ia-seguridad {
+    justify-content: flex-start;
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px dashed #d0d5dd;
+    color: #667085;
+    font-size: 0.82rem;
+}
+
+.busqueda-ia-seguridad strong {
+    color: #344054;
+}
+
+@media (max-width: 760px) {
+    .busqueda-bloque {
+        padding: 16px;
+    }
+
+    .busqueda-bloque-cabecera,
+    .busqueda-ia-interpretacion,
+    .busqueda-resumen {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .busqueda-ia-caja {
+        grid-template-columns: 1fr;
+    }
+
+    .busqueda-ia-caja button {
+        min-height: 46px;
+    }
+}

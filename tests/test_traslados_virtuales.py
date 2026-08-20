@@ -43,11 +43,12 @@ def app_virtual():
 @pytest.fixture()
 def cliente_virtual(app_virtual):
     cliente = app_virtual.test_client()
-    with cliente.session_transaction() as sesion:
-        with app_virtual.app_context():
-            usuario = Usuario.query.filter_by(usuario="virtual-op").one()
-            sesion["_user_id"] = str(usuario.id)
-            sesion["_fresh"] = True
+    respuesta = cliente.post(
+        "/login",
+        data={"usuario": "virtual-op", "password": "Password123"},
+        follow_redirects=False,
+    )
+    assert respuesta.status_code == 302
     return cliente
 
 
