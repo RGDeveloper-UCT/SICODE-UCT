@@ -1,150 +1,213 @@
 {% extends "base.html" %}
 {% block title %}Expediente {{ expediente.no_sp }} — SICODE-UCT{% endblock %}
+{% block body_class %}vista-expediente{% endblock %}
 
 {% block content %}
-<section class="panel panel-ancho">
-    <div class="encabezado-modulo">
-        <div>
-            <h1>SP {{ expediente.no_sp }}</h1>
-            <p>{{ expediente.nombre_referencia or 'Sin nombre de referencia' }} · {{ expediente.codigo_interno }}</p>
+<section class="panel panel-expediente">
+    <div class="sp-encabezado">
+        <div class="sp-identidad">
+            <div class="sp-titulo-linea">
+                <h1>SP {{ expediente.no_sp }}</h1>
+                {% if expediente.expediente_fisico_registrado %}
+                    <span class="badge badge-activo">Expediente físico</span>
+                {% else %}
+                    <span class="badge badge-advertencia">Solo registro maestro</span>
+                {% endif %}
+            </div>
+            <p class="sp-nombre">{{ expediente.nombre_referencia or 'Sin nombre de referencia' }}</p>
+            <span class="sp-codigo-interno">{{ expediente.codigo_interno }}</span>
         </div>
-        <div class="acciones-detalle">
+
+        <div class="sp-acciones-principales">
             {% if expediente.expediente_fisico_registrado %}
-                <a class="boton-secundario" href="{{ url_for('expedientes.editar', expediente_id=expediente.id) }}">Editar expediente</a>
+                {% if not modo_solo_lectura %}<a class="boton-secundario" href="{{ url_for('expedientes.editar', expediente_id=expediente.id) }}">Editar</a>{% endif %}
                 <a class="boton-secundario" href="{{ url_for('indice_documental.listado', expediente_id=expediente.id) }}">Índice documental</a>
                 <a class="boton-secundario" href="{{ url_for('verificaciones.expediente', expediente_id=expediente.id) }}">Verificaciones</a>
-                {% if expediente.activo and not expediente.prestamo_activo %}
-                    <a class="boton-secundario" href="{{ url_for('prestamos.nuevo', expediente_id=expediente.id) }}">Registrar préstamo</a>
+                {% if not modo_solo_lectura and expediente.activo and not expediente.prestamo_activo %}
+                    <a class="boton-secundario" href="{{ url_for('prestamos.nuevo', expediente_id=expediente.id) }}">Préstamo físico</a>
                 {% endif %}
-                <a class="boton-exito" href="{{ url_for('expedientes.reporte_completo_pdf', expediente_id=expediente.id) }}">Reporte completo PDF</a>
-            {% else %}
+                {% if not modo_solo_lectura %}<a class="boton-exito" href="{{ url_for('expedientes.reporte_completo_pdf', expediente_id=expediente.id) }}">Reporte PDF</a>{% endif %}
+            {% elif not modo_solo_lectura %}
                 <a class="boton-exito" href="{{ url_for('expediente_fisico.registrar', expediente_id=expediente.id) }}">Registrar expediente físico</a>
             {% endif %}
-            {% if expediente.activo %}
-                <a class="boton-secundario" href="{{ url_for('prestamos.nuevo_traslado_virtual', expediente_id=expediente.id) }}">Constancia traslado virtual</a>
+            {% if not modo_solo_lectura and expediente.activo %}
+                <a class="boton-secundario" href="{{ url_for('prestamos.nuevo_traslado_virtual', expediente_id=expediente.id) }}">Traslado virtual</a>
             {% endif %}
             <a class="boton-cancelar" href="{{ url_for('expedientes.listado') }}">Volver</a>
         </div>
+
+        <aside class="sp-codigo-barras" aria-label="Código de barras del SP">
+            <div class="sp-codigo-barras-titulo">Código de barras</div>
+            <img src="{{ url_for('codigos_barras.codigo_svg', expediente_id=expediente.id) }}" alt="Código de barras del SP {{ expediente.no_sp }}">
+            <div class="sp-codigo-barras-valor">{{ expediente.codigo_interno }}</div>
+            <div class="sp-codigo-barras-acciones">
+                <span>Escanear en Buscar</span>
+                {% if not modo_solo_lectura %}
+                    <a href="{{ url_for('codigos_barras.exportar_etiqueta_pdf', expediente_id=expediente.id) }}" target="_blank" rel="noopener">Etiqueta PDF</a>
+                {% endif %}
+            </div>
+        </aside>
     </div>
 
     {% if not expediente.expediente_fisico_registrado %}
-    <div class="aviso">
+    <div class="aviso sp-aviso-compacto">
         <strong>SP conocido, expediente físico aún no registrado.</strong>
-        Este sujeto proviene del registro maestro/Portadores. Los datos del SP pueden consultarse y relacionarse con Coordinación sin afirmar que el expediente físico ya esté en la UCT.
+        El registro puede consultarse y relacionarse con Coordinación sin afirmar que el expediente físico ya esté en la UCT.
     </div>
     {% endif %}
 
-    <div class="grid">
-        <div class="tarjeta indicador"><h2>Disponibilidad</h2><p class="numero-indicador texto-indicador">{{ expediente.disponibilidad }}</p></div>
-        <div class="tarjeta indicador"><h2>Documentos activos</h2><p class="numero-indicador">{{ expediente.documentos_activos|length }}</p>{% if expediente.expediente_fisico_registrado %}<a href="{{ url_for('indice_documental.listado', expediente_id=expediente.id) }}">Ver índice</a>{% endif %}</div>
-        <div class="tarjeta indicador"><h2>Folios registrados</h2><p class="numero-indicador">{{ expediente.total_folios_activos }}</p></div>
-        <div class="tarjeta indicador"><h2>Verificaciones</h2><p class="numero-indicador">{{ expediente.verificaciones|length }}</p>{% if expediente.expediente_fisico_registrado %}<a href="{{ url_for('verificaciones.expediente', expediente_id=expediente.id) }}">Ver historial</a>{% endif %}</div>
-        <div class="tarjeta indicador"><h2>Alertas pendientes</h2><p class="numero-indicador indicador-alerta">{{ expediente.alertas_pendientes|length }}</p><a href="{{ url_for('alertas.listado', q=expediente.no_sp) }}">Ver alertas</a></div>
-        <div class="tarjeta indicador"><h2>Préstamos activos</h2><p class="numero-indicador indicador-alerta">{{ expediente.prestamos_activos|length }}</p></div>
-        <div class="tarjeta indicador"><h2>Préstamos vencidos</h2><p class="numero-indicador indicador-peligro">{{ expediente.prestamos_vencidos|length }}</p></div>
-        <div class="tarjeta indicador"><h2>Traslados virtuales</h2><p class="numero-indicador">{{ expediente.traslados_virtuales|length }}</p></div>
+    <div class="sp-indicadores" aria-label="Resumen operativo del SP">
+        <div class="sp-indicador"><span>Disponibilidad</span><strong class="sp-indicador-texto">{{ expediente.disponibilidad }}</strong></div>
+        <a class="sp-indicador sp-indicador-enlace" href="{{ url_for('indice_documental.listado', expediente_id=expediente.id) if expediente.expediente_fisico_registrado else '#' }}"><span>Documentos</span><strong>{{ expediente.documentos_activos|length }}</strong></a>
+        <div class="sp-indicador"><span>Folios</span><strong>{{ expediente.total_folios_activos }}</strong></div>
+        <a class="sp-indicador sp-indicador-enlace" href="{{ url_for('verificaciones.expediente', expediente_id=expediente.id) if expediente.expediente_fisico_registrado else '#' }}"><span>Verificaciones</span><strong>{{ expediente.verificaciones|length }}</strong></a>
+        <a class="sp-indicador sp-indicador-enlace" href="{{ url_for('alertas.listado', q=expediente.no_sp) }}"><span>Alertas</span><strong class="{% if expediente.alertas_pendientes|length %}sp-valor-alerta{% endif %}">{{ expediente.alertas_pendientes|length }}</strong></a>
+        <div class="sp-indicador"><span>Préstamos activos</span><strong class="{% if expediente.prestamos_activos|length %}sp-valor-alerta{% endif %}">{{ expediente.prestamos_activos|length }}</strong></div>
+        <div class="sp-indicador"><span>Vencidos</span><strong class="{% if expediente.prestamos_vencidos|length %}sp-valor-peligro{% endif %}">{{ expediente.prestamos_vencidos|length }}</strong></div>
+        <div class="sp-indicador"><span>Traslados virtuales</span><strong>{{ expediente.traslados_virtuales|length }}</strong></div>
     </div>
 
-    <h2>Datos maestros del sujeto portador</h2>
-    <div class="tabla-contenedor">
-        <table><tbody>
-            <tr><th>No. SP</th><td>{{ expediente.no_sp }}</td><th>Nombre</th><td>{{ expediente.nombre_referencia or 'Sin dato' }}</td></tr>
-            <tr><th>Nombres</th><td>{{ expediente.nombres or 'Sin dato' }}</td><th>Apellidos</th><td>{{ expediente.apellidos or 'Sin dato' }}</td></tr>
-            <tr><th>Género</th><td>{{ expediente.genero or 'Sin dato' }}</td><th>Fecha nacimiento</th><td>{{ expediente.fecha_nacimiento.strftime('%d/%m/%Y') if expediente.fecha_nacimiento else 'Sin dato' }}</td></tr>
-            <tr><th>Expediente OJ</th><td>{{ expediente.expediente_oj or 'Sin dato' }}</td><th>Estado portador</th><td>{{ expediente.estado_portador or 'Sin dato' }}</td></tr>
-            <tr><th>Estado monitoreo</th><td>{{ expediente.estado_monitoreo or 'Sin dato' }}</td><th>Teléfono</th><td>{{ expediente.telefono or 'Sin dato' }}</td></tr>
-            <tr><th>Fecha instalación</th><td>{{ expediente.fecha_instalacion.strftime('%d/%m/%Y') if expediente.fecha_instalacion else 'Sin dato' }}</td><th>Fecha desinstalación</th><td>{{ expediente.fecha_desinstalacion.strftime('%d/%m/%Y') if expediente.fecha_desinstalacion else 'Sin dato' }}</td></tr>
-            <tr><th>Juzgado/Tribunal</th><td colspan="3">{{ expediente.juzgado_tribunal or 'Sin dato' }}</td></tr>
-            <tr><th>Delito</th><td colspan="3">{{ expediente.delito or 'Sin dato' }}</td></tr>
-            <tr><th>Residencia</th><td colspan="3">{{ expediente.residencia or 'Sin dato' }}</td></tr>
-        </tbody></table>
+    <div class="sp-layout-principal">
+        <section class="sp-bloque sp-datos-maestros">
+            <div class="sp-bloque-titulo">
+                <h2>Datos maestros del sujeto portador</h2>
+                <span>Información principal</span>
+            </div>
+            <div class="sp-datos-grid">
+                <div class="sp-dato"><span>No. SP</span><strong>{{ expediente.no_sp }}</strong></div>
+                <div class="sp-dato"><span>Expediente OJ</span><strong>{{ expediente.expediente_oj or 'Sin dato' }}</strong></div>
+                <div class="sp-dato"><span>Estado portador</span><strong>{{ expediente.estado_portador or 'Sin dato' }}</strong></div>
+                <div class="sp-dato"><span>Monitoreo</span><strong>{{ expediente.estado_monitoreo or 'Sin dato' }}</strong></div>
+
+                <div class="sp-dato"><span>Nombres</span><strong>{{ expediente.nombres or 'Sin dato' }}</strong></div>
+                <div class="sp-dato"><span>Apellidos</span><strong>{{ expediente.apellidos or 'Sin dato' }}</strong></div>
+                <div class="sp-dato"><span>Género</span><strong>{{ expediente.genero or 'Sin dato' }}</strong></div>
+                <div class="sp-dato"><span>Fecha nacimiento</span><strong>{{ expediente.fecha_nacimiento.strftime('%d/%m/%Y') if expediente.fecha_nacimiento else 'Sin dato' }}</strong></div>
+
+                <div class="sp-dato"><span>Fecha instalación</span><strong>{{ expediente.fecha_instalacion.strftime('%d/%m/%Y') if expediente.fecha_instalacion else 'Sin dato' }}</strong></div>
+                <div class="sp-dato"><span>Fecha desinstalación</span><strong>{{ expediente.fecha_desinstalacion.strftime('%d/%m/%Y') if expediente.fecha_desinstalacion else 'Sin dato' }}</strong></div>
+                <div class="sp-dato"><span>Teléfono</span><strong>{{ expediente.telefono or 'Sin dato' }}</strong></div>
+                <div class="sp-dato"><span>Código interno</span><strong>{{ expediente.codigo_interno }}</strong></div>
+
+                <div class="sp-dato sp-dato-ancho"><span>Juzgado / Tribunal</span><strong>{{ expediente.juzgado_tribunal or 'Sin dato' }}</strong></div>
+                <div class="sp-dato sp-dato-ancho"><span>Delito</span><strong>{{ expediente.delito or 'Sin dato' }}</strong></div>
+                <div class="sp-dato sp-dato-ancho"><span>Residencia</span><strong>{{ expediente.residencia or 'Sin dato' }}</strong></div>
+            </div>
+        </section>
+
+        <aside class="sp-columna-control">
+            <section class="sp-bloque sp-control-fisico">
+                <div class="sp-bloque-titulo"><h2>Control del expediente</h2></div>
+                <div class="sp-control-grid">
+                    <div><span>Existe físicamente</span><strong>{% if expediente.expediente_fisico_registrado %}Sí{% else %}Pendiente{% endif %}</strong></div>
+                    <div><span>Estado administrativo</span><strong>{{ expediente.estado_administrativo }}</strong></div>
+                    <div><span>Estado físico/documental</span><strong>{{ expediente.estado_fisico_documental }}</strong></div>
+                </div>
+            </section>
+
+            {% if expediente.expediente_fisico_registrado %}
+            <section class="sp-bloque sp-ubicacion">
+                <div class="sp-bloque-titulo"><h2>Ubicación física actual</h2></div>
+                {% if ubicacion %}
+                <div class="sp-ubicacion-grid">
+                    <div><span>Archivador</span><strong>{{ ubicacion.archivador or '—' }}</strong></div>
+                    <div><span>SICOIN</span><strong>{{ ubicacion.sicoin or '—' }}</strong></div>
+                    <div><span>Estante</span><strong>{{ ubicacion.estante or '—' }}</strong></div>
+                    <div><span>Caja</span><strong>{{ ubicacion.caja or '—' }}</strong></div>
+                    <div><span>Módulo</span><strong>{{ ubicacion.modulo or '—' }}</strong></div>
+                    <div><span>Posición</span><strong>{{ ubicacion.posicion or '—' }}</strong></div>
+                </div>
+                {% else %}
+                <div class="sp-alerta-local">Sin ubicación registrada.</div>
+                {% endif %}
+            </section>
+            {% endif %}
+
+            <section class="sp-bloque sp-observaciones">
+                <div class="sp-bloque-titulo"><h2>Observaciones</h2></div>
+                <p>{{ expediente.observaciones or 'Sin observaciones registradas.' }}</p>
+            </section>
+        </aside>
     </div>
 
-    <h2>Control del expediente físico</h2>
-    <div class="grid">
-        <div class="tarjeta"><h2>Existe físicamente</h2><p>{% if expediente.expediente_fisico_registrado %}<span class="badge badge-activo">Sí</span>{% else %}<span class="badge badge-advertencia">Pendiente</span>{% endif %}</p></div>
-        <div class="tarjeta"><h2>Estado administrativo</h2><p>{{ expediente.estado_administrativo }}</p></div>
-        <div class="tarjeta"><h2>Estado físico/documental</h2><p>{{ expediente.estado_fisico_documental }}</p></div>
+    <div class="sp-historiales">
+        <details class="sp-historial">
+            <summary>
+                <span>Actividad relacionada de Coordinación</span>
+                <strong>{{ expediente.registros_coordinacion|length }}</strong>
+            </summary>
+            <div class="tabla-contenedor sp-tabla-historial">
+                <table>
+                    <thead><tr><th>Fecha</th><th>Tipo</th><th>RC</th><th>Providencia</th><th>Entrega/remite</th><th>Estado</th><th>Acción</th></tr></thead>
+                    <tbody>
+                    {% for registro in expediente.registros_coordinacion|sort(attribute='creado_en', reverse=true) %}
+                        <tr>
+                            <td>{{ registro.fecha_recepcion.strftime('%d/%m/%Y') if registro.fecha_recepcion else 'Sin fecha' }}</td>
+                            <td>{{ registro.tipo }}</td><td>{{ registro.rc or '—' }}</td><td>{{ registro.providencia or '—' }}</td><td>{{ registro.persona_entrega or '—' }}</td><td>{{ registro.estado }}</td>
+                            <td><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
+                        </tr>
+                    {% else %}<tr><td colspan="7">No hay registros de Coordinación vinculados directamente a este SP.</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </details>
+
+        <details class="sp-historial">
+            <summary>
+                <span>Préstamos y devoluciones</span>
+                <strong>{{ expediente.prestamos|length }}</strong>
+            </summary>
+            <div class="tabla-contenedor sp-tabla-historial">
+                <table class="tabla-prestamos">
+                    <thead><tr><th>Número control</th><th>Solicitante</th><th>Fecha préstamo</th><th>Estimada</th><th>Estado</th><th>Acción</th></tr></thead>
+                    <tbody>
+                    {% for prestamo in expediente.prestamos|sort(attribute='fecha_prestamo', reverse=true) %}
+                        {% set esta_vencido = prestamo in expediente.prestamos_vencidos %}
+                        <tr class="{% if esta_vencido %}fila-vencida{% endif %}">
+                            <td>{{ prestamo.numero_control }}</td><td>{{ prestamo.solicitante }}</td>
+                            <td>{{ prestamo.fecha_prestamo.strftime('%d/%m/%Y %H:%M') if prestamo.fecha_prestamo else 'Sin dato' }}</td>
+                            <td>{{ prestamo.fecha_estimada_devolucion.strftime('%d/%m/%Y') if prestamo.fecha_estimada_devolucion else 'Sin dato' }}</td>
+                            <td>{% if esta_vencido %}<span class="badge badge-vencido">Vencido</span>{% elif prestamo.estado == 'En préstamo' %}<span class="badge badge-advertencia">En préstamo</span>{% else %}<span class="badge badge-activo">Devuelto</span>{% endif %}</td>
+                            <td><a href="{{ url_for('prestamos.detalle', prestamo_id=prestamo.id) }}">Ver</a>{% if not modo_solo_lectura and prestamo.estado == 'En préstamo' %} · <a href="{{ url_for('prestamos.devolver', prestamo_id=prestamo.id) }}">Devolver</a>{% endif %}</td>
+                        </tr>
+                    {% else %}<tr><td colspan="6">Sin préstamos registrados.</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </details>
+
+        <details class="sp-historial">
+            <summary>
+                <span>Traslados virtuales</span>
+                <strong>{{ expediente.traslados_virtuales|length }}</strong>
+            </summary>
+            <div class="tabla-contenedor sp-tabla-historial">
+                <table>
+                    <thead><tr><th>Fecha y hora</th><th>Constancia</th><th>Destinatario</th><th>Dependencia</th><th>Plataforma</th><th>Asunto</th><th>Acción</th></tr></thead>
+                    <tbody>
+                    {% for traslado in expediente.traslados_virtuales|sort(attribute='creado_en', reverse=true) %}
+                        <tr>
+                            <td>{{ traslado.creado_en.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+                            <td><strong>{{ traslado.numero_constancia }}</strong></td>
+                            <td>{{ traslado.destinatario }}</td>
+                            <td>{{ traslado.dependencia_destino or '—' }}</td>
+                            <td>{{ traslado.plataforma }}</td>
+                            <td>{{ traslado.asunto }}</td>
+                            <td><a href="{{ url_for('prestamos.constancia_virtual_pdf', traslado_id=traslado.id) }}">Constancia PDF</a></td>
+                        </tr>
+                    {% else %}<tr><td colspan="7">Sin traslados virtuales registrados.</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </details>
     </div>
 
-    {% if expediente.expediente_fisico_registrado %}
-    <h2>Ubicación física actual</h2>
-    {% if ubicacion %}
-    <div class="tabla-contenedor"><table><tbody>
-        <tr><th>Archivador</th><td>{{ ubicacion.archivador or 'Sin dato' }}</td></tr>
-        <tr><th>SICOIN</th><td>{{ ubicacion.sicoin or 'Sin dato' }}</td></tr>
-        <tr><th>Estante</th><td>{{ ubicacion.estante or 'Sin dato' }}</td></tr>
-        <tr><th>Caja</th><td>{{ ubicacion.caja or 'Sin dato' }}</td></tr>
-        <tr><th>Módulo</th><td>{{ ubicacion.modulo or 'Sin dato' }}</td></tr>
-        <tr><th>Posición</th><td>{{ ubicacion.posicion or 'Sin dato' }}</td></tr>
-    </tbody></table></div>
-    {% else %}<div class="aviso"><strong>Atención:</strong> el expediente físico no tiene ubicación registrada.</div>{% endif %}
-    {% endif %}
-
-    <h2>Actividad relacionada de Coordinación</h2>
-    <div class="tabla-contenedor">
-        <table>
-            <thead><tr><th>Fecha</th><th>Tipo</th><th>RC</th><th>Providencia</th><th>Entrega/remite</th><th>Estado</th><th>Acción</th></tr></thead>
-            <tbody>
-            {% for registro in expediente.registros_coordinacion|sort(attribute='creado_en', reverse=true) %}
-                <tr>
-                    <td>{{ registro.fecha_recepcion.strftime('%d/%m/%Y') if registro.fecha_recepcion else 'Sin fecha' }}</td>
-                    <td>{{ registro.tipo }}</td><td>{{ registro.rc or '—' }}</td><td>{{ registro.providencia or '—' }}</td><td>{{ registro.persona_entrega or '—' }}</td><td>{{ registro.estado }}</td>
-                    <td><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
-                </tr>
-            {% else %}<tr><td colspan="7">No hay registros de Coordinación vinculados directamente a este SP.</td></tr>{% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    <h2>Historial de préstamos y devoluciones</h2>
-    <div class="tabla-contenedor">
-        <table class="tabla-prestamos">
-            <thead><tr><th>Número control</th><th>Solicitante</th><th>Fecha préstamo</th><th>Estimada</th><th>Estado</th><th>Acción</th></tr></thead>
-            <tbody>
-            {% for prestamo in expediente.prestamos|sort(attribute='fecha_prestamo', reverse=true) %}
-                {% set esta_vencido = prestamo in expediente.prestamos_vencidos %}
-                <tr class="{% if esta_vencido %}fila-vencida{% endif %}">
-                    <td>{{ prestamo.numero_control }}</td><td>{{ prestamo.solicitante }}</td>
-                    <td>{{ prestamo.fecha_prestamo.strftime('%d/%m/%Y %H:%M') if prestamo.fecha_prestamo else 'Sin dato' }}</td>
-                    <td>{{ prestamo.fecha_estimada_devolucion.strftime('%d/%m/%Y') if prestamo.fecha_estimada_devolucion else 'Sin dato' }}</td>
-                    <td>{% if esta_vencido %}<span class="badge badge-vencido">Vencido</span>{% elif prestamo.estado == 'En préstamo' %}<span class="badge badge-advertencia">En préstamo</span>{% else %}<span class="badge badge-activo">Devuelto</span>{% endif %}</td>
-                    <td><a href="{{ url_for('prestamos.detalle', prestamo_id=prestamo.id) }}">Ver</a>{% if prestamo.estado == 'En préstamo' %} · <a href="{{ url_for('prestamos.devolver', prestamo_id=prestamo.id) }}">Devolver</a>{% endif %}</td>
-                </tr>
-            {% else %}<tr><td colspan="6">Sin préstamos registrados.</td></tr>{% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    <h2>Historial de traslados virtuales</h2>
-    <div class="tabla-contenedor">
-        <table>
-            <thead><tr><th>Fecha y hora</th><th>Constancia</th><th>Destinatario</th><th>Dependencia</th><th>Plataforma</th><th>Asunto</th><th>Acción</th></tr></thead>
-            <tbody>
-            {% for traslado in expediente.traslados_virtuales|sort(attribute='creado_en', reverse=true) %}
-                <tr>
-                    <td>{{ traslado.creado_en.strftime('%d/%m/%Y %H:%M:%S') }}</td>
-                    <td><strong>{{ traslado.numero_constancia }}</strong></td>
-                    <td>{{ traslado.destinatario }}</td>
-                    <td>{{ traslado.dependencia_destino or '—' }}</td>
-                    <td>{{ traslado.plataforma }}</td>
-                    <td>{{ traslado.asunto }}</td>
-                    <td><a href="{{ url_for('prestamos.constancia_virtual_pdf', traslado_id=traslado.id) }}">Constancia PDF</a></td>
-                </tr>
-            {% else %}<tr><td colspan="7">Sin traslados virtuales registrados.</td></tr>{% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    <h2>Observaciones</h2>
-    <p>{{ expediente.observaciones or 'Sin observaciones registradas.' }}</p>
-
-    {% if expediente.expediente_fisico_registrado %}
-    <div class="acciones-detalle">
+    {% if not modo_solo_lectura and expediente.expediente_fisico_registrado %}
+    <div class="sp-acciones-administrativas">
         {% if expediente.activo %}
         <form method="POST" action="{{ url_for('expedientes.desactivar', expediente_id=expediente.id) }}" class="form-inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="boton-peligro" onclick="return confirm('¿Desea desactivar este expediente?');">Desactivar expediente</button>
+            <button type="submit" class="boton-link-peligro" onclick="return confirm('¿Desea desactivar este expediente?');">Desactivar expediente</button>
         </form>
         {% else %}
         <form method="POST" action="{{ url_for('expedientes.reactivar', expediente_id=expediente.id) }}" class="form-inline">
