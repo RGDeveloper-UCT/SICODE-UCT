@@ -32,7 +32,7 @@ def obtener_sesion_presencia():
     return sesion_id
 
 
-def registrar_pulso(usuario_id, ruta=None, pagina=None, user_agent=None):
+def registrar_pulso(usuario_id, ruta=None, pagina=None):
     ahora = _ahora()
     sesion_id = obtener_sesion_presencia()
     presencia = PresenciaUsuario.query.filter_by(sesion_id=sesion_id).first()
@@ -50,11 +50,14 @@ def registrar_pulso(usuario_id, ruta=None, pagina=None, user_agent=None):
             ultimo_pulso_en=ahora,
         )
         db.session.add(presencia)
+    elif (ahora - presencia.ultimo_pulso_en).total_seconds() > _ttl_segundos():
+        # Si la pestaña reaparece después de haber vencido, se considera una
+        # nueva conexión operativa aunque conserve la misma sesión autenticada.
+        presencia.iniciado_en = ahora
 
     presencia.ultimo_pulso_en = ahora
     presencia.ruta = _limite_texto(ruta, 255)
     presencia.pagina = _limite_texto(pagina, 180)
-    presencia.user_agent = _limite_texto(user_agent, 255)
 
     # Limpieza oportunista: una presencia muy antigua ya no aporta información.
     limite_limpieza = ahora - timedelta(days=1)
