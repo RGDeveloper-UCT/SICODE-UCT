@@ -1,0 +1,58 @@
+/* Rol Visor: interfaz de consulta sin acciones de escritura. */
+.badge-modo-visor {
+    display: inline-block !important;
+    width: max-content;
+    margin-top: 6px !important;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #dbeafe;
+    color: #1e3a8a !important;
+    font-size: 10px !important;
+    font-weight: 800;
+    letter-spacing: .04em;
+}
+
+.aviso-modo-visor {
+    margin: 0 0 14px;
+    padding: 10px 13px;
+    border: 1px solid #bfdbfe;
+    border-left: 4px solid #1d4ed8;
+    border-radius: 8px;
+    background: #eff6ff;
+    color: #1e3a8a;
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+/* Defensa visual complementaria. La seguridad real está en before_request. */
+body.modo-visor form[method="POST"],
+body.modo-visor form[method="post"] {
+    display: none !important;
+}
+
+body.modo-visor a[href*="/nuevo"],
+body.modo-visor a[href*="/registrar"],
+body.modo-visor a[href*="/editar"],
+body.modo-visor a[href*="/eliminar"],
+body.modo-visor a[href*="/desactivar"],
+body.modo-visor a[href*="/reactivar"],
+body.modo-visor a[href*="/importar"],
+body.modo-visor a[href*="/exportar"],
+body.modo-visor a[href*="/generar"],
+body.modo-visor a[href*="/devolver"] {
+    display: none !important;
+}
+
+body.modo-visor .solo-escritura {
+    display: none !important;
+}
+
+body.modo-visor .solo-consulta {
+    display: initial;
+}
+
+@media (max-width: 800px) {
+    .aviso-modo-visor {
+        margin-bottom: 10px;
+    }
+}
