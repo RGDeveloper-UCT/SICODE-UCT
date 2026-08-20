@@ -25,7 +25,9 @@ class Config:
     AI_SEARCH_ENABLED = os.getenv("AI_SEARCH_ENABLED", "true").lower() in {"1", "true", "yes", "si"}
     OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
     OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:1.7b")
-    OLLAMA_TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT", "15"))
+    # El servidor institucional puede ejecutar Ollama únicamente con CPU. Se
+    # concede un margen amplio antes de recurrir al intérprete básico seguro.
+    OLLAMA_TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT", "60"))
 
     @classmethod
     def validar(cls):
