@@ -43,7 +43,7 @@
     <p class="contador-resultados">Mostrando <strong>{{ registros|length }}</strong> de <strong>{{ paginacion.total }}</strong> registro(s).</p>
 
     <div class="tabla-contenedor tabla-coordinacion-contenedor">
-        <table class="tabla-coordinacion">
+        <table class="tabla-coordinacion {% if not tipo %}tabla-coordinacion-mixta{% endif %}">
             <thead>
                 <tr>
                     <th class="col-fecha">Fecha</th>
@@ -52,9 +52,41 @@
                     <th class="col-rc">RC</th>
                     <th class="col-entrega">Quién entrega/remite</th>
                     <th class="col-folios">Folios</th>
-                    <th class="col-periodo">Período</th>
-                    <th class="col-boleta">Boleta</th>
-                    <th class="col-total">Total</th>
+
+                    {% if tipo == 'PAGO' %}
+                    <th class="col-detalle col-detalle-1">Período</th>
+                    <th class="col-detalle col-detalle-2">Boleta</th>
+                    <th class="col-detalle col-detalle-3 col-monto">Total</th>
+                    {% elif tipo in ['INSTALACION', 'DESINSTALACION'] %}
+                    <th class="col-detalle col-detalle-1">Movimiento</th>
+                    <th class="col-detalle col-detalle-2">Descripción</th>
+                    <th class="col-detalle col-detalle-3">Folios movimiento</th>
+                    {% elif tipo == 'ANEXO' %}
+                    <th class="col-detalle col-detalle-1">Tipo de anexo</th>
+                    <th class="col-detalle col-detalle-2">Anexo No.</th>
+                    <th class="col-detalle col-detalle-3">Escaneado</th>
+                    {% elif tipo == 'MONITOREO' %}
+                    <th class="col-detalle col-detalle-1">Tipo documento</th>
+                    <th class="col-detalle col-detalle-2">Reporte No.</th>
+                    <th class="col-detalle col-detalle-3">Evento</th>
+                    {% elif tipo == 'DOCUMENTO_EMITIDO' %}
+                    <th class="col-detalle col-detalle-1">No. documento</th>
+                    <th class="col-detalle col-detalle-2">Destino</th>
+                    <th class="col-detalle col-detalle-3">Descripción</th>
+                    {% elif tipo == 'ACTIVIDAD' %}
+                    <th class="col-detalle col-detalle-1">Tipo actividad</th>
+                    <th class="col-detalle col-detalle-2">Área apoyada</th>
+                    <th class="col-detalle col-detalle-3">Actividad</th>
+                    {% elif tipo == 'REMISION' %}
+                    <th class="col-detalle col-detalle-1">Destino</th>
+                    <th class="col-detalle col-detalle-2">No. control</th>
+                    <th class="col-detalle col-detalle-3">Expedientes</th>
+                    {% else %}
+                    <th class="col-detalle col-detalle-1">Detalle principal</th>
+                    <th class="col-detalle col-detalle-2">Dato asociado</th>
+                    <th class="col-detalle col-detalle-3">Información adicional</th>
+                    {% endif %}
+
                     <th>Registrado por</th>
                     <th class="col-estado">Estado</th>
                     <th class="col-accion"></th>
@@ -74,10 +106,23 @@
                     </td>
                     <td class="col-rc">{{ registro.rc or '—' }}</td>
                     <td class="col-entrega">{{ registro.persona_entrega or 'No consignado' }}</td>
-                    <td class="col-folios">{{ registro.folios_recepcion or '—' }}</td>
+                    <td class="col-folios">
+                        {% if registro.folios_recepcion %}
+                            {{ registro.folios_recepcion }}
+                        {% elif registro.tipo == 'PAGO' and registro.pago and registro.pago.folios %}
+                            {{ registro.pago.folios }}
+                        {% elif registro.tipo in ['INSTALACION','DESINSTALACION'] and registro.movimiento_dispositivo and registro.movimiento_dispositivo.folios %}
+                            {{ registro.movimiento_dispositivo.folios }}
+                        {% elif registro.tipo == 'ANEXO' and registro.anexo_coordinacion and registro.anexo_coordinacion.folios %}
+                            {{ registro.anexo_coordinacion.folios }}
+                        {% else %}
+                            <span class="sin-dato">—</span>
+                        {% endif %}
+                    </td>
 
                     {% if registro.tipo == 'PAGO' and registro.pago %}
-                    <td class="col-periodo dato-pago">
+                    <td class="col-detalle col-detalle-1 dato-especifico">
+                        {% if not tipo %}<span class="detalle-etiqueta">Período</span>{% endif %}
                         {% if registro.pago.periodo_desde and registro.pago.periodo_hasta %}
                             {{ registro.pago.periodo_desde.strftime('%d/%m/%Y') }} al {{ registro.pago.periodo_hasta.strftime('%d/%m/%Y') }}
                         {% elif registro.pago.periodo_texto %}
@@ -88,14 +133,107 @@
                             <span class="sin-dato">—</span>
                         {% endif %}
                     </td>
-                    <td class="col-boleta dato-pago">{{ registro.pago.boleta or '—' }}</td>
-                    <td class="col-total dato-pago">
+                    <td class="col-detalle col-detalle-2 dato-especifico">
+                        {% if not tipo %}<span class="detalle-etiqueta">Boleta</span>{% endif %}
+                        {{ registro.pago.boleta or '—' }}
+                    </td>
+                    <td class="col-detalle col-detalle-3 col-monto dato-especifico">
+                        {% if not tipo %}<span class="detalle-etiqueta">Total</span>{% endif %}
                         {% if registro.pago.total is not none %}Q {{ '%.2f'|format(registro.pago.total) }}{% else %}<span class="sin-dato">—</span>{% endif %}
                     </td>
+
+                    {% elif registro.tipo in ['INSTALACION','DESINSTALACION'] and registro.movimiento_dispositivo %}
+                    <td class="col-detalle col-detalle-1 dato-especifico">
+                        {% if not tipo %}<span class="detalle-etiqueta">Movimiento</span>{% endif %}
+                        {{ registro.movimiento_dispositivo.movimiento or registro.tipo }}
+                    </td>
+                    <td class="col-detalle col-detalle-2 dato-especifico detalle-texto">
+                        {% if not tipo %}<span class="detalle-etiqueta">Descripción</span>{% endif %}
+                        {{ registro.movimiento_dispositivo.descripcion or 'Sin dato' }}
+                    </td>
+                    <td class="col-detalle col-detalle-3 dato-especifico">
+                        {% if not tipo %}<span class="detalle-etiqueta">Folios movimiento</span>{% endif %}
+                        {{ registro.movimiento_dispositivo.folios or registro.folios_recepcion or '—' }}
+                    </td>
+
+                    {% elif registro.tipo == 'ANEXO' and registro.anexo_coordinacion %}
+                    <td class="col-detalle col-detalle-1 dato-especifico">
+                        {% if not tipo %}<span class="detalle-etiqueta">Tipo de anexo</span>{% endif %}
+                        {{ registro.anexo_coordinacion.tipo_anexo or 'Sin dato' }}
+                    </td>
+                    <td class="col-detalle col-detalle-2 dato-especifico">
+                        {% if not tipo %}<span class="detalle-etiqueta">Anexo No.</span>{% endif %}
+                        {{ registro.anexo_coordinacion.numero_anexo or 'Sin dato' }}
+                    </td>
+                    <td class="col-detalle col-detalle-3 dato-especifico">
+                        {% if not tipo %}<span class="detalle-etiqueta">Escaneado</span>{% endif %}
+                        {% if registro.anexo_coordinacion.escaneado %}
+                            Sí{% if registro.anexo_coordinacion.fecha_escaneado %} · {{ registro.anexo_coordinacion.fecha_escaneado.strftime('%d/%m/%Y') }}{% endif %}
+                        {% else %}
+                            Pendiente
+                        {% endif %}
+                    </td>
+
+                    {% elif registro.tipo == 'MONITOREO' and registro.reporte_monitoreo %}
+                    <td class="col-detalle col-detalle-1 dato-especifico">
+                        {% if not tipo %}<span class="detalle-etiqueta">Tipo documento</span>{% endif %}
+                        {{ registro.reporte_monitoreo.tipo_documento or 'Sin dato' }}
+                    </td>
+                    <td class="col-detalle col-detalle-2 dato-especifico">
+                        {% if not tipo %}<span class="detalle-etiqueta">Reporte No.</span>{% endif %}
+                        {{ registro.reporte_monitoreo.numero_reporte or 'Sin dato' }}
+                    </td>
+                    <td class="col-detalle col-detalle-3 dato-especifico detalle-texto">
+                        {% if not tipo %}<span class="detalle-etiqueta">Evento</span>{% endif %}
+                        {{ registro.reporte_monitoreo.tipo_evento or 'Sin dato' }}
+                    </td>
+
+                    {% elif registro.tipo == 'DOCUMENTO_EMITIDO' and registro.documento_emitido %}
+                    <td class="col-detalle col-detalle-1 dato-especifico">
+                        {% if not tipo %}<span class="detalle-etiqueta">No. documento</span>{% endif %}
+                        {{ registro.documento_emitido.numero_documento }}
+                    </td>
+                    <td class="col-detalle col-detalle-2 dato-especifico detalle-texto">
+                        {% if not tipo %}<span class="detalle-etiqueta">Destino</span>{% endif %}
+                        {{ registro.documento_emitido.destino or 'Sin dato' }}
+                    </td>
+                    <td class="col-detalle col-detalle-3 dato-especifico detalle-texto">
+                        {% if not tipo %}<span class="detalle-etiqueta">Descripción</span>{% endif %}
+                        {{ registro.documento_emitido.descripcion or 'Sin dato' }}
+                    </td>
+
+                    {% elif registro.tipo == 'ACTIVIDAD' and registro.actividad_coordinacion %}
+                    <td class="col-detalle col-detalle-1 dato-especifico">
+                        {% if not tipo %}<span class="detalle-etiqueta">Tipo actividad</span>{% endif %}
+                        {{ registro.actividad_coordinacion.tipo_actividad or 'Sin dato' }}
+                    </td>
+                    <td class="col-detalle col-detalle-2 dato-especifico detalle-texto">
+                        {% if not tipo %}<span class="detalle-etiqueta">Área apoyada</span>{% endif %}
+                        {{ registro.actividad_coordinacion.area_apoyo or 'No especificada' }}
+                    </td>
+                    <td class="col-detalle col-detalle-3 dato-especifico detalle-texto">
+                        {% if not tipo %}<span class="detalle-etiqueta">Actividad</span>{% endif %}
+                        {{ registro.actividad_coordinacion.descripcion }}
+                    </td>
+
+                    {% elif registro.tipo == 'REMISION' and registro.remision_coordinacion %}
+                    <td class="col-detalle col-detalle-1 dato-especifico detalle-texto">
+                        {% if not tipo %}<span class="detalle-etiqueta">Destino</span>{% endif %}
+                        {{ registro.remision_coordinacion.destino }}
+                    </td>
+                    <td class="col-detalle col-detalle-2 dato-especifico">
+                        {% if not tipo %}<span class="detalle-etiqueta">No. control</span>{% endif %}
+                        {{ registro.remision_coordinacion.numero_control or 'Sin dato' }}
+                    </td>
+                    <td class="col-detalle col-detalle-3 dato-especifico">
+                        {% if not tipo %}<span class="detalle-etiqueta">Expedientes</span>{% endif %}
+                        {{ registro.remision_coordinacion.expedientes_remitidos|length }}
+                    </td>
+
                     {% else %}
-                    <td class="col-periodo"><span class="sin-dato">—</span></td>
-                    <td class="col-boleta"><span class="sin-dato">—</span></td>
-                    <td class="col-total"><span class="sin-dato">—</span></td>
+                    <td class="col-detalle col-detalle-1"><span class="sin-dato">—</span></td>
+                    <td class="col-detalle col-detalle-2"><span class="sin-dato">—</span></td>
+                    <td class="col-detalle col-detalle-3"><span class="sin-dato">—</span></td>
                     {% endif %}
 
                     <td>{{ registro.usuario_origen or registro.usuario.nombre }}</td>
