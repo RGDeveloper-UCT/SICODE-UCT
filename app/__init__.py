@@ -60,12 +60,12 @@ def create_app():
     from app.routes import (
         auth_bp, dashboard_bp, expedientes_bp, expedientes_admin_bp, expediente_fisico_bp, verificaciones_bp,
         bitacora_bp, indice_documental_bp, alertas_bp, prestamos_bp, admin_bp,
-        integridad_bp, busqueda_bp, cuenta_bp, coordinacion_bp, portadores_bp,
+        integridad_bp, busqueda_bp, cuenta_bp, coordinacion_bp, coordinacion_export_bp, portadores_bp,
     )
     for blueprint in (
         auth_bp, dashboard_bp, expedientes_bp, expedientes_admin_bp, expediente_fisico_bp, verificaciones_bp,
         bitacora_bp, indice_documental_bp, alertas_bp, prestamos_bp, admin_bp,
-        integridad_bp, busqueda_bp, cuenta_bp, coordinacion_bp, portadores_bp,
+        integridad_bp, busqueda_bp, cuenta_bp, coordinacion_bp, coordinacion_export_bp, portadores_bp,
     ):
         app.register_blueprint(blueprint)
 
