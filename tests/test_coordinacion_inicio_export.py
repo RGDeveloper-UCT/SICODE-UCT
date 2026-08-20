@@ -78,11 +78,13 @@ def app_coordinacion_export():
 @pytest.fixture()
 def cliente_admin(app_coordinacion_export):
     cliente = app_coordinacion_export.test_client()
-    with cliente.session_transaction() as sesion:
-        with app_coordinacion_export.app_context():
-            usuario = Usuario.query.filter_by(usuario="admin-coord").one()
-            sesion["_user_id"] = str(usuario.id)
-            sesion["_fresh"] = True
+    respuesta = cliente.post(
+        "/login",
+        data={"usuario": "admin-coord", "password": "Password123"},
+        follow_redirects=False,
+    )
+    assert respuesta.status_code == 302
+    assert respuesta.headers["Location"].endswith("/dashboard/") or respuesta.headers["Location"].endswith("/dashboard")
     return cliente
 
 
