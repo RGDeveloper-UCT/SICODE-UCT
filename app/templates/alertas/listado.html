@@ -11,6 +11,7 @@
         </div>
 
         <div class="acciones-detalle">
+            {% if current_user.puede_modificar %}
             <a class="boton-exito" href="{{ url_for(
                 'alertas.exportar_excel',
                 q=busqueda,
@@ -18,6 +19,7 @@
                 gravedad=filtro_gravedad,
                 tipo=filtro_tipo
             ) }}">Exportar Excel</a>
+            {% endif %}
             <a class="boton-secundario" href="{{ url_for('dashboard.inicio') }}">Volver al dashboard</a>
         </div>
     </div>
@@ -96,6 +98,7 @@
                 <p>{{ alerta.descripcion or "Sin descripción registrada." }}</p>
             </div>
 
+            {% if current_user.puede_modificar %}
             <div class="alerta-acciones">
                 <span class="titulo-acciones-alerta">Cambiar estado:</span>
                 {% for estado_destino, clase in [
@@ -112,6 +115,7 @@
                     {% endif %}
                 {% endfor %}
             </div>
+            {% endif %}
         </article>
         {% else %}
         <div class="tarjeta"><p>No hay alertas registradas con los filtros seleccionados.</p></div>
