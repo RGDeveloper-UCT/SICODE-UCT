@@ -16,7 +16,7 @@ def _ahora():
 
 
 def _ttl_segundos():
-    return int(current_app.config.get("UO_ONLINE_TTL_SECONDS", 120))
+    return int(current_app.config.get("UO_ONLINE_TTL_SECONDS", 75))
 
 
 def _limite_texto(valor, maximo):
