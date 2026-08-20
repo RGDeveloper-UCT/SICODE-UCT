@@ -1,32 +1,115 @@
 {% extends "base.html" %}
 {% block title %}Coordinación — SICODE-UCT{% endblock %}
+{% block body_class %}vista-coordinacion-inicio{% endblock %}
 {% block content %}
-<section class="panel panel-ancho">
-    <div class="encabezado-modulo">
-        <div><h1>Coordinación</h1><p>Registro operativo diario de la Coordinación de Sistematización y Ordenamiento de Datos.</p></div>
-        <div class="acciones-detalle">
+<section class="panel panel-ancho panel-coordinacion-inicio">
+    <div class="encabezado-modulo encabezado-coordinacion-inicio">
+        <div class="encabezado-coordinacion-texto">
+            <h1>Coordinación</h1>
+            <p>Registro operativo diario de la Coordinación de Sistematización y Ordenamiento de Datos.</p>
+        </div>
+        <div class="acciones-detalle acciones-coordinacion-inicio">
             <a class="boton-secundario" href="{{ url_for('coordinacion.listado') }}">Ver registros</a>
-            {% if current_user.rol == 'administrador' %}<a class="boton-cancelar" href="{{ url_for('coordinacion.importar_excel') }}">Importar Excel histórico</a>{% endif %}
+            {% if current_user.rol == 'administrador' %}
+            <a class="boton-cancelar" href="{{ url_for('coordinacion.importar_excel') }}">Importar Excel histórico</a>
+            <a class="boton-exportar" href="{{ url_for('coordinacion_export.exportar_todos') }}">Exportar todos los datos</a>
+            {% endif %}
         </div>
     </div>
-    <div class="aviso"><strong>Registro simplificado:</strong> seleccione qué desea registrar. El usuario se toma de la sesión y el SP se vincula al expediente existente cuando sea posible.</div>
-    <div class="grid">
-        <div class="tarjeta indicador"><h2>Registros operativos</h2><p class="numero-indicador">{{ conteos.values()|sum }}</p></div>
-        <div class="tarjeta indicador"><h2>Información pendiente</h2><p class="numero-indicador indicador-alerta">{{ pendientes }}</p></div>
-        <div class="tarjeta"><h2>Expedientes</h2><p>La información maestra del SP continúa en el módulo existente de Expedientes.</p><a href="{{ url_for('expedientes.listado') }}">Ir a expedientes</a></div>
+
+    <div class="layout-coordinacion-inicio">
+        <section class="columna-coordinacion-registros" aria-labelledby="titulo-registros-coordinacion">
+            <div class="aviso aviso-coordinacion-inicio">
+                <strong>Registro simplificado:</strong> seleccione el tipo de registro. El usuario se toma de la sesión y el SP se vincula al expediente existente cuando sea posible.
+            </div>
+
+            <div class="resumen-coordinacion-inicio">
+                <div class="tarjeta indicador indicador-coordinacion-compacto">
+                    <h2>Registros operativos</h2>
+                    <p class="numero-indicador">{{ conteos.values()|sum }}</p>
+                </div>
+                <div class="tarjeta indicador indicador-coordinacion-compacto">
+                    <h2>Información pendiente</h2>
+                    <p class="numero-indicador indicador-alerta">{{ pendientes }}</p>
+                </div>
+                <div class="tarjeta tarjeta-expedientes-coordinacion">
+                    <div>
+                        <h2>Expedientes</h2>
+                        <p>La información maestra del SP continúa en Expedientes.</p>
+                    </div>
+                    <a href="{{ url_for('expedientes.listado') }}">Ir a expedientes</a>
+                </div>
+            </div>
+
+            <div class="encabezado-registros-coordinacion">
+                <h2 id="titulo-registros-coordinacion">REGISTROS</h2>
+                <span>Seleccione una opción para registrar</span>
+            </div>
+
+            <div class="grid-registros-coordinacion">
+                {% for clave, item in tipos_registro.items() %}
+                <article class="tarjeta tarjeta-registro-coordinacion">
+                    <div class="tarjeta-registro-cabecera">
+                        <h3>{{ item.titulo }}</h3>
+                        <span class="contador-tipo-registro">{{ conteos.get(item.codigo, 0) }}</span>
+                    </div>
+                    <p>{{ item.descripcion }}</p>
+                    <a href="{{ url_for('coordinacion.registrar', tipo=clave) }}">Registrar {{ item.titulo|lower }}</a>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+
+        <aside class="columna-coordinacion-recientes" aria-labelledby="titulo-recientes-coordinacion">
+            <div class="panel-recientes-coordinacion">
+                <div class="encabezado-recientes-coordinacion">
+                    <div>
+                        <h2 id="titulo-recientes-coordinacion">Últimos registros recientes</h2>
+                        <p>Actividad operativa más reciente de Coordinación.</p>
+                    </div>
+                    <a href="{{ url_for('coordinacion.listado') }}">Ver todos</a>
+                </div>
+
+                <div class="tabla-recientes-coordinacion-contenedor">
+                    <table class="tabla-recientes-coordinacion">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Tipo</th>
+                                <th>SP</th>
+                                <th>RC</th>
+                                <th>Providencia</th>
+                                <th>Estado</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for registro in recientes %}
+                            <tr>
+                                <td>{{ registro.fecha_recepcion.strftime('%d/%m/%Y') if registro.fecha_recepcion else registro.creado_en.strftime('%d/%m/%Y') }}</td>
+                                <td><span class="tipo-reciente">{{ registro.tipo }}</span></td>
+                                <td>{{ registro.no_sp_referencia or '—' }}</td>
+                                <td>{{ registro.rc or '—' }}</td>
+                                <td>{{ registro.providencia or '—' }}</td>
+                                <td>
+                                    {% if registro.estado == 'Completo' %}
+                                    <span class="badge badge-activo">Completo</span>
+                                    {% elif registro.estado == 'Pendiente de vincular' %}
+                                    <span class="badge badge-inactivo">Pendiente de vincular</span>
+                                    {% else %}
+                                    <span class="badge badge-advertencia">{{ registro.estado }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="accion-reciente"><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="7" class="sin-registros-recientes">No hay registros operativos todavía.</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </aside>
     </div>
-    <h2>¿Qué desea registrar?</h2>
-    <div class="grid coordinacion-grid">
-        {% for clave, item in tipos_registro.items() %}
-        <div class="tarjeta coordinacion-tarjeta"><h2>{{ item.titulo }}</h2><p>{{ item.descripcion }}</p><p class="nota-mini">Registrados: {{ conteos.get(item.codigo, 0) }}</p><a href="{{ url_for('coordinacion.registrar', tipo=clave) }}">Registrar {{ item.titulo|lower }}</a></div>
-        {% endfor %}
-    </div>
-    <h2>Registros recientes</h2>
-    <div class="tabla-contenedor"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>SP</th><th>RC</th><th>Providencia</th><th>Estado</th><th></th></tr></thead><tbody>
-    {% for registro in recientes %}<tr>
-        <td>{{ registro.fecha_recepcion.strftime('%d/%m/%Y') if registro.fecha_recepcion else registro.creado_en.strftime('%d/%m/%Y') }}</td><td>{{ registro.tipo }}</td><td>{{ registro.no_sp_referencia or '—' }}</td><td>{{ registro.rc or '—' }}</td><td>{{ registro.providencia or '—' }}</td>
-        <td>{% if registro.estado == 'Completo' %}<span class="badge badge-activo">Completo</span>{% elif registro.estado == 'Pendiente de vincular' %}<span class="badge badge-inactivo">Pendiente de vincular</span>{% else %}<span class="badge badge-advertencia">{{ registro.estado }}</span>{% endif %}</td><td><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
-    </tr>{% else %}<tr><td colspan="7">No hay registros operativos todavía.</td></tr>{% endfor %}
-    </tbody></table></div>
 </section>
 {% endblock %}
