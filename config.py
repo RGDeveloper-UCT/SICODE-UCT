@@ -29,6 +29,10 @@ class Config:
     # concede un margen amplio antes de recurrir al intérprete básico seguro.
     OLLAMA_TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT", "60"))
 
+    # UO · Usuarios Online. El navegador envía un pulso cada 20 segundos; una
+    # presencia sin pulso deja de considerarse online al superar esta ventana.
+    UO_ONLINE_TTL_SECONDS = int(os.getenv("UO_ONLINE_TTL_SECONDS", "75"))
+
     @classmethod
     def validar(cls):
         faltantes = []

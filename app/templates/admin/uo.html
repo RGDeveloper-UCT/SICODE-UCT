@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}UO · Usuarios Online — SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho uo-panel" id="uo-panel" data-datos-url="{{ url_for('uo.datos') }}">
+    <div class="uo-encabezado">
+        <div>
+            <span class="uo-kicker">ADMINISTRACIÓN · MONITOREO DE SESIONES</span>
+            <h1>UO · Usuarios Online</h1>
+            <p>Visualice qué usuarios mantienen SICODE abierto y con actividad reciente.</p>
+        </div>
+        <div class="uo-en-vivo" aria-label="Actualización automática activa">
+            <span class="uo-punto" aria-hidden="true"></span>
+            <span>En vivo · 10 s</span>
+        </div>
+    </div>
+
+    <div class="uo-metricas" aria-label="Resumen de usuarios conectados">
+        <article class="uo-metrica">
+            <span>Usuarios conectados</span>
+            <strong id="uo-total-usuarios">—</strong>
+            <small>cuentas con presencia activa</small>
+        </article>
+        <article class="uo-metrica">
+            <span>Sesiones activas</span>
+            <strong id="uo-total-sesiones">—</strong>
+            <small>navegadores o dispositivos</small>
+        </article>
+        <article class="uo-metrica">
+            <span>Última actualización</span>
+            <strong class="uo-hora" id="uo-actualizado">—</strong>
+            <small>el panel se renueva automáticamente</small>
+        </article>
+    </div>
+
+    <div class="uo-aviso">
+        <strong>¿Qué significa “conectado”?</strong>
+        <span>SICODE recibe un pulso mientras la pestaña está visible. Al cerrar sesión desaparece de inmediato; si el navegador se cierra sin salir, la presencia vence automáticamente en aproximadamente 75 segundos.</span>
+    </div>
+
+    <div class="uo-herramientas">
+        <label for="uo-filtro">
+            <span>Filtrar usuarios online</span>
+            <input id="uo-filtro" type="search" placeholder="Nombre, usuario, rol o página actual..." autocomplete="off">
+        </label>
+        <button type="button" id="uo-recargar" class="boton-secundario">Actualizar ahora</button>
+    </div>
+
+    <div class="uo-tabla-contenedor">
+        <table class="tabla uo-tabla">
+            <thead>
+                <tr>
+                    <th>Estado</th>
+                    <th>Usuario</th>
+                    <th>Rol</th>
+                    <th>Página actual</th>
+                    <th>Conectado desde</th>
+                    <th>Última actividad</th>
+                    <th>Sesiones</th>
+                </tr>
+            </thead>
+            <tbody id="uo-cuerpo">
+                <tr class="uo-cargando"><td colspan="7">Consultando usuarios conectados…</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="uo-vacio" id="uo-vacio" hidden>
+        <strong>No hay usuarios que coincidan.</strong>
+        <span>El listado se actualizará automáticamente cuando exista una presencia activa.</span>
+    </div>
+
+    <div class="uo-error" id="uo-error" role="status" hidden>
+        No fue posible actualizar UO. El panel volverá a intentarlo automáticamente.
+    </div>
+
+    <div class="uo-privacidad">
+        <strong>Privacidad y seguridad:</strong>
+        <span>UO muestra únicamente identidad de usuario, rol y estado operativo de presencia. No expone contraseñas, cookies ni identificadores de sesión.</span>
+    </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/uo.js') }}" defer></script>
+{% endblock %}
