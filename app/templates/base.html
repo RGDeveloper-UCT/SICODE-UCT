@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/busqueda.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/uo.css') }}">
 </head>
-<body class="{% block body_class %}{% endblock %}{% if modo_solo_lectura %} modo-visor{% endif %}"{% if current_user.is_authenticated %} data-presencia-url="{{ url_for('uo.pulso') }}"{% endif %}>
+<body class="{% block body_class %}{% endblock %}{% if modo_solo_lectura %} modo-visor{% endif %}"{% if current_user.is_authenticated %} data-presencia-url="/presencia/pulso"{% endif %}>
     <header class="topbar">
         <div class="marca-sicode">
             <strong>SICODE-UCT</strong>
@@ -29,7 +29,7 @@
             <a href="{{ url_for('alertas.listado') }}">Alertas</a>
             <a href="{{ url_for('bitacora.listado') }}">Bitácora</a>
             <a href="{{ url_for('cuenta.detalle') }}">Mi cuenta</a>
-            {% if current_user.rol == "administrador" %}<a href="{{ url_for('uo.panel') }}">UO</a><a href="{{ url_for('admin.usuarios') }}">Usuarios</a><a href="{{ url_for('admin.sistema') }}">Sistema</a>{% endif %}
+            {% if current_user.rol == "administrador" %}<a href="/admin/uo">UO</a><a href="{{ url_for('admin.usuarios') }}">Usuarios</a><a href="{{ url_for('admin.sistema') }}">Sistema</a>{% endif %}
             <a href="{{ url_for('auth.logout') }}">Salir</a>
         </nav>
         {% endif %}
