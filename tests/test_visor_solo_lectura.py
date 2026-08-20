@@ -94,8 +94,9 @@ def test_visor_consulta_paneles_y_no_ve_acciones_de_escritura(app_visor):
     assert "Registrar físico" not in expedientes
 
     alertas = cliente.get("/alertas").get_data(as_text=True)
-    assert "Cambiar estado:" in alertas  # El contenido existe en plantilla, pero formularios POST se ocultan por CSS.
-    assert 'modo-visor' in alertas
+    assert "Cambiar estado:" not in alertas
+    assert "Exportar Excel" not in alertas
+    assert "modo-visor" in alertas
 
 
 def test_visor_no_puede_modificar_ni_abrir_formularios_de_accion(app_visor):
