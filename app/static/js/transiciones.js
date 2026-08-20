@@ -72,7 +72,7 @@
     };
 
     document.addEventListener("click", (evento) => {
-        if (navegacionProgramada) {
+        if (navegacionProgramada || !(evento.target instanceof Element)) {
             return;
         }
 
@@ -105,8 +105,10 @@
         }, reduceMotion ? 70 : 260);
     });
 
-    window.addEventListener("pageshow", () => {
-        navegacionProgramada = false;
-        ocultar();
+    window.addEventListener("pageshow", (evento) => {
+        if (evento.persisted) {
+            navegacionProgramada = false;
+            ocultar();
+        }
     });
 })();
