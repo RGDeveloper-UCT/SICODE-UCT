@@ -16,3 +16,4 @@ from app.routes.coordinacion import coordinacion_bp
 from app.routes.coordinacion_export import coordinacion_export_bp
 from app.routes.portadores import portadores_bp
 from app.routes.uo import uo_bp
+from app.routes.codigos_barras import codigos_barras_bp
