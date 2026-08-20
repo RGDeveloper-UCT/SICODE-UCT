@@ -6,6 +6,7 @@ from app.forms.login_form import LoginForm
 from app.models.usuario import Usuario
 from app.security import es_url_interna
 from app.services.bitacora_service import registrar_bitacora
+from app.services.presencia_service import cerrar_presencia
 
 
 auth_bp = Blueprint("auth", __name__)
@@ -68,6 +69,7 @@ def logout():
         usuario_id=usuario_id,
     )
 
+    cerrar_presencia(usuario_id)
     logout_user()
     session.clear()
     flash("Sesión cerrada correctamente.", "info")
