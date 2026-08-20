@@ -25,7 +25,6 @@ def upgrade():
         sa.Column("ultimo_pulso_en", sa.DateTime(), nullable=False),
         sa.Column("ruta", sa.String(length=255), nullable=True),
         sa.Column("pagina", sa.String(length=180), nullable=True),
-        sa.Column("user_agent", sa.String(length=255), nullable=True),
         sa.ForeignKeyConstraint(["usuario_id"], ["usuarios.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
