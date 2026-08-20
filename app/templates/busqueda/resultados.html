@@ -1,29 +1,119 @@
 {% extends "base.html" %}
 {% block title %}Buscar — SICODE-UCT{% endblock %}
 {% block content %}
-<section class="panel panel-ancho">
-    <div class="encabezado-modulo"><div><h1>Búsqueda global</h1><p>Localiza información relacionada sin entrar módulo por módulo.</p></div></div>
-
-    <form method="GET" action="{{ url_for('busqueda.global_') }}" class="busqueda">
-        <input type="search" name="q" value="{{ q }}" placeholder="SP, nombre, RC, providencia, préstamo, anexo, reporte, ubicación..." minlength="2" required autofocus>
-        <button type="submit">Buscar</button>
-    </form>
-
-    {% if q %}
-        <p class="contador-resultados">Resultados para <strong>{{ q }}</strong>: <strong>{{ resultados|length }}</strong></p>
-        <div class="lista-alertas">
-        {% for item in resultados %}
-            <article class="tarjeta-alerta">
-                <div class="alerta-cabecera">
-                    <div><h2>{{ item.titulo }}</h2><p>{{ item.detalle }}</p></div>
-                    <span class="badge badge-neutral">{{ item.categoria }}</span>
-                </div>
-                <a class="boton-tabla" href="{{ url_for(item.endpoint, **item.params) }}">Abrir registro</a>
-            </article>
-        {% else %}
-            <div class="aviso">No se encontraron coincidencias. Pruebe con No. de SP, nombre, RC, providencia, número de préstamo o un dato de ubicación.</div>
-        {% endfor %}
+<section class="panel panel-ancho busqueda-panel">
+    <div class="encabezado-modulo busqueda-encabezado">
+        <div>
+            <span class="busqueda-kicker">CONSULTA INSTITUCIONAL</span>
+            <h1>Búsqueda de SICODE</h1>
+            <p>Localice registros por datos exactos o describa en lenguaje natural lo que necesita encontrar.</p>
         </div>
-    {% endif %}
+    </div>
+
+    <div class="busqueda-bloque busqueda-manual">
+        <div class="busqueda-bloque-cabecera">
+            <div>
+                <span class="busqueda-numero">01</span>
+                <h2>Búsqueda manual</h2>
+                <p>Use SP, nombre, RC, providencia, préstamo, anexo, reporte o ubicación.</p>
+            </div>
+            <span class="badge badge-neutral">Precisa</span>
+        </div>
+
+        <form method="GET" action="{{ url_for('busqueda.global_') }}" class="busqueda busqueda-formulario">
+            <input type="search" name="q" value="{{ q }}" placeholder="Ej.: SP 124, RC-2026-18, archivador 2..." minlength="2" required>
+            <button type="submit">Buscar</button>
+        </form>
+
+        {% if q %}
+            <div class="busqueda-resumen">
+                <span>Resultados manuales para <strong>{{ q }}</strong></span>
+                <strong>{{ resultados|length }}</strong>
+            </div>
+            <div class="lista-alertas busqueda-resultados">
+            {% for item in resultados %}
+                <article class="tarjeta-alerta busqueda-resultado">
+                    <div class="alerta-cabecera">
+                        <div><h2>{{ item.titulo }}</h2><p>{{ item.detalle }}</p></div>
+                        <span class="badge badge-neutral">{{ item.categoria }}</span>
+                    </div>
+                    <a class="boton-tabla" href="{{ url_for(item.endpoint, **item.params) }}">Abrir registro</a>
+                </article>
+            {% else %}
+                <div class="aviso">No se encontraron coincidencias. Pruebe con No. de SP, nombre, RC, providencia, número de préstamo o un dato de ubicación.</div>
+            {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="busqueda-separador"><span>o describa lo que necesita</span></div>
+
+    <div class="busqueda-bloque busqueda-ia">
+        <div class="busqueda-bloque-cabecera">
+            <div>
+                <span class="busqueda-numero busqueda-numero-ia">02</span>
+                <h2>Búsqueda con IA local</h2>
+                <p>La IA interpreta la consulta y SICODE ejecuta únicamente filtros autorizados sobre sus propios datos.</p>
+            </div>
+            <span class="badge badge-neutral">IA local</span>
+        </div>
+
+        <form method="POST" action="{{ url_for('busqueda.ia') }}" class="busqueda-ia-formulario">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label for="consulta_ia">¿Qué necesita encontrar?</label>
+            <div class="busqueda-ia-caja">
+                <textarea id="consulta_ia" name="consulta_ia" rows="3" minlength="3" maxlength="500" required placeholder="Ej.: Muéstrame los expedientes que están prestados y todavía no han sido devueltos.">{{ consulta_ia }}</textarea>
+                <button type="submit">Buscar con IA</button>
+            </div>
+        </form>
+
+        <div class="busqueda-ejemplos" aria-label="Ejemplos de búsquedas con IA">
+            <span>Ejemplos:</span>
+            <span>¿Dónde está el expediente del SP 11?</span>
+            <span>Préstamos vencidos</span>
+            <span>Alertas pendientes de gravedad alta</span>
+            <span>Anexos del SP 24</span>
+        </div>
+
+        {% if resultado_ia %}
+            <div class="busqueda-ia-interpretacion">
+                <div>
+                    <span class="busqueda-ia-etiqueta">Interpretación aplicada</span>
+                    <strong>{{ resultado_ia.interpretacion }}</strong>
+                </div>
+                <span class="badge badge-neutral">
+                    {% if resultado_ia.motor == 'ollama' %}Ollama local{% else %}Modo básico{% endif %}
+                </span>
+            </div>
+
+            {% if resultado_ia.aviso %}
+                <div class="aviso busqueda-ia-aviso">{{ resultado_ia.aviso }}</div>
+            {% endif %}
+
+            <div class="busqueda-resumen">
+                <span>Resultados para <strong>{{ consulta_ia }}</strong></span>
+                <strong>{{ resultado_ia.resultados|length }}</strong>
+            </div>
+
+            <div class="lista-alertas busqueda-resultados">
+            {% for item in resultado_ia.resultados %}
+                <article class="tarjeta-alerta busqueda-resultado">
+                    <div class="alerta-cabecera">
+                        <div><h2>{{ item.titulo }}</h2><p>{{ item.detalle }}</p></div>
+                        <span class="badge badge-neutral">{{ item.categoria }}</span>
+                    </div>
+                    <a class="boton-tabla" href="{{ url_for(item.endpoint, **item.params) }}">Abrir registro</a>
+                </article>
+            {% else %}
+                <div class="aviso">La interpretación fue válida, pero no existen registros que cumplan esos filtros.</div>
+            {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="busqueda-ia-seguridad">
+            <strong>Consulta segura:</strong>
+            <span>la IA no puede borrar, editar, prestar ni devolver expedientes; únicamente interpreta búsquedas.</span>
+        </div>
+    </div>
 </section>
 {% endblock %}

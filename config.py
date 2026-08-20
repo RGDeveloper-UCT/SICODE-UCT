@@ -20,6 +20,13 @@ class Config:
     # Limita cargas accidentales o maliciosas de archivos. Puede ajustarse por .env.
     MAX_CONTENT_LENGTH = int(os.getenv("MAX_UPLOAD_MB", "16")) * 1024 * 1024
 
+    # IA local para búsquedas. Ollama se mantiene en loopback para que los
+    # metadatos consultados no salgan del servidor institucional.
+    AI_SEARCH_ENABLED = os.getenv("AI_SEARCH_ENABLED", "true").lower() in {"1", "true", "yes", "si"}
+    OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
+    OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:1.7b")
+    OLLAMA_TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT", "15"))
+
     @classmethod
     def validar(cls):
         faltantes = []

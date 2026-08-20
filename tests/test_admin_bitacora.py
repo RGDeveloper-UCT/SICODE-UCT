@@ -33,11 +33,12 @@ def app_admin():
 @pytest.fixture()
 def cliente_admin(app_admin):
     cliente = app_admin.test_client()
-    with cliente.session_transaction() as sesion:
-        with app_admin.app_context():
-            usuario = Usuario.query.filter_by(usuario="admin-unico").one()
-            sesion["_user_id"] = str(usuario.id)
-            sesion["_fresh"] = True
+    respuesta = cliente.post(
+        "/login",
+        data={"usuario": "admin-unico", "password": "Password123"},
+        follow_redirects=False,
+    )
+    assert respuesta.status_code == 302
     return cliente
 
 
