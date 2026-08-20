@@ -65,6 +65,7 @@ def create_app():
         TrasladoVirtualExpediente,
         ImportacionPortadores,
         VerificacionExpediente,
+        PresenciaUsuario,
     )
     from app.services.integridad_events import registrar_eventos_integridad
     from app.services.version_service import obtener_version
@@ -84,12 +85,12 @@ def create_app():
     from app.routes import (
         auth_bp, dashboard_bp, expedientes_bp, expedientes_admin_bp, expediente_fisico_bp, verificaciones_bp,
         bitacora_bp, indice_documental_bp, alertas_bp, prestamos_bp, admin_bp,
-        integridad_bp, busqueda_bp, cuenta_bp, coordinacion_bp, coordinacion_export_bp, portadores_bp,
+        integridad_bp, busqueda_bp, cuenta_bp, coordinacion_bp, coordinacion_export_bp, portadores_bp, uo_bp,
     )
     for blueprint in (
         auth_bp, dashboard_bp, expedientes_bp, expedientes_admin_bp, expediente_fisico_bp, verificaciones_bp,
         bitacora_bp, indice_documental_bp, alertas_bp, prestamos_bp, admin_bp,
-        integridad_bp, busqueda_bp, cuenta_bp, coordinacion_bp, coordinacion_export_bp, portadores_bp,
+        integridad_bp, busqueda_bp, cuenta_bp, coordinacion_bp, coordinacion_export_bp, portadores_bp, uo_bp,
     ):
         app.register_blueprint(blueprint)
 
@@ -97,7 +98,7 @@ def create_app():
     def exigir_cambio_password_temporal():
         if not current_user.is_authenticated or not current_user.debe_cambiar_password:
             return None
-        if request.endpoint in {"cuenta.cambiar_password", "auth.logout", "static"}:
+        if request.endpoint in {"cuenta.cambiar_password", "auth.logout", "static", "uo.pulso"}:
             return None
         flash("Debe cambiar su contraseña temporal antes de continuar en SICODE.", "warning")
         return redirect(url_for("cuenta.cambiar_password"))
@@ -108,8 +109,9 @@ def create_app():
         if not current_user.is_authenticated or not getattr(current_user, "es_visor", False):
             return None
 
-        # La cuenta debe poder cambiar su propia contraseña temporal y cerrar sesión.
-        if request.endpoint in {"cuenta.cambiar_password", "auth.logout", "static"}:
+        # La cuenta debe poder cambiar su propia contraseña temporal, cerrar sesión
+        # y renovar su presencia en UO. El pulso no modifica información operativa.
+        if request.endpoint in {"cuenta.cambiar_password", "auth.logout", "static", "uo.pulso"}:
             return None
 
         # La búsqueda IA usa POST para no exponer la consulta en la URL, pero es
