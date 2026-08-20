@@ -78,7 +78,7 @@ def test_visor_consulta_paneles_y_no_ve_acciones_de_escritura(app_visor):
     cliente = app_visor.test_client()
     _login(cliente, "visor")
 
-    for ruta in ["/dashboard", "/expedientes", "/coordinacion/", "/coordinacion/registros", "/alertas"]:
+    for ruta in ["/dashboard", "/expedientes", "/coordinacion/", "/coordinacion/registros", "/prestamos", "/alertas"]:
         respuesta = cliente.get(ruta)
         assert respuesta.status_code == 200, ruta
 
@@ -92,6 +92,12 @@ def test_visor_consulta_paneles_y_no_ve_acciones_de_escritura(app_visor):
     assert "Nuevo expediente" not in expedientes
     assert ">Editar<" not in expedientes
     assert "Registrar físico" not in expedientes
+
+    prestamos = cliente.get("/prestamos").get_data(as_text=True)
+    assert "Exportar Excel" not in prestamos
+    assert "Generar préstamo físico" not in prestamos
+    assert "Generar constancia de traslado de expediente virtual" not in prestamos
+    assert ">Consulta<" in prestamos
 
     alertas = cliente.get("/alertas").get_data(as_text=True)
     assert "Cambiar estado:" not in alertas
