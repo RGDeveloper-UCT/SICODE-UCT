@@ -8,9 +8,13 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/mejoras.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/coordinacion.css') }}">
 </head>
-<body class="{% block body_class %}{% endblock %}">
+<body class="{% block body_class %}{% endblock %}{% if modo_solo_lectura %} modo-visor{% endif %}">
     <header class="topbar">
-        <div class="marca-sicode"><strong>SICODE-UCT</strong><span>Sistema de Control y Ordenamiento de Expedientes</span></div>
+        <div class="marca-sicode">
+            <strong>SICODE-UCT</strong>
+            <span>Sistema de Control y Ordenamiento de Expedientes</span>
+            {% if modo_solo_lectura %}<span class="badge-modo-visor">VISOR · SOLO CONSULTA</span>{% endif %}
+        </div>
         {% if current_user.is_authenticated %}
         <nav>
             <a href="{{ url_for('dashboard.inicio') }}">Dashboard</a>
@@ -27,6 +31,11 @@
         {% endif %}
     </header>
     <main class="contenedor">
+        {% if modo_solo_lectura %}
+        <div class="aviso-modo-visor" role="status">
+            <strong>Modo consulta.</strong> Puede buscar y visualizar la información de SICODE. El registro, edición, eliminación, importación y exportación de datos están deshabilitados para este usuario.
+        </div>
+        {% endif %}
         {% with mensajes = get_flashed_messages(with_categories=true) %}{% if mensajes %}<div class="mensajes">{% for categoria, mensaje in mensajes %}<div class="alerta alerta-{{ categoria }}">{{ mensaje }}</div>{% endfor %}</div>{% endif %}{% endwith %}
         {% block content %}{% endblock %}
     </main>
