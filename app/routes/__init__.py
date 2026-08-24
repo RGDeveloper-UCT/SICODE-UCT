@@ -8,6 +8,7 @@ from app.routes.bitacora import bitacora_bp
 from app.routes.indice_documental import indice_documental_bp
 from app.routes.alertas import alertas_bp
 from app.routes.prestamos import prestamos_bp
+from app.routes.prestamos_grupales import prestamos_grupales_bp
 from app.routes.admin import admin_bp
 from app.routes.integridad import integridad_bp
 from app.routes.busqueda import busqueda_bp
