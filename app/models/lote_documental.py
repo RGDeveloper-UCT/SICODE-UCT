@@ -19,6 +19,12 @@ class SegmentoDocumental(db.Model):
         nullable=False,
         index=True,
     )
+    expediente_id = db.Column(
+        db.Integer,
+        db.ForeignKey("expedientes.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     orden = db.Column(db.Integer, nullable=False)
     pagina_inicio = db.Column(db.Integer, nullable=False)
     pagina_fin = db.Column(db.Integer, nullable=False)
@@ -53,6 +59,7 @@ class SegmentoDocumental(db.Model):
         "AnalisisDocumental",
         backref=db.backref("segmentos", lazy="select", cascade="all, delete-orphan", order_by="SegmentoDocumental.orden"),
     )
+    expediente = db.relationship("Expediente", foreign_keys=[expediente_id])
     registro = db.relationship("RegistroCoordinacion", foreign_keys=[registro_id])
     documento_expediente = db.relationship("DocumentoExpediente", foreign_keys=[documento_expediente_id])
 
