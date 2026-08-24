@@ -23,6 +23,12 @@
                 Comprobante PDF
             </a>
 
+            {% if prestamo.detalle_grupal %}
+            <a class="boton-secundario" href="{{ url_for('prestamos_grupales.constancia_grupal_pdf', grupo_id=prestamo.detalle_grupal.grupo.id) }}">
+                Constancia grupal PDF
+            </a>
+            {% endif %}
+
             {% if prestamo.estado == "En préstamo" %}
             <a class="boton-secundario" href="{{ url_for('prestamos.devolver', prestamo_id=prestamo.id) }}">
                 Registrar devolución
@@ -59,6 +65,15 @@
             <h2>Estado administrativo del expediente</h2>
             <p>{{ expediente.estado_administrativo }}</p>
         </div>
+
+        {% if prestamo.detalle_grupal %}
+        <div class="tarjeta">
+            <h2>Préstamo grupal asociado</h2>
+            <p><strong>{{ prestamo.detalle_grupal.grupo.numero_control }}</strong></p>
+            <p>Rango SP {{ prestamo.detalle_grupal.grupo.sp_desde }} al {{ prestamo.detalle_grupal.grupo.sp_hasta }}</p>
+            <p>Posición {{ prestamo.detalle_grupal.orden }} de {{ prestamo.detalle_grupal.grupo.total_expedientes }}</p>
+        </div>
+        {% endif %}
     </div>
 
     <h2>Datos del expediente</h2>
