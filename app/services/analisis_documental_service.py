@@ -2,10 +2,20 @@ import os
 import re
 import shutil
 import tempfile
+import time
 import unicodedata
 from collections import Counter
 from datetime import date, datetime, timedelta
 from pathlib import Path
+
+from app.services.analisis_documental_inteligencia import (
+    IAAnalisisNoDisponible,
+    calcular_calidad_global,
+    consultar_ia_local,
+    fusionar_reglas_e_ia,
+    ocr_pagina_multipase,
+    resolver_tesseract,
+)
 
 
 TIPOS_REGISTRO_ADMITIDOS = {"AUTO", "ANEXO", "INSTALACION", "DESINSTALACION", "PAGO", "MONITOREO"}
@@ -299,6 +309,9 @@ def extraer_metadatos(texto_original, paginas_pdf, tipo_objetivo="AUTO"):
         "providencia": confianza_providencia,
         "fecha_recepcion": confianza_fecha,
         "folios": confianza_folios,
+        "folio_inicio": confianza_folios,
+        "folio_fin": confianza_folios,
+        "total_folios": confianza_folios,
         "numero_anexo": confianza_numero_anexo,
         "titulo_anexo": confianza_titulo,
         "tipo_anexo": confianza_tipo_anexo,
@@ -351,7 +364,14 @@ def limpiar_temporales_antiguos(directorio, minutos=30):
             continue
 
 
-def _extraer_texto_pdf(ruta, max_paginas=200, ocr_habilitado=True, ocr_idioma="spa"):
+def _extraer_texto_pdf(
+    ruta,
+    max_paginas=200,
+    ocr_habilitado=True,
+    ocr_idioma="spa",
+    tesseract_cmd=None,
+    ocr_segunda_pasada=True,
+):
     try:
         from pypdf import PdfReader
         from pypdf.errors import PdfReadError
@@ -391,52 +411,80 @@ def _extraer_texto_pdf(ruta, max_paginas=200, ocr_habilitado=True, ocr_idioma="s
         if caracteres_utiles < 35:
             paginas_para_ocr.append(indice)
 
+    diagnostico_ocr = {
+        "necesario": bool(paginas_para_ocr),
+        "disponible": True,
+        "confianza_media": None,
+        "paginas": [],
+        "segunda_pasada": bool(ocr_segunda_pasada),
+    }
     paginas_ocr = 0
+
     if paginas_para_ocr and ocr_habilitado:
-        if not shutil.which("tesseract"):
+        comando = resolver_tesseract(tesseract_cmd)
+        if not comando:
+            diagnostico_ocr["disponible"] = False
             if all(not texto.strip() for texto in textos):
                 raise OCRNoDisponible(
-                    "El PDF parece escaneado y el servidor no tiene Tesseract OCR instalado."
+                    "El PDF parece escaneado y Tesseract OCR no está disponible para el servicio de SICODE."
                 )
         else:
             try:
                 import pypdfium2 as pdfium
-                import pytesseract
             except ImportError as exc:
-                raise RuntimeError("Faltan las dependencias de OCR de SICODE.") from exc
+                raise RuntimeError("Falta pypdfium2 para renderizar páginas escaneadas.") from exc
 
             documento = pdfium.PdfDocument(str(ruta))
             try:
                 for indice in paginas_para_ocr:
                     pagina_pdfium = documento[indice]
-                    bitmap = pagina_pdfium.render(scale=2.5, grayscale=True)
+                    bitmap = pagina_pdfium.render(scale=2.5)
                     imagen = bitmap.to_pil()
                     try:
-                        texto_ocr = pytesseract.image_to_string(
+                        lectura = ocr_pagina_multipase(
                             imagen,
-                            lang=ocr_idioma,
-                            config="--psm 6",
+                            idioma=ocr_idioma,
+                            tesseract_cmd=comando,
+                            segunda_pasada=ocr_segunda_pasada,
                             timeout=60,
                         )
-                    except RuntimeError:
-                        texto_ocr = ""
+                    except IAAnalisisNoDisponible as exc:
+                        if all(not texto.strip() for texto in textos):
+                            raise OCRNoDisponible(str(exc)) from exc
+                        lectura = {"texto": "", "confianza": 0.0, "modo": "SIN_LECTURA", "caracteres": 0}
+                    finally:
+                        try:
+                            imagen.close()
+                        except Exception:
+                            pass
+                        try:
+                            bitmap.close()
+                        except Exception:
+                            pass
+                        try:
+                            pagina_pdfium.close()
+                        except Exception:
+                            pass
+
+                    texto_ocr = lectura.get("texto") or ""
                     if texto_ocr.strip():
                         textos[indice] = texto_ocr
                         paginas_ocr += 1
-                    try:
-                        imagen.close()
-                    except Exception:
-                        pass
-                    try:
-                        bitmap.close()
-                    except Exception:
-                        pass
-                    try:
-                        pagina_pdfium.close()
-                    except Exception:
-                        pass
+                    diagnostico_ocr["paginas"].append(
+                        {
+                            "pagina": indice + 1,
+                            "confianza": int(round(float(lectura.get("confianza") or 0))),
+                            "modo": lectura.get("modo") or "OCR",
+                            "caracteres": int(lectura.get("caracteres") or 0),
+                        }
+                    )
             finally:
                 documento.close()
+
+    if diagnostico_ocr["paginas"]:
+        diagnostico_ocr["confianza_media"] = int(
+            round(sum(item["confianza"] for item in diagnostico_ocr["paginas"]) / len(diagnostico_ocr["paginas"]))
+        )
 
     tiene_texto_nativo = any(texto.strip() for texto in textos) and paginas_ocr < total_paginas
     if paginas_ocr == 0:
@@ -448,7 +496,7 @@ def _extraer_texto_pdf(ruta, max_paginas=200, ocr_habilitado=True, ocr_idioma="s
     else:
         metodo = "OCR"
 
-    return "\n\n".join(textos), total_paginas, paginas_ocr, metodo
+    return "\n\n".join(textos), total_paginas, paginas_ocr, metodo, diagnostico_ocr
 
 
 def analizar_pdf_temporal(
@@ -461,13 +509,21 @@ def analizar_pdf_temporal(
     ocr_habilitado=True,
     ocr_idioma="spa",
     limpieza_minutos=30,
+    tesseract_cmd=None,
+    ocr_segunda_pasada=True,
+    ia_habilitada=True,
+    ollama_url="http://127.0.0.1:11434",
+    ollama_model="qwen3:1.7b",
+    ollama_timeout=90,
+    ia_max_chars=24000,
 ):
-    """Procesa un PDF y lo elimina antes de devolver sus metadatos.
+    """Procesa un PDF, usa OCR/IA local y lo elimina antes de devolver metadatos.
 
-    El archivo se coloca preferentemente en /dev/shm (RAM) cuando existe. El
-    texto completo solo vive en memoria durante esta función y nunca se
-    devuelve ni se persiste.
+    El archivo se coloca preferentemente en /dev/shm. El PDF, las imágenes y
+    el texto OCR completo se destruyen antes de retornar. Ollama recibe texto
+    únicamente por loopback y SICODE solo persiste metadatos de lista blanca.
     """
+    inicio_total = time.perf_counter()
     tipo_objetivo = str(tipo_objetivo or "AUTO").upper()
     if tipo_objetivo not in TIPOS_REGISTRO_ADMITIDOS:
         tipo_objetivo = "AUTO"
@@ -494,13 +550,16 @@ def analizar_pdf_temporal(
             if lector.read(5) != b"%PDF-":
                 raise DocumentoInvalido("El archivo seleccionado no tiene una cabecera PDF válida.")
 
-        texto, paginas_pdf, paginas_ocr, metodo = _extraer_texto_pdf(
+        texto, paginas_pdf, paginas_ocr, metodo, diagnostico_ocr = _extraer_texto_pdf(
             ruta,
             max_paginas=max_paginas,
             ocr_habilitado=ocr_habilitado,
             ocr_idioma=ocr_idioma,
+            tesseract_cmd=tesseract_cmd,
+            ocr_segunda_pasada=ocr_segunda_pasada,
         )
-        datos, confianzas, advertencias = extraer_metadatos(
+
+        datos_reglas, confianzas_reglas, advertencias = extraer_metadatos(
             texto,
             paginas_pdf=paginas_pdf,
             tipo_objetivo=tipo_objetivo,
@@ -508,13 +567,97 @@ def analizar_pdf_temporal(
         if not texto.strip():
             advertencias.append("No se obtuvo texto legible del PDF; complete los campos manualmente.")
 
+        resultado_ia = None
+        ia_diagnostico = {
+            "habilitada": bool(ia_habilitada),
+            "utilizada": False,
+            "modelo": str(ollama_model)[:80] if ia_habilitada else None,
+            "estado": "omitida" if not ia_habilitada else "pendiente",
+            "duracion_ms": None,
+        }
+        if ia_habilitada and texto.strip():
+            try:
+                resultado_ia = consultar_ia_local(
+                    texto,
+                    datos_reglas,
+                    tipo_objetivo=tipo_objetivo,
+                    tipos_anexo=TIPOS_ANEXO,
+                    tipos_evento=TIPOS_EVENTO,
+                    base_url=ollama_url,
+                    modelo=ollama_model,
+                    timeout=ollama_timeout,
+                    max_chars=ia_max_chars,
+                )
+                ia_diagnostico.update(
+                    utilizada=True,
+                    estado="completada",
+                    modelo=resultado_ia.get("modelo"),
+                    duracion_ms=resultado_ia.get("duracion_ms"),
+                )
+            except IAAnalisisNoDisponible:
+                ia_diagnostico["estado"] = "no_disponible"
+                advertencias.append(
+                    "La IA local no estuvo disponible en este análisis; la propuesta se generó con OCR y reglas determinísticas."
+                )
+
+        datos, confianzas, fuentes, explicaciones, discrepancias_ia = fusionar_reglas_e_ia(
+            datos_reglas,
+            confianzas_reglas,
+            resultado_ia,
+        )
+        advertencias.extend(discrepancias_ia)
+        calidad = calcular_calidad_global(datos, confianzas)
+        duracion_total = int((time.perf_counter() - inicio_total) * 1000)
+
+        if paginas_ocr:
+            detalle_ocr = f"{paginas_ocr} de {paginas_pdf} página(s) procesadas con OCR local"
+            if diagnostico_ocr.get("confianza_media") is not None:
+                detalle_ocr += f" · confianza OCR media {diagnostico_ocr['confianza_media']}%"
+            estado_ocr = "completada"
+        elif diagnostico_ocr.get("necesario") and not diagnostico_ocr.get("disponible"):
+            detalle_ocr = "Tesseract no estuvo disponible; se conservó el texto nativo existente"
+            estado_ocr = "advertencia"
+        else:
+            detalle_ocr = "El PDF aportó texto nativo suficiente; no fue necesario OCR"
+            estado_ocr = "omitida"
+
+        if ia_diagnostico["estado"] == "completada":
+            detalle_ia = f"IA local {ia_diagnostico.get('modelo') or ''} interpretó el OCR sin conexión externa"
+            estado_ia = "completada"
+        elif ia_diagnostico["estado"] == "no_disponible":
+            detalle_ia = "Ollama no respondió; el flujo continuó sin bloquearse"
+            estado_ia = "advertencia"
+        else:
+            detalle_ia = "IA documental deshabilitada por configuración"
+            estado_ia = "omitida"
+
+        diagnostico = {
+            "etapas": [
+                {"clave": "pdf", "nombre": "PDF temporal", "estado": "completada", "detalle": f"{paginas_pdf} página(s) recibidas; archivo descartado al terminar"},
+                {"clave": "ocr", "nombre": "Lectura y OCR", "estado": estado_ocr, "detalle": detalle_ocr},
+                {"clave": "reglas", "nombre": "Reglas documentales", "estado": "completada", "detalle": "Se aplicaron patrones de SP, RC, providencia, anexos, fechas y foliación"},
+                {"clave": "ia", "nombre": "IA local", "estado": estado_ia, "detalle": detalle_ia},
+            ],
+            "ocr": diagnostico_ocr,
+            "ia": ia_diagnostico,
+            "duracion_total_ms": duracion_total,
+            "privacidad": "PDF, imágenes y texto OCR completo no persistidos",
+        }
+
         return {
             "datos": datos,
             "confianzas": confianzas,
-            "advertencias": advertencias,
+            "fuentes_campos": fuentes,
+            "explicaciones_campos": explicaciones,
+            "calidad_global": calidad,
+            "advertencias": list(dict.fromkeys(advertencias)),
             "paginas_pdf": paginas_pdf,
             "paginas_ocr": paginas_ocr,
             "metodo_extraccion": metodo,
+            "pipeline_diagnostico": diagnostico,
+            "ia_utilizada": bool(ia_diagnostico.get("utilizada")),
+            "ia_modelo": ia_diagnostico.get("modelo") if ia_diagnostico.get("utilizada") else None,
+            "duracion_ms": duracion_total,
         }
     finally:
         try:
