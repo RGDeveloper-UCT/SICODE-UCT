@@ -6,9 +6,9 @@
 <section class="panel panel-ancho analisis-documental">
     <div class="encabezado-modulo analisis-documental__encabezado">
         <div>
-            <span class="analisis-documental__eyebrow">SICODE · CAPTURA ASISTIDA</span>
+            <span class="analisis-documental__eyebrow">SICODE · DOCUMENT INTELLIGENCE</span>
             <h1>Análisis documental asistido</h1>
-            <p>Extraiga metadatos administrativos de un PDF y revíselos antes de crear el registro operativo.</p>
+            <p>OCR mejorado, reglas documentales, IA local y conciliación con SICODE para proponer metadatos antes de crear un registro.</p>
         </div>
         <a class="boton-cancelar" href="{{ url_for('coordinacion.inicio') }}">Volver a Coordinación</a>
     </div>
@@ -16,10 +16,34 @@
     <div class="analisis-documental__seguridad" role="note">
         <div class="analisis-documental__seguridad-icono" aria-hidden="true">✓</div>
         <div>
-            <strong>Procesamiento temporal.</strong>
-            <p>El PDF se utiliza únicamente durante el análisis. SICODE no conserva el archivo, sus imágenes ni el texto OCR completo; solo mantiene la propuesta de metadatos y la trazabilidad de la operación.</p>
+            <strong>Procesamiento temporal y local.</strong>
+            <p>El PDF, las imágenes de páginas y el texto OCR completo no se conservan. {% if ia_habilitada %}La IA usa Ollama en el propio servidor institucional ({{ ia_modelo }}).{% else %}La IA documental está deshabilitada y se utilizarán OCR + reglas.{% endif %}</p>
         </div>
     </div>
+
+    <section class="analisis-documental__arquitectura" aria-labelledby="titulo-como-trabaja">
+        <div class="analisis-documental__titulo-bloque">
+            <div>
+                <span class="analisis-documental__eyebrow">CÓMO TRABAJA</span>
+                <h2 id="titulo-como-trabaja">Un análisis híbrido, no una decisión automática</h2>
+                <p>Cada etapa aporta evidencia. Si dos motores difieren, SICODE reduce la confianza y obliga a revisar.</p>
+            </div>
+            <span class="analisis-documental__badge-local">100% local</span>
+        </div>
+        <div class="analisis-documental__flujo" aria-label="Flujo de procesamiento">
+            <div class="analisis-documental__nodo"><span>01</span><strong>PDF</strong><small>Temporal</small></div>
+            <i aria-hidden="true">→</i>
+            <div class="analisis-documental__nodo"><span>02</span><strong>OCR</strong><small>2 pasadas</small></div>
+            <i aria-hidden="true">→</i>
+            <div class="analisis-documental__nodo"><span>03</span><strong>Reglas</strong><small>Patrones UCT</small></div>
+            <i aria-hidden="true">→</i>
+            <div class="analisis-documental__nodo {% if ia_habilitada %}es-activo{% endif %}"><span>04</span><strong>IA local</strong><small>{% if ia_habilitada %}Ollama{% else %}Desactivada{% endif %}</small></div>
+            <i aria-hidden="true">→</i>
+            <div class="analisis-documental__nodo"><span>05</span><strong>SICODE</strong><small>Conciliación</small></div>
+            <i aria-hidden="true">→</i>
+            <div class="analisis-documental__nodo es-humano"><span>06</span><strong>Usuario</strong><small>Confirma</small></div>
+        </div>
+    </section>
 
     <div class="analisis-documental__layout">
         <section class="analisis-documental__carga">
@@ -53,10 +77,10 @@
                 </label>
 
                 <div class="analisis-documental__reglas">
-                    <div><strong>1.</strong><span>Se lee texto nativo cuando existe.</span></div>
-                    <div><strong>2.</strong><span>Las páginas escaneadas pasan por OCR local.</span></div>
-                    <div><strong>3.</strong><span>Se extraen únicamente campos administrativos autorizados.</span></div>
-                    <div><strong>4.</strong><span>Usted corrige y confirma antes de guardar.</span></div>
+                    <div><strong>1.</strong><span>Texto nativo cuando existe.</span></div>
+                    <div><strong>2.</strong><span>OCR local con mejora de imagen y doble lectura cuando hace falta.</span></div>
+                    <div><strong>3.</strong><span>Reglas + IA local interpretan únicamente campos administrativos.</span></div>
+                    <div><strong>4.</strong><span>SICODE compara coincidencias y calcula confianza por campo.</span></div>
                 </div>
 
                 <button class="boton analisis-documental__boton" type="submit">Analizar PDF</button>
@@ -70,23 +94,28 @@
                 <span>Folios</span><span>No. anexo</span><span>Título</span><span>Tipo de anexo</span>
                 <span>Boleta</span><span>Total</span><span>No. reporte</span><span>Evento</span>
             </div>
-            <div class="aviso analisis-documental__criterio">
-                <strong>Control de foliación:</strong> el número de páginas del PDF se muestra como referencia, pero nunca se convierte automáticamente en total de folios si el documento no aporta evidencia de foliación.
+            <div class="analisis-documental__leyenda-confianza">
+                <div><span class="semaforo es-alta"></span><strong>90–100%</strong><small>Confianza alta</small></div>
+                <div><span class="semaforo es-media"></span><strong>70–89%</strong><small>Revisar</small></div>
+                <div><span class="semaforo es-baja"></span><strong>0–69%</strong><small>Revisión necesaria</small></div>
             </div>
             <div class="aviso analisis-documental__criterio">
-                <strong>Rectificación maestra:</strong> cualquier diferencia con los folios o anexos rectificados se mostrará como discrepancia. El análisis no cambia esos valores por sí solo.
+                <strong>La IA no decide:</strong> Ollama solo propone. Un valor con baja confianza queda marcado y ningún registro real se crea hasta la confirmación humana.
+            </div>
+            <div class="aviso analisis-documental__criterio">
+                <strong>Control de foliación:</strong> el número de páginas del PDF nunca se convierte automáticamente en total de folios sin evidencia documental.
             </div>
         </aside>
     </div>
 
     <section class="analisis-documental__historial">
         <div class="analisis-documental__titulo-bloque">
-            <div><h2>Análisis recientes</h2><p>Solo se conserva la propuesta de metadatos, nunca el PDF analizado.</p></div>
+            <div><h2>Análisis recientes</h2><p>Se conserva la propuesta, su calidad y la trazabilidad; nunca el PDF analizado.</p></div>
         </div>
         <div class="tabla-contenedor">
             <table>
                 <thead>
-                    <tr><th>Fecha</th><th>No.</th><th>Usuario</th><th>Tipo</th><th>SP</th><th>Páginas</th><th>Método</th><th>Estado</th><th></th></tr>
+                    <tr><th>Fecha</th><th>No.</th><th>Usuario</th><th>Tipo</th><th>SP</th><th>Calidad</th><th>Método</th><th>IA</th><th>Estado</th><th></th></tr>
                 </thead>
                 <tbody>
                     {% for item in recientes %}
@@ -96,13 +125,18 @@
                         <td>{{ item.usuario.nombre }}</td>
                         <td>{{ item.tipo_detectado|replace('_', ' ') }}</td>
                         <td>{{ (item.datos_confirmados or item.datos_detectados or {}).get('no_sp') or '—' }}</td>
-                        <td>{{ item.paginas_pdf }}</td>
+                        <td>
+                            {% if item.calidad_global is not none %}
+                            <span class="analisis-documental__calidad-mini {% if item.calidad_global >= 90 %}es-alta{% elif item.calidad_global >= 70 %}es-media{% else %}es-baja{% endif %}">{{ item.calidad_global }}%</span>
+                            {% else %}—{% endif %}
+                        </td>
                         <td>{{ item.metodo_extraccion }}</td>
+                        <td>{% if item.ia_utilizada %}<span class="analisis-documental__ia-pill">IA local</span>{% else %}<span class="analisis-documental__ia-pill es-off">No</span>{% endif %}</td>
                         <td><span class="analisis-documental__estado-pill analisis-documental__estado-pill--{{ item.estado|lower }}">{{ item.estado|replace('_', ' ') }}</span></td>
                         <td>{% if item.estado == 'PENDIENTE_VALIDACION' %}<a href="{{ url_for('analisis_documental.resultado', analisis_id=item.id) }}">Revisar</a>{% elif item.registro_id %}<a href="{{ url_for('coordinacion.detalle', registro_id=item.registro_id) }}">Ver registro</a>{% else %}<a href="{{ url_for('analisis_documental.resultado', analisis_id=item.id) }}">Ver</a>{% endif %}</td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="9">Todavía no se han realizado análisis documentales.</td></tr>
+                    <tr><td colspan="10">Todavía no se han realizado análisis documentales.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -110,12 +144,25 @@
     </section>
 </section>
 
-<div class="analisis-documental__procesando" data-analisis-loader hidden aria-live="assertive" aria-busy="true">
+<div class="analisis-documental__procesando" data-analisis-loader data-ia-enabled="{{ '1' if ia_habilitada else '0' }}" hidden aria-live="assertive" aria-busy="true">
     <div class="analisis-documental__procesando-card">
-        <div class="analisis-documental__spinner" aria-hidden="true"></div>
-        <strong>Analizando documento</strong>
-        <p>Extrayendo texto, ejecutando OCR cuando sea necesario y comparando metadatos con SICODE.</p>
-        <small>No cierre esta pestaña durante el procesamiento.</small>
+        <div class="analisis-documental__loader-cabecera">
+            <div class="analisis-documental__spinner" aria-hidden="true"></div>
+            <div>
+                <span class="analisis-documental__eyebrow">SICODE · ANALIZANDO</span>
+                <strong>Procesando documento</strong>
+            </div>
+        </div>
+        <div class="analisis-documental__loader-progreso" aria-hidden="true"><span data-loader-progress></span></div>
+        <ol class="analisis-documental__loader-etapas">
+            <li data-loader-step="pdf"><span>1</span><div><strong>Recibiendo PDF</strong><small>Preparación temporal</small></div></li>
+            <li data-loader-step="ocr"><span>2</span><div><strong>Mejorando lectura</strong><small>Texto nativo + OCR</small></div></li>
+            <li data-loader-step="reglas"><span>3</span><div><strong>Aplicando reglas</strong><small>Patrones administrativos UCT</small></div></li>
+            <li data-loader-step="ia"><span>4</span><div><strong>Interpretando con IA local</strong><small>{% if ia_habilitada %}Ollama {{ ia_modelo }}{% else %}Etapa deshabilitada{% endif %}</small></div></li>
+            <li data-loader-step="sicode"><span>5</span><div><strong>Comparando con SICODE</strong><small>Coincidencias y discrepancias</small></div></li>
+        </ol>
+        <p class="analisis-documental__loader-mensaje" data-loader-message>Preparando análisis…</p>
+        <small>El progreso es una guía visual de las etapas. Los resultados reales se muestran al finalizar. No cierre esta pestaña.</small>
     </div>
 </div>
 {% endblock %}

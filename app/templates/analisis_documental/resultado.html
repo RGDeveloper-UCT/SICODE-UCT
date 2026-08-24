@@ -4,17 +4,33 @@
 
 {% macro confianza(campo) -%}
 {% set valor = (analisis.confianzas or {}).get(campo, 0) %}
+{% set pct = (valor * 100)|round|int if valor else 0 %}
 {% if valor %}
-<span class="analisis-documental__confianza {% if valor >= 0.9 %}es-alta{% elif valor >= 0.7 %}es-media{% else %}es-baja{% endif %}">{{ (valor * 100)|round|int }}%</span>
+<span class="analisis-documental__confianza {% if valor >= 0.9 %}es-alta{% elif valor >= 0.7 %}es-media{% else %}es-baja{% endif %}">{{ pct }}%</span>
 {% else %}
 <span class="analisis-documental__confianza es-baja">revisar</span>
 {% endif %}
+{%- endmacro %}
+
+{% macro meta_campo(campo) -%}
+{% set valor = (analisis.confianzas or {}).get(campo, 0) %}
+{% set pct = (valor * 100)|round|int if valor else 0 %}
+{% set fuentes = (analisis.fuentes_campos or {}).get(campo, []) %}
+{% set explicacion = (analisis.explicaciones_campos or {}).get(campo) %}
+<div class="analisis-documental__campo-meta">
+    <div class="analisis-documental__barra-confianza {% if pct >= 90 %}es-alta{% elif pct >= 70 %}es-media{% else %}es-baja{% endif %}" aria-label="Confianza {{ pct }} por ciento">
+        <span data-confidence-bar data-confidence="{{ pct }}"></span>
+    </div>
+    {% if fuentes %}<div class="analisis-documental__fuentes">{% for fuente in fuentes %}<span>{{ fuente }}</span>{% endfor %}</div>{% endif %}
+    {% if explicacion %}<small>{{ explicacion }}</small>{% endif %}
+</div>
 {%- endmacro %}
 
 {% macro campo_texto(nombre, etiqueta, valor='', tipo='text', extra='') -%}
 <div class="campo analisis-documental__campo">
     <label for="{{ nombre }}">{{ etiqueta }} {% if nombre in (analisis.confianzas or {}) %}{{ confianza(nombre) }}{% endif %}</label>
     <input id="{{ nombre }}" name="{{ nombre }}" type="{{ tipo }}" value="{{ valor or '' }}" {{ extra|safe }}>
+    {% if nombre in (analisis.confianzas or {}) %}{{ meta_campo(nombre) }}{% endif %}
 </div>
 {%- endmacro %}
 
@@ -23,23 +39,73 @@
     <div class="encabezado-modulo analisis-documental__encabezado">
         <div>
             <span class="analisis-documental__eyebrow">ANÁLISIS #{{ analisis.id }} · {{ analisis.estado|replace('_', ' ') }}</span>
-            <h1>Revise los datos detectados</h1>
-            <p>El PDF ya fue eliminado. Esta pantalla contiene únicamente la propuesta de metadatos para validación humana.</p>
+            <h1>Revise la propuesta inteligente</h1>
+            <p>El PDF ya fue eliminado. Aquí se muestran únicamente metadatos, porcentajes, fuentes de confianza y el diagnóstico técnico del proceso.</p>
         </div>
         <a class="boton-cancelar" href="{{ url_for('analisis_documental.inicio') }}">Volver</a>
     </div>
 
-    <div class="analisis-documental__resumen">
-        <div><span>Páginas PDF</span><strong>{{ analisis.paginas_pdf }}</strong></div>
-        <div><span>Páginas con OCR</span><strong>{{ analisis.paginas_ocr }}</strong></div>
-        <div><span>Método</span><strong>{{ analisis.metodo_extraccion }}</strong></div>
-        <div><span>Tipo propuesto</span><strong>{{ analisis.tipo_detectado|replace('_', ' ') }}</strong></div>
+    <div class="analisis-documental__diagnostico-hero">
+        <div class="analisis-documental__calidad-card">
+            {% set calidad = analisis.calidad_global or 0 %}
+            <div class="analisis-documental__calidad-ring {% if calidad >= 90 %}es-alta{% elif calidad >= 70 %}es-media{% else %}es-baja{% endif %}" style="--calidad: {{ calidad }};" data-quality-ring>
+                <div><strong>{{ calidad }}%</strong><span>calidad global</span></div>
+            </div>
+            <div>
+                <span class="analisis-documental__eyebrow">CONFIANZA COMBINADA</span>
+                <h2>{{ analisis.calidad_etiqueta }}</h2>
+                <p>Indicador calculado con OCR, reglas, IA local y coincidencias en SICODE. No sustituye la revisión humana.</p>
+            </div>
+        </div>
+
+        <div class="analisis-documental__resumen">
+            <div><span>Páginas PDF</span><strong>{{ analisis.paginas_pdf }}</strong></div>
+            <div><span>Páginas con OCR</span><strong>{{ analisis.paginas_ocr }}</strong></div>
+            <div><span>Método base</span><strong>{{ analisis.metodo_extraccion }}</strong></div>
+            <div><span>IA local</span><strong>{% if analisis.ia_utilizada %}Sí · {{ analisis.ia_modelo }}{% else %}No utilizada{% endif %}</strong></div>
+            <div><span>Tiempo total</span><strong>{% if analisis.duracion_ms is not none %}{{ '%.1f'|format(analisis.duracion_ms / 1000) }} s{% else %}—{% endif %}</strong></div>
+            <div><span>Tipo propuesto</span><strong>{{ analisis.tipo_detectado|replace('_', ' ') }}</strong></div>
+        </div>
     </div>
+
+    {% if mostrar_diagnostico and analisis.pipeline_diagnostico %}
+    <section class="analisis-documental__pipeline-real" aria-labelledby="titulo-pipeline-real">
+        <div class="analisis-documental__titulo-bloque">
+            <div>
+                <span class="analisis-documental__eyebrow">TRAZABILIDAD DEL ANÁLISIS</span>
+                <h2 id="titulo-pipeline-real">Cómo se obtuvo esta propuesta</h2>
+                <p>Estas son las etapas realmente ejecutadas en este análisis.</p>
+            </div>
+            <span class="analisis-documental__badge-local">Sin guardar el PDF</span>
+        </div>
+        <div class="analisis-documental__timeline">
+            {% for etapa in (analisis.pipeline_diagnostico or {}).get('etapas', []) %}
+            <article class="analisis-documental__timeline-item estado-{{ etapa.estado|default('completada') }}">
+                <div class="analisis-documental__timeline-icono">
+                    {% if etapa.estado == 'completada' %}✓{% elif etapa.estado == 'advertencia' %}!{% elif etapa.estado == 'pendiente' %}…{% else %}○{% endif %}
+                </div>
+                <div>
+                    <strong>{{ etapa.nombre }}</strong>
+                    <p>{{ etapa.detalle }}</p>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% set ocr_diag = (analisis.pipeline_diagnostico or {}).get('ocr', {}) %}
+        {% set ia_diag = (analisis.pipeline_diagnostico or {}).get('ia', {}) %}
+        <div class="analisis-documental__metricas-tecnicas">
+            <div><span>Confianza OCR media</span><strong>{{ (ocr_diag.get('confianza_media') ~ '%') if ocr_diag.get('confianza_media') is not none else 'No aplica' }}</strong></div>
+            <div><span>Segunda pasada OCR</span><strong>{{ 'Activada' if ocr_diag.get('segunda_pasada') else 'No' }}</strong></div>
+            <div><span>Estado IA</span><strong>{{ ia_diag.get('estado', 'no disponible')|replace('_', ' ')|title }}</strong></div>
+            <div><span>Privacidad</span><strong>Texto completo no persistido</strong></div>
+        </div>
+    </section>
+    {% endif %}
 
     {% if analisis.discrepancias %}
     <section class="analisis-documental__discrepancias" aria-labelledby="titulo-discrepancias">
         <h2 id="titulo-discrepancias">Revisión requerida</h2>
-        <p>Estas observaciones no bloquean el análisis, pero deben comprobarse contra el documento físico o la información oficial antes de guardar.</p>
+        <p>Las observaciones siguientes reducen la certeza del resultado. Compruébelas contra el documento físico o la información oficial.</p>
         <ul>
             {% for mensaje in analisis.discrepancias %}<li>{{ mensaje }}</li>{% endfor %}
         </ul>
@@ -66,7 +132,7 @@
 
         <section class="analisis-documental__seccion">
             <div class="analisis-documental__titulo-bloque">
-                <div><h2>Datos comunes</h2><p>Corrija cualquier lectura dudosa antes de confirmar.</p></div>
+                <div><h2>Datos comunes</h2><p>Cada barra indica la confianza de la propuesta y las etiquetas muestran qué motores aportaron evidencia.</p></div>
                 <span class="analisis-documental__paso">Paso 2 de 2</span>
             </div>
             <div class="grid-form">
@@ -75,6 +141,7 @@
                     <select id="tipo_registro" name="tipo_registro" data-tipo-registro required>
                         {% for tipo in tipos_confirmables %}<option value="{{ tipo }}" {% if (datos.tipo_registro or analisis.tipo_detectado) == tipo %}selected{% endif %}>{{ tipo|replace('_', ' ')|title }}</option>{% endfor %}
                     </select>
+                    {{ meta_campo('tipo_registro') }}
                 </div>
                 {{ campo_texto('no_sp', 'No. de SP', datos.no_sp, 'text', 'required maxlength="50"') }}
                 {{ campo_texto('fecha_recepcion', 'Fecha recibida', datos.fecha_recepcion, 'date') }}
@@ -93,6 +160,7 @@
                 <div class="campo analisis-documental__campo">
                     <label for="tipo_anexo">Tipo de anexo {{ confianza('tipo_anexo') }}</label>
                     <input id="tipo_anexo" name="tipo_anexo" list="tipos-anexo-analisis" value="{{ datos.tipo_anexo or '' }}" maxlength="120">
+                    {{ meta_campo('tipo_anexo') }}
                 </div>
                 {{ campo_texto('folio_inicio', 'Folio inicial', datos.folio_inicio, 'number', 'min="1"') }}
                 {{ campo_texto('folio_fin', 'Folio final', datos.folio_fin, 'number', 'min="1"') }}
@@ -126,11 +194,13 @@
                     <select id="tipo_documento" name="tipo_documento">
                         {% for tipo in ['PROVIDENCIA','OFICIO','INFORME'] %}<option value="{{ tipo }}" {% if (datos.tipo_documento or 'PROVIDENCIA') == tipo %}selected{% endif %}>{{ tipo }}</option>{% endfor %}
                     </select>
+                    {{ meta_campo('tipo_documento') }}
                 </div>
                 {{ campo_texto('numero_reporte', 'Reporte No.', datos.numero_reporte, 'text', 'maxlength="120"') }}
                 <div class="campo analisis-documental__campo">
                     <label for="tipo_evento">Tipo de evento {{ confianza('tipo_evento') }}</label>
                     <input id="tipo_evento" name="tipo_evento" list="eventos-analisis" value="{{ datos.tipo_evento or '' }}" maxlength="180">
+                    {{ meta_campo('tipo_evento') }}
                 </div>
             </div>
             <datalist id="eventos-analisis">{% for evento in tipos_evento %}<option value="{{ evento }}">{% endfor %}</datalist>
@@ -145,7 +215,7 @@
 
         {% if analisis.estado == 'PENDIENTE_VALIDACION' %}
         <div class="analisis-documental__confirmacion">
-            <div><strong>La confirmación crea un registro real en Coordinación.</strong><p>Verifique especialmente SP, tipo documental y foliación. La rectificación maestra del expediente nunca se modifica automáticamente.</p></div>
+            <div><strong>La confirmación crea un registro real en Coordinación.</strong><p>Verifique especialmente los campos amarillos o rojos. La IA, el OCR y la conciliación nunca escriben por sí solos.</p></div>
             <button class="boton" type="submit">Confirmar y registrar</button>
         </div>
         {% endif %}
