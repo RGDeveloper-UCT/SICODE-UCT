@@ -83,6 +83,7 @@ class AnexoCoordinacion(db.Model):
         index=True,
     )
     tipo_anexo = db.Column(db.String(120), nullable=True)
+    titulo = db.Column(db.String(180), nullable=True)
     # Legacy compatible: nuevos flujos usan RegistroCoordinacion.folios_recepcion.
     folios = db.Column(db.String(80), nullable=True)
     escaneado = db.Column(db.Boolean, nullable=False, default=False)
