@@ -3,9 +3,11 @@ set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/sicode/app}"
 SERVICE="${SICODE_SERVICE:-sicode.service}"
-NGINX_CONF="/etc/nginx/conf.d/sicode_analysis_timeout.conf"
 SYSTEMD_DIR="/etc/systemd/system/${SERVICE}.d"
 SYSTEMD_CONF="${SYSTEMD_DIR}/analysis-timeout.conf"
+# Archivo creado por una versión anterior del instalador. Puede colisionar con
+# sicode_timeout.conf si ambos declaran proxy_*_timeout en el contexto http.
+LEGACY_NGINX_CONF="/etc/nginx/conf.d/sicode_analysis_timeout.conf"
 STAMP="$(date +%Y%m%d%H%M%S)"
 
 if [[ "${EUID}" -ne 0 ]]; then
@@ -20,17 +22,36 @@ fi
 
 mkdir -p "${SYSTEMD_DIR}"
 install -m 0644 "${APP_DIR}/deploy/systemd/sicode-analysis-timeout.conf" "${SYSTEMD_CONF}"
-install -m 0644 "${APP_DIR}/deploy/nginx/sicode-analysis-timeout.conf" "${NGINX_CONF}"
 
-# Si la configuración del virtual host de SICODE fija timeouts dentro de
-# server/location, esos valores prevalecen sobre los definidos en http. Se
-# localizan únicamente archivos que apuntan al Gunicorn local de SICODE y se
-# actualizan los timeouts existentes, dejando una copia de seguridad.
-mapfile -t SICODE_PROXY_FILES < <(
-  grep -RlE 'proxy_pass[[:space:]]+http://(127\.0\.0\.1|localhost):8000' \
-    /etc/nginx/nginx.conf /etc/nginx/conf.d 2>/dev/null || true
-)
+# No instalamos un segundo bloque global de proxy timeouts. En instalaciones
+# existentes SICODE puede tener /etc/nginx/conf.d/sicode_timeout.conf y Nginx
+# rechaza dos directivas iguales en el mismo contexto. Si quedó el archivo
+# administrado por una versión anterior, lo retiramos conservando backup.
+if [[ -f "${LEGACY_NGINX_CONF}" ]]; then
+  legacy_backup="${LEGACY_NGINX_CONF}.bak-${STAMP}"
+  cp -a "${LEGACY_NGINX_CONF}" "${legacy_backup}"
+  rm -f "${LEGACY_NGINX_CONF}"
+  echo "Se retiró ${LEGACY_NGINX_CONF} para evitar directivas duplicadas (backup: ${legacy_backup})."
+fi
 
+# Detecta exclusivamente configuraciones activas de Nginx (.conf y nginx.conf),
+# nunca copias .bak, que apunten al Gunicorn local de SICODE.
+SICODE_PROXY_FILES=()
+CANDIDATOS=(/etc/nginx/nginx.conf)
+while IFS= read -r archivo; do
+  CANDIDATOS+=("${archivo}")
+done < <(find /etc/nginx/conf.d -maxdepth 1 -type f -name '*.conf' -print 2>/dev/null | sort)
+
+for candidato in "${CANDIDATOS[@]}"; do
+  [[ -f "${candidato}" ]] || continue
+  if grep -qE 'proxy_pass[[:space:]]+http://(127\.0\.0\.1|localhost):8000' "${candidato}"; then
+    SICODE_PROXY_FILES+=("${candidato}")
+  fi
+done
+
+# Los timeouts dentro del server/location de SICODE tienen precedencia sobre un
+# valor global. Solo modificamos directivas que ya existen en el virtual host,
+# dejando una copia de seguridad antes del cambio.
 for proxy_file in "${SICODE_PROXY_FILES[@]:-}"; do
   [[ -f "${proxy_file}" ]] || continue
   backup="${proxy_file}.bak-sicode-analysis-${STAMP}"
@@ -47,17 +68,20 @@ for proxy_file in "${SICODE_PROXY_FILES[@]:-}"; do
 done
 
 if [[ "${#SICODE_PROXY_FILES[@]}" -eq 0 ]]; then
-  echo "Aviso: no se encontró un proxy_pass directo a 127.0.0.1:8000; se mantiene el perfil global de 600 s." >&2
+  echo "Aviso: no se encontró un proxy_pass directo a 127.0.0.1:8000/localhost:8000." >&2
+  echo "No se modificaron timeouts de Nginx; revise el virtual host de SICODE manualmente." >&2
 fi
 
-# Mantiene el límite de subida existente si ya fue configurado. Si no existe,
-# crea uno separado para que PDFs de hasta 40 MB lleguen a Flask.
-if ! nginx -T 2>/dev/null | grep -qE '^[[:space:]]*client_max_body_size[[:space:]]+'; then
+# Mantiene el límite de subida existente si ya fue configurado. Se usa grep
+# directo porque nginx -T no es fiable mientras exista una configuración previa
+# inválida que justamente este script intenta reparar.
+if ! grep -RqsE '^[[:space:]]*client_max_body_size[[:space:]]+' /etc/nginx/nginx.conf /etc/nginx/conf.d 2>/dev/null; then
   cat > /etc/nginx/conf.d/sicode_upload.conf <<'EOF'
 client_max_body_size 50M;
 EOF
 fi
 
+# No reiniciamos nada hasta confirmar que la configuración de Nginx es válida.
 nginx -t
 systemctl daemon-reload
 systemctl restart "${SERVICE}"
