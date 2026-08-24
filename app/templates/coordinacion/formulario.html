@@ -22,7 +22,7 @@
         {% elif tipo in ['instalacion','desinstalacion'] %}
             <h2>Movimiento</h2><div class="grid-form">{{ campo(form.descripcion) }}</div>{{ campo(form.observaciones) }}
         {% elif tipo == 'anexo' %}
-            <h2>Datos del anexo</h2><div class="grid-form">{{ campo(form.tipo_anexo,'tipos-anexo-list') }}{{ campo(form.numero_anexo) }}<div class="campo"><label>{{ form.escaneado(style='width:auto; margin-right:8px;') }} {{ form.escaneado.label.text }}</label></div>{{ campo(form.fecha_escaneado) }}</div>{{ campo(form.observaciones) }}
+            <h2>Datos del anexo</h2><div class="grid-form">{{ campo(form.tipo_anexo,'tipos-anexo-list') }}{{ campo(form.numero_anexo) }}{{ campo(form.titulo,None,'Descripción breve del anexo') }}<div class="campo"><label>{{ form.escaneado(style='width:auto; margin-right:8px;') }} {{ form.escaneado.label.text }}</label></div>{{ campo(form.fecha_escaneado) }}</div>{{ campo(form.observaciones) }}
         {% elif tipo == 'monitoreo' %}
             <h2>Datos del reporte</h2><div class="grid-form">{{ campo(form.tipo_documento,'tipo-documento-list') }}{{ campo(form.numero_reporte) }}{{ campo(form.tipo_evento,'tipos-evento-list') }}</div>{{ campo(form.observaciones) }}
         {% elif tipo == 'documento-emitido' %}
