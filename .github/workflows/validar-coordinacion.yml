@@ -32,6 +32,9 @@ jobs:
       - name: Compilar Python
         run: python -m compileall -q app migrations
 
+      - name: Validar scripts de despliegue
+        run: bash -n scripts/configurar_runtime_analisis_documental.sh
+
       - name: Validar aplicacion, modelos y plantillas
         run: |
           python - <<'PY'
