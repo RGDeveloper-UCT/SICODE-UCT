@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}Préstamos por rango — SICODE-UCT{% endblock %}
+{% block title %}Movimientos por rango — SICODE-UCT{% endblock %}
 {% block body_class %}vista-prestamos vista-prestamos-grupales{% endblock %}
 
 {% block content %}
 <section class="panel panel-ancho">
     <div class="encabezado-modulo">
         <div>
-            <h1>Préstamos de expedientes por rango</h1>
-            <p>Genere una sola constancia para un rango de SP. Cada expediente queda registrado además como préstamo individual para su trazabilidad y devolución.</p>
+            <h1>Préstamos y traslados por rango</h1>
+            <p>Genere una sola constancia para un rango de SP, indicando si el movimiento es físico o virtual. Cada expediente conserva su trazabilidad individual.</p>
         </div>
         <div class="acciones-detalle">
             <a class="boton-secundario" href="{{ url_for('prestamos.listado') }}">Volver a préstamos</a>
@@ -18,12 +18,24 @@
     {% if not current_user.es_visor %}
     <div class="bloque-prestamo-grupal">
         <div class="aviso-prestamo-grupal">
-            <strong>Validación obligatoria del rango</strong>
-            <p>Antes de guardar, SICODE comprueba todos los SP del rango. El grupo no se crea si falta un SP, está inactivo, no tiene expediente físico, tiene folios/anexos pendientes de rectificación o ya posee un préstamo activo.</p>
+            <strong>Modalidad y validación del rango</strong>
+            <p><strong>Físico:</strong> crea préstamos individuales, controla devolución y bloquea cualquier SP que ya tenga préstamo activo.</p>
+            <p><strong>Virtual:</strong> registra la plataforma y enlace usados, crea traslados virtuales individuales y no cambia la disponibilidad física del expediente.</p>
+            <p>En ambas modalidades todos los SP deben existir, estar activos y tener folios/anexos rectificados.</p>
         </div>
 
-        <form method="POST" action="{{ url_for('prestamos_grupales.nuevo_grupal') }}" class="formulario-prestamo-grupal">
+        <form method="POST" action="{{ url_for('prestamos_grupales.nuevo_grupal') }}" class="formulario-prestamo-grupal" id="form-prestamo-grupal">
             {{ form.hidden_tag() }}
+
+            <div class="modalidad-prestamo-grupal">
+                <div class="campo-formulario campo-modalidad">
+                    {{ form.modalidad.label }}
+                    {{ form.modalidad(id='modalidad-grupal') }}
+                    {% for error in form.modalidad.errors %}<small class="error-campo">{{ error }}</small>{% endfor %}
+                    <small id="ayuda-modalidad">Seleccione cómo se entregará o compartirá el rango de expedientes.</small>
+                </div>
+            </div>
+
             <div class="rango-prestamo-grupal">
                 <div class="campo-formulario">
                     {{ form.sp_desde.label }}
@@ -40,23 +52,51 @@
             <div class="datos-prestamo-grupal">
                 <div class="campo-formulario">
                     {{ form.solicitante.label }}
-                    {{ form.solicitante(placeholder='Persona solicitante') }}
+                    {{ form.solicitante(placeholder='Persona solicitante o responsable') }}
                     {% for error in form.solicitante.errors %}<small class="error-campo">{{ error }}</small>{% endfor %}
                 </div>
                 <div class="campo-formulario">
                     {{ form.persona_entrega.label }}
-                    {{ form.persona_entrega(placeholder='Persona que entrega') }}
+                    {{ form.persona_entrega(placeholder='Quien entrega o comparte') }}
                     {% for error in form.persona_entrega.errors %}<small class="error-campo">{{ error }}</small>{% endfor %}
                 </div>
                 <div class="campo-formulario">
                     {{ form.persona_recibe.label }}
-                    {{ form.persona_recibe(placeholder='Persona que recibe') }}
+                    {{ form.persona_recibe(placeholder='Quien recibe o destinatario') }}
                     {% for error in form.persona_recibe.errors %}<small class="error-campo">{{ error }}</small>{% endfor %}
                 </div>
-                <div class="campo-formulario">
+                <div class="campo-formulario" id="bloque-devolucion-grupal">
                     {{ form.fecha_estimada_devolucion.label }}
                     {{ form.fecha_estimada_devolucion() }}
                     {% for error in form.fecha_estimada_devolucion.errors %}<small class="error-campo">{{ error }}</small>{% endfor %}
+                    <small>Solo aplica al préstamo físico.</small>
+                </div>
+            </div>
+
+            <div class="datos-virtuales-grupal" id="datos-virtuales-grupal" hidden>
+                <div class="encabezado-datos-virtuales">
+                    <strong>Datos obligatorios del traslado virtual</strong>
+                    <span>Se aplicarán a todos los SP del rango.</span>
+                </div>
+                <div class="grid-datos-virtuales">
+                    <div class="campo-formulario">
+                        {{ form.plataforma.label }}
+                        {{ form.plataforma(id='plataforma-grupal') }}
+                        {% for error in form.plataforma.errors %}<small class="error-campo">{{ error }}</small>{% endfor %}
+                    </div>
+                    <div class="campo-formulario campo-enlace-virtual">
+                        {{ form.enlace_virtual.label }}
+                        {{ form.enlace_virtual(id='enlace-virtual-grupal', placeholder='https://drive.google.com/...') }}
+                        {% for error in form.enlace_virtual.errors %}<small class="error-campo">{{ error }}</small>{% endfor %}
+                    </div>
+                    <div class="campo-formulario campo-asunto-virtual">
+                        {{ form.asunto_virtual.label }}
+                        {{ form.asunto_virtual(id='asunto-virtual-grupal', placeholder='Motivo del traslado o compartición') }}
+                        {% for error in form.asunto_virtual.errors %}<small class="error-campo">{{ error }}</small>{% endfor %}
+                    </div>
+                </div>
+                <div class="aviso aviso-virtual-grupal">
+                    La constancia virtual registrará plataforma, enlace, fecha, destinatario y cada SP incluido. El traslado virtual no marcará los expedientes como físicamente prestados.
                 </div>
             </div>
 
@@ -74,8 +114,8 @@
 
     <div class="encabezado-subseccion-prestamos">
         <div>
-            <h2>Historial de préstamos grupales</h2>
-            <p>Las devoluciones continúan registrándose individualmente desde el panel maestro de préstamos.</p>
+            <h2>Historial de movimientos grupales</h2>
+            <p>Los préstamos físicos se devuelven individualmente. Los virtuales conservan la plataforma y enlace del traslado.</p>
         </div>
         <span class="badge badge-neutral">{{ grupos|length }} recientes</span>
     </div>
@@ -85,6 +125,7 @@
             <thead>
                 <tr>
                     <th>Control grupal</th>
+                    <th>Modalidad</th>
                     <th>Rango</th>
                     <th>Expedientes</th>
                     <th>Solicitante / receptor</th>
@@ -97,21 +138,32 @@
                 {% for grupo in grupos %}
                 <tr>
                     <td><strong>{{ grupo.numero_control }}</strong></td>
+                    <td>
+                        {% if grupo.es_virtual %}
+                            <span class="badge badge-virtual">Virtual</span>
+                            <br><strong>{{ grupo.plataforma }}</strong>
+                            <br><small>{{ grupo.asunto_virtual }}</small>
+                        {% else %}
+                            <span class="badge badge-neutral">Físico</span>
+                        {% endif %}
+                    </td>
                     <td><strong>SP {{ grupo.sp_desde }} al {{ grupo.sp_hasta }}</strong></td>
                     <td>
-                        <strong>{{ grupo.total_expedientes }}</strong> asociados<br>
-                        <small>{{ grupo.total_pendientes }} aún en préstamo</small>
+                        <strong>{{ grupo.total_expedientes }}</strong> asociados
+                        {% if grupo.es_fisico %}<br><small>{{ grupo.total_pendientes }} aún en préstamo</small>{% endif %}
                     </td>
                     <td>
                         <strong>{{ grupo.solicitante }}</strong><br>
-                        <small>Recibe: {{ grupo.persona_recibe }}</small>
+                        <small>Recibe/destino: {{ grupo.persona_recibe }}</small>
                     </td>
                     <td>
                         {{ grupo.fecha_prestamo.strftime('%d/%m/%Y %H:%M') if grupo.fecha_prestamo else 'Sin fecha' }}
-                        {% if grupo.fecha_estimada_devolucion %}<br><small>Dev. estimada: {{ grupo.fecha_estimada_devolucion.strftime('%d/%m/%Y') }}</small>{% endif %}
+                        {% if grupo.es_fisico and grupo.fecha_estimada_devolucion %}<br><small>Dev. estimada: {{ grupo.fecha_estimada_devolucion.strftime('%d/%m/%Y') }}</small>{% endif %}
                     </td>
                     <td>
-                        {% if grupo.estado == 'Devuelto' %}
+                        {% if grupo.estado == 'Traslado virtual' %}
+                            <span class="badge badge-virtual">Traslado virtual</span>
+                        {% elif grupo.estado == 'Devuelto' %}
                             <span class="badge badge-activo">Devuelto</span>
                         {% elif grupo.estado == 'Parcialmente devuelto' %}
                             <span class="badge badge-advertencia">Parcial</span>
@@ -125,16 +177,22 @@
                             <summary>Ver SP individuales</summary>
                             <div class="lista-sp-grupo">
                                 {% for detalle in grupo.detalles %}
-                                    <a href="{{ url_for('prestamos.detalle', prestamo_id=detalle.prestamo.id) }}">
-                                        SP {{ detalle.expediente.no_sp }} · {{ detalle.prestamo.estado }}
-                                    </a>
+                                    {% if detalle.prestamo %}
+                                        <a href="{{ url_for('prestamos.detalle', prestamo_id=detalle.prestamo.id) }}">
+                                            SP {{ detalle.expediente.no_sp }} · {{ detalle.prestamo.estado }}
+                                        </a>
+                                    {% elif detalle.traslado_virtual %}
+                                        <a href="{{ url_for('prestamos.constancia_virtual_pdf', traslado_id=detalle.traslado_virtual.id) }}">
+                                            SP {{ detalle.expediente.no_sp }} · {{ detalle.traslado_virtual.plataforma }} · constancia individual
+                                        </a>
+                                    {% endif %}
                                 {% endfor %}
                             </div>
                         </details>
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="7">Todavía no existen préstamos grupales registrados.</td></tr>
+                <tr><td colspan="8">Todavía no existen movimientos grupales registrados.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -142,10 +200,36 @@
 </section>
 
 <style>
-.bloque-prestamo-grupal{display:grid;grid-template-columns:minmax(250px,.7fr) minmax(560px,1.8fr);gap:18px;margin:18px 0 28px;align-items:start}
-.aviso-prestamo-grupal{padding:18px;border:1px solid #cbd5e1;border-radius:14px;background:#f8fafc}.aviso-prestamo-grupal strong{display:block;margin-bottom:8px}.aviso-prestamo-grupal p{margin:0;line-height:1.5}
-.formulario-prestamo-grupal{padding:18px;border:1px solid #dbe3ee;border-radius:14px;background:#fff}.rango-prestamo-grupal,.datos-prestamo-grupal{display:grid;gap:14px;margin-bottom:14px}.rango-prestamo-grupal{grid-template-columns:repeat(2,minmax(0,1fr))}.datos-prestamo-grupal{grid-template-columns:repeat(4,minmax(0,1fr))}.campo-formulario{display:flex;flex-direction:column;gap:6px}.campo-formulario input,.campo-formulario textarea{width:100%}.error-campo{color:#b42318}.encabezado-subseccion-prestamos{display:flex;justify-content:space-between;gap:16px;align-items:end;margin:22px 0 12px}.encabezado-subseccion-prestamos h2,.encabezado-subseccion-prestamos p{margin:0}.encabezado-subseccion-prestamos p{margin-top:4px}.detalle-sp-grupo{margin-top:8px}.detalle-sp-grupo summary{cursor:pointer;font-weight:600}.lista-sp-grupo{display:grid;gap:5px;margin-top:7px;max-height:180px;overflow:auto}.lista-sp-grupo a{white-space:nowrap}.tabla-prestamos-grupales{min-width:1180px}
+.bloque-prestamo-grupal{display:grid;grid-template-columns:minmax(270px,.75fr) minmax(580px,1.8fr);gap:18px;margin:18px 0 28px;align-items:start}
+.aviso-prestamo-grupal{padding:18px;border:1px solid #cbd5e1;border-radius:14px;background:#f8fafc}.aviso-prestamo-grupal>strong{display:block;margin-bottom:10px}.aviso-prestamo-grupal p{margin:0 0 10px;line-height:1.5}.aviso-prestamo-grupal p:last-child{margin-bottom:0}
+.formulario-prestamo-grupal{padding:18px;border:1px solid #dbe3ee;border-radius:14px;background:#fff}.modalidad-prestamo-grupal{margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #e2e8f0}.campo-modalidad{max-width:520px}.campo-modalidad select{font-weight:700}.rango-prestamo-grupal,.datos-prestamo-grupal{display:grid;gap:14px;margin-bottom:14px}.rango-prestamo-grupal{grid-template-columns:repeat(2,minmax(0,1fr))}.datos-prestamo-grupal{grid-template-columns:repeat(4,minmax(0,1fr))}.campo-formulario{display:flex;flex-direction:column;gap:6px}.campo-formulario input,.campo-formulario textarea,.campo-formulario select{width:100%}.campo-formulario small{color:#64748b}.error-campo{color:#b42318!important}
+.datos-virtuales-grupal{margin:6px 0 16px;padding:16px;border:1px solid #bfdbfe;border-radius:14px;background:#eff6ff}.datos-virtuales-grupal[hidden]{display:none}.encabezado-datos-virtuales{display:flex;justify-content:space-between;gap:12px;margin-bottom:12px}.encabezado-datos-virtuales span{color:#475569;font-size:.9rem}.grid-datos-virtuales{display:grid;grid-template-columns:minmax(180px,.7fr) minmax(260px,1.3fr);gap:14px}.campo-asunto-virtual{grid-column:1/-1}.aviso-virtual-grupal{margin-top:12px}
+.encabezado-subseccion-prestamos{display:flex;justify-content:space-between;gap:16px;align-items:end;margin:22px 0 12px}.encabezado-subseccion-prestamos h2,.encabezado-subseccion-prestamos p{margin:0}.encabezado-subseccion-prestamos p{margin-top:4px}.detalle-sp-grupo{margin-top:8px}.detalle-sp-grupo summary{cursor:pointer;font-weight:600}.lista-sp-grupo{display:grid;gap:5px;margin-top:7px;max-height:180px;overflow:auto}.lista-sp-grupo a{white-space:nowrap}.tabla-prestamos-grupales{min-width:1280px}
 @media(max-width:1100px){.bloque-prestamo-grupal{grid-template-columns:1fr}.datos-prestamo-grupal{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:700px){.rango-prestamo-grupal,.datos-prestamo-grupal{grid-template-columns:1fr}}
+@media(max-width:700px){.rango-prestamo-grupal,.datos-prestamo-grupal,.grid-datos-virtuales{grid-template-columns:1fr}.campo-asunto-virtual{grid-column:auto}.encabezado-datos-virtuales{display:block}.encabezado-datos-virtuales span{display:block;margin-top:4px}}
 </style>
+
+<script>
+(function(){
+    const modalidad = document.getElementById('modalidad-grupal');
+    const datosVirtuales = document.getElementById('datos-virtuales-grupal');
+    const bloqueDevolucion = document.getElementById('bloque-devolucion-grupal');
+    const plataforma = document.getElementById('plataforma-grupal');
+    const enlace = document.getElementById('enlace-virtual-grupal');
+    const asunto = document.getElementById('asunto-virtual-grupal');
+    if (!modalidad || !datosVirtuales) return;
+
+    function actualizarModalidad(){
+        const virtual = modalidad.value === 'VIRTUAL';
+        datosVirtuales.hidden = !virtual;
+        if (bloqueDevolucion) bloqueDevolucion.hidden = virtual;
+        if (plataforma) plataforma.required = virtual;
+        if (enlace) enlace.required = virtual;
+        if (asunto) asunto.required = virtual;
+    }
+
+    modalidad.addEventListener('change', actualizarModalidad);
+    actualizarModalidad();
+})();
+</script>
 {% endblock %}
