@@ -89,13 +89,13 @@ def create_app():
         auth_bp, dashboard_bp, expedientes_bp, expedientes_admin_bp, expediente_fisico_bp, verificaciones_bp,
         bitacora_bp, indice_documental_bp, alertas_bp, prestamos_bp, admin_bp,
         integridad_bp, busqueda_bp, cuenta_bp, coordinacion_bp, coordinacion_export_bp, portadores_bp, uo_bp,
-        codigos_barras_bp, rectificaciones_bp, soporte_tecnico_bp,
+        codigos_barras_bp, rectificaciones_bp, soporte_tecnico_bp, soporte_tecnico_pdf_bp,
     )
     for blueprint in (
         auth_bp, dashboard_bp, expedientes_bp, expedientes_admin_bp, expediente_fisico_bp, verificaciones_bp,
         bitacora_bp, indice_documental_bp, alertas_bp, prestamos_bp, admin_bp,
         integridad_bp, busqueda_bp, cuenta_bp, coordinacion_bp, coordinacion_export_bp, portadores_bp, uo_bp,
-        codigos_barras_bp, rectificaciones_bp, soporte_tecnico_bp,
+        codigos_barras_bp, rectificaciones_bp, soporte_tecnico_bp, soporte_tecnico_pdf_bp,
     ):
         app.register_blueprint(blueprint)
 
@@ -114,23 +114,15 @@ def create_app():
         if not current_user.is_authenticated or not getattr(current_user, "es_visor", False):
             return None
 
-        # La cuenta debe poder cambiar su propia contraseña temporal, cerrar sesión
-        # y renovar su presencia en UO. El pulso no modifica información operativa.
         if request.endpoint in {"cuenta.cambiar_password", "auth.logout", "static", "uo.pulso"}:
             return None
 
-        # La búsqueda IA usa POST para no exponer la consulta en la URL, pero es
-        # una operación de consulta. Su única escritura es el evento de auditoría.
         if request.endpoint == "busqueda.ia":
             return None
 
-        # Defensa principal: ningún POST/PUT/PATCH/DELETE del sistema puede ser
-        # ejecutado por una cuenta de consulta, aunque intente llamar la URL a mano.
         if request.method not in {"GET", "HEAD", "OPTIONS"}:
             abort(403)
 
-        # También se bloquean por GET los formularios/rutas orientados a crear,
-        # editar, eliminar, importar o exportar información.
         if _endpoint_es_accion_escritura(request.endpoint):
             abort(403)
 
@@ -152,8 +144,6 @@ def create_app():
                 )
                 return redirect(url_for("rectificaciones.rectificar", expediente_id=expediente.id))
 
-        # Mantiene compatibles todos los enlaces existentes: las rutas históricas
-        # de PDF se redirigen a las constancias nuevas, que incluyen la rectificación.
         if request.endpoint == "prestamos.comprobante_pdf":
             prestamo_id = (request.view_args or {}).get("prestamo_id")
             if prestamo_id:
