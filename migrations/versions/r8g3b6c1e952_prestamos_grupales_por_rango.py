@@ -55,15 +55,30 @@ def upgrade():
         sa.UniqueConstraint("prestamo_grupo_id", "expediente_id", name="uq_prestamo_grupo_expediente"),
         sa.UniqueConstraint("prestamo_id"),
     )
-    op.create_index("ix_prestamos_grupos_detalle_grupo", "prestamos_grupos_detalle", ["prestamo_grupo_id"], unique=False)
-    op.create_index("ix_prestamos_grupos_detalle_prestamo", "prestamos_grupos_detalle", ["prestamo_id"], unique=False)
-    op.create_index("ix_prestamos_grupos_detalle_expediente", "prestamos_grupos_detalle", ["expediente_id"], unique=False)
+    op.create_index(
+        "ix_prestamos_grupos_detalle_prestamo_grupo_id",
+        "prestamos_grupos_detalle",
+        ["prestamo_grupo_id"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_prestamos_grupos_detalle_prestamo_id",
+        "prestamos_grupos_detalle",
+        ["prestamo_id"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_prestamos_grupos_detalle_expediente_id",
+        "prestamos_grupos_detalle",
+        ["expediente_id"],
+        unique=False,
+    )
 
 
 def downgrade():
-    op.drop_index("ix_prestamos_grupos_detalle_expediente", table_name="prestamos_grupos_detalle")
-    op.drop_index("ix_prestamos_grupos_detalle_prestamo", table_name="prestamos_grupos_detalle")
-    op.drop_index("ix_prestamos_grupos_detalle_grupo", table_name="prestamos_grupos_detalle")
+    op.drop_index("ix_prestamos_grupos_detalle_expediente_id", table_name="prestamos_grupos_detalle")
+    op.drop_index("ix_prestamos_grupos_detalle_prestamo_id", table_name="prestamos_grupos_detalle")
+    op.drop_index("ix_prestamos_grupos_detalle_prestamo_grupo_id", table_name="prestamos_grupos_detalle")
     op.drop_table("prestamos_grupos_detalle")
     op.drop_index("ix_prestamos_grupos_creado_por_id", table_name="prestamos_grupos")
     op.drop_index("ix_prestamos_grupos_numero_control", table_name="prestamos_grupos")
