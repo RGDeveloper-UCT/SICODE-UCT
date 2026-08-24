@@ -27,6 +27,25 @@
             <div class="sicode-transicion__linea" aria-hidden="true"></div>
         </div>
     </div>
+
+    <div class="ticket-soporte-inicio" data-ticket-soporte-inicio aria-hidden="true" aria-live="polite">
+        <div class="ticket-soporte-inicio__contenido" role="status">
+            <p class="ticket-soporte-inicio__marca">SICODE-UCT · SOPORTE TI</p>
+            <h2 data-ticket-soporte-inicio-titulo>Tiempo de resolución iniciado</h2>
+            <p data-ticket-soporte-inicio-texto>El cronómetro del ticket comenzó a contar.</p>
+            <div class="ticket-soporte-inicio__reloj" data-ticket-soporte-inicio-reloj>00:00:00</div>
+            <div class="ticket-soporte-inicio__linea" aria-hidden="true"></div>
+        </div>
+    </div>
+
+    <a class="ticket-soporte-burbuja" data-ticket-soporte-burbuja href="{{ url_for('soporte_tecnico.nuevo') }}" hidden aria-label="Abrir ticket de soporte técnico activo">
+        <span class="ticket-soporte-burbuja__pulso" aria-hidden="true"></span>
+        <span class="ticket-soporte-burbuja__texto">
+            <strong>Ticket TI activo</strong>
+            <small data-ticket-soporte-burbuja-estado>Tiempo de resolución</small>
+        </span>
+        <span class="ticket-soporte-burbuja__reloj" data-ticket-soporte-burbuja-reloj>00:00:00</span>
+    </a>
     {% endif %}
 
     <header class="topbar">
@@ -63,6 +82,7 @@
     {% if current_user.is_authenticated %}
     <script src="{{ url_for('static', filename='js/presencia.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/transiciones.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/ticket_soporte.js') }}" defer></script>
     {% endif %}
     {% block scripts %}{% endblock %}
 </body>
