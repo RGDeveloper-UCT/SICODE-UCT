@@ -1,0 +1,380 @@
+/* Identidad visual animada para las tarjetas operativas de Coordinación.
+   Se usan SVG + CSS en vez de GIF para mantener bajo el peso de la interfaz. */
+
+.vista-coordinacion-inicio .grid-registros-coordinacion {
+    gap: 12px;
+}
+
+.vista-coordinacion-inicio .tarjeta-registro-coordinacion {
+    --registro-acento: #284d7a;
+    --registro-acento-suave: #edf4fb;
+    position: relative;
+    padding: 13px 14px 12px;
+    overflow: hidden;
+    border-color: #d8e2ef;
+    background: linear-gradient(145deg, #ffffff 0%, #fbfdff 100%);
+}
+
+.vista-coordinacion-inicio .tarjeta-registro-coordinacion::after {
+    content: "";
+    position: absolute;
+    inset: auto -26px -42px auto;
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    background: var(--registro-acento-suave);
+    opacity: .58;
+    pointer-events: none;
+    transition: transform .22s ease, opacity .22s ease;
+}
+
+.vista-coordinacion-inicio .tarjeta-registro-coordinacion:hover::after {
+    transform: scale(1.12);
+    opacity: .88;
+}
+
+.tarjeta-registro-coordinacion--pago {
+    --registro-acento: #176b50;
+    --registro-acento-suave: #e9f7f1;
+}
+
+.tarjeta-registro-coordinacion--instalacion {
+    --registro-acento: #235e94;
+    --registro-acento-suave: #eaf3fb;
+}
+
+.tarjeta-registro-coordinacion--desinstalacion {
+    --registro-acento: #8a4c27;
+    --registro-acento-suave: #fbf1e9;
+}
+
+.tarjeta-registro-coordinacion--anexo {
+    --registro-acento: #69539b;
+    --registro-acento-suave: #f1eef9;
+}
+
+.tarjeta-registro-coordinacion--monitoreo {
+    --registro-acento: #17677b;
+    --registro-acento-suave: #e9f6f8;
+}
+
+.tarjeta-registro-coordinacion--documento_emitido {
+    --registro-acento: #425c88;
+    --registro-acento-suave: #eef2f8;
+}
+
+.tarjeta-registro-coordinacion--actividad {
+    --registro-acento: #2c5d4a;
+    --registro-acento-suave: #eaf5ef;
+}
+
+.tarjeta-registro-coordinacion--remision {
+    --registro-acento: #754d83;
+    --registro-acento-suave: #f4edf7;
+}
+
+.vista-coordinacion-inicio .tarjeta-registro-cabecera {
+    position: relative;
+    z-index: 1;
+    align-items: flex-start;
+}
+
+.tarjeta-registro-identidad {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+}
+
+.registro-animacion {
+    flex: 0 0 60px;
+    width: 60px;
+    height: 60px;
+    display: grid;
+    place-items: center;
+    border-radius: 15px;
+    color: var(--registro-acento);
+    background: var(--registro-acento-suave);
+    border: 1px solid color-mix(in srgb, var(--registro-acento) 18%, transparent);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .8);
+    transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.registro-animacion svg {
+    width: 46px;
+    height: 46px;
+    overflow: visible;
+}
+
+.tarjeta-registro-coordinacion:hover .registro-animacion {
+    transform: translateY(-2px) scale(1.035);
+    box-shadow: 0 7px 16px rgba(23, 35, 60, .10), inset 0 1px 0 rgba(255, 255, 255, .8);
+}
+
+.tarjeta-registro-titulos {
+    min-width: 0;
+}
+
+.vista-coordinacion-inicio .tarjeta-registro-coordinacion h3 {
+    margin: 0;
+    color: #17233c;
+    font-size: 16.5px;
+    line-height: 1.16;
+    font-weight: 850;
+    letter-spacing: -.015em;
+}
+
+.tarjeta-registro-etiqueta {
+    display: inline-block;
+    margin-top: 5px;
+    color: var(--registro-acento);
+    font-size: 9px;
+    line-height: 1;
+    font-weight: 850;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.vista-coordinacion-inicio .contador-tipo-registro {
+    position: relative;
+    z-index: 2;
+    min-width: 31px;
+    height: 25px;
+    padding: 0 8px;
+    background: var(--registro-acento-suave);
+    color: var(--registro-acento);
+    border: 1px solid color-mix(in srgb, var(--registro-acento) 16%, transparent);
+    font-size: 11.5px;
+}
+
+.vista-coordinacion-inicio .tarjeta-registro-coordinacion > p {
+    position: relative;
+    z-index: 1;
+    margin: 10px 0 11px;
+    color: #53657d;
+    font-size: 12.3px;
+    line-height: 1.38;
+}
+
+.acciones-tarjeta-registro {
+    position: relative;
+    z-index: 2;
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.vista-coordinacion-inicio .tarjeta-registro-coordinacion .boton-tarjeta-registro {
+    margin: 0;
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 11px;
+    border-radius: 9px;
+    border: 1px solid transparent;
+    font-size: 12.2px;
+    line-height: 1.1;
+    font-weight: 850;
+    text-decoration: none;
+    transition: transform .14s ease, background .14s ease, border-color .14s ease, box-shadow .14s ease;
+}
+
+.vista-coordinacion-inicio .tarjeta-registro-coordinacion .boton-tarjeta-registro-principal {
+    color: #fff;
+    background: var(--registro-acento);
+    box-shadow: 0 3px 8px color-mix(in srgb, var(--registro-acento) 20%, transparent);
+}
+
+.vista-coordinacion-inicio .tarjeta-registro-coordinacion .boton-tarjeta-registro-secundario {
+    color: var(--registro-acento);
+    background: #fff;
+    border-color: color-mix(in srgb, var(--registro-acento) 22%, #d9e2ee);
+}
+
+.vista-coordinacion-inicio .tarjeta-registro-coordinacion .boton-tarjeta-registro:hover {
+    transform: translateY(-1px);
+}
+
+.vista-coordinacion-inicio .tarjeta-registro-coordinacion .boton-tarjeta-registro-principal:hover {
+    filter: brightness(.95);
+    box-shadow: 0 5px 12px color-mix(in srgb, var(--registro-acento) 26%, transparent);
+}
+
+.vista-coordinacion-inicio .tarjeta-registro-coordinacion .boton-tarjeta-registro-secundario:hover {
+    background: var(--registro-acento-suave);
+}
+
+/* Animaciones particulares por tipo de registro. */
+.registro-animacion--pago .registro-svg-moneda {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: coordMoneda 2.4s ease-in-out infinite;
+}
+
+.registro-animacion--instalacion .registro-svg-cable {
+    animation: coordCable 2.1s ease-in-out infinite;
+}
+
+.registro-animacion--instalacion .registro-svg-pulso {
+    animation: coordCheck 2.1s ease-in-out infinite;
+}
+
+.registro-animacion--desinstalacion .registro-svg-desconexion {
+    animation: coordDesconexion 2s ease-in-out infinite;
+}
+
+.registro-animacion--anexo .registro-svg-clip {
+    animation: coordClip 2.6s ease-in-out infinite;
+}
+
+.registro-animacion--monitoreo .registro-svg-radar-1 {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: coordRadar 2s ease-out infinite;
+}
+
+.registro-animacion--monitoreo .registro-svg-radar-2 {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: coordRadar 2s .55s ease-out infinite;
+}
+
+.registro-animacion--documento_emitido .registro-svg-sello {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: coordSello 2.5s ease-in-out infinite;
+}
+
+.registro-animacion--actividad .registro-svg-engranaje {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: coordEngranaje 5.5s linear infinite;
+}
+
+.registro-animacion--remision .registro-svg-envio {
+    animation: coordEnvio 2.25s ease-in-out infinite;
+}
+
+@keyframes coordMoneda {
+    0%, 100% { transform: translateY(0) rotate(0); }
+    45% { transform: translateY(-4px) rotate(-5deg); }
+    60% { transform: translateY(-4px) rotate(5deg); }
+}
+
+@keyframes coordCable {
+    0%, 100% { transform: translateX(0); opacity: .72; }
+    50% { transform: translateX(3px); opacity: 1; }
+}
+
+@keyframes coordCheck {
+    0%, 25% { opacity: .28; stroke-dasharray: 30; stroke-dashoffset: 30; }
+    55%, 100% { opacity: 1; stroke-dasharray: 30; stroke-dashoffset: 0; }
+}
+
+@keyframes coordDesconexion {
+    0%, 100% { transform: translateX(0); opacity: .72; }
+    55% { transform: translateX(5px); opacity: 1; }
+}
+
+@keyframes coordClip {
+    0%, 100% { transform: translateY(0); }
+    45% { transform: translateY(-3px); }
+}
+
+@keyframes coordRadar {
+    0% { transform: scale(.7); opacity: .8; }
+    80%, 100% { transform: scale(1.13); opacity: .08; }
+}
+
+@keyframes coordSello {
+    0%, 100% { transform: translateY(0) scale(1); }
+    38% { transform: translateY(-4px) scale(1.04); }
+    52% { transform: translateY(1px) scale(.96); }
+}
+
+@keyframes coordEngranaje {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes coordEnvio {
+    0%, 100% { transform: translateX(-2px); opacity: .66; }
+    55% { transform: translateX(5px); opacity: 1; }
+}
+
+/* En monitores medianos, preserva la legibilidad sin aumentar la altura del módulo. */
+@media (max-width: 1600px) {
+    .registro-animacion {
+        flex-basis: 54px;
+        width: 54px;
+        height: 54px;
+        border-radius: 13px;
+    }
+
+    .registro-animacion svg {
+        width: 41px;
+        height: 41px;
+    }
+
+    .vista-coordinacion-inicio .tarjeta-registro-coordinacion h3 {
+        font-size: 15.2px;
+    }
+
+    .vista-coordinacion-inicio .tarjeta-registro-coordinacion > p {
+        font-size: 11.7px;
+    }
+}
+
+@media (max-width: 1180px) {
+    .registro-animacion {
+        flex-basis: 50px;
+        width: 50px;
+        height: 50px;
+    }
+
+    .registro-animacion svg {
+        width: 38px;
+        height: 38px;
+    }
+}
+
+@media (max-width: 760px) {
+    .tarjeta-registro-identidad {
+        gap: 9px;
+    }
+
+    .registro-animacion {
+        flex-basis: 48px;
+        width: 48px;
+        height: 48px;
+    }
+
+    .registro-animacion svg {
+        width: 36px;
+        height: 36px;
+    }
+
+    .vista-coordinacion-inicio .tarjeta-registro-coordinacion h3 {
+        font-size: 16px;
+    }
+
+    .acciones-tarjeta-registro {
+        align-items: stretch;
+    }
+
+    .vista-coordinacion-inicio .tarjeta-registro-coordinacion .boton-tarjeta-registro {
+        flex: 1 1 auto;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .registro-animacion *,
+    .tarjeta-registro-coordinacion,
+    .tarjeta-registro-coordinacion::after,
+    .boton-tarjeta-registro {
+        animation: none !important;
+        transition: none !important;
+    }
+}
