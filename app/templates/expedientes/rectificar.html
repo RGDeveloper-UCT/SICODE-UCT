@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% block title %}Rectificar SP {{ expediente.no_sp }} — SICODE-UCT{% endblock %}
+{% block body_class %}vista-rectificacion{% endblock %}
+
+{% block content %}
+<section class="panel panel-ancho rectificacion-panel">
+    <div class="encabezado-modulo rectificacion-encabezado">
+        <div>
+            <span class="rectificacion-kicker">CONTROL FÍSICO DEL EXPEDIENTE</span>
+            <h1>Rectificar expediente · SP {{ expediente.no_sp }}</h1>
+            <p>{{ expediente.nombre_referencia or 'Sin nombre de referencia' }} · {{ expediente.codigo_interno }}</p>
+        </div>
+        <a class="boton-cancelar" href="{{ url_for('expedientes.listado', q=expediente.no_sp) }}">Volver</a>
+    </div>
+
+    <div class="aviso rectificacion-aviso">
+        <strong>Rectificación obligatoria para préstamos.</strong>
+        Confirme el total físico de folios y anexos. Puede registrar únicamente ambos totales; describir cada anexo es opcional. SICODE no almacena documentos sensibles en este formulario.
+    </div>
+
+    <form method="post" id="form-rectificacion" autocomplete="off">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="rectificacion-resumen">
+            <div class="rectificacion-campo-principal">
+                <label for="folios_rectificados">Total de folios rectificados <span aria-hidden="true">*</span></label>
+                <input id="folios_rectificados" name="folios_rectificados" type="number" min="1" step="1" required value="{{ folios_inicial }}" placeholder="Ej. 286">
+                <small>Conteo físico total confirmado del expediente.</small>
+            </div>
+            <div class="rectificacion-campo-principal">
+                <label for="anexos_rectificados">Total de anexos <span aria-hidden="true">*</span></label>
+                <input id="anexos_rectificados" name="anexos_rectificados" type="number" min="0" max="{{ max_anexos }}" step="1" required value="{{ anexos_inicial }}" placeholder="Ej. 19">
+                <small>Si no existen anexos, registre 0.</small>
+            </div>
+            <div class="rectificacion-estado">
+                <span>Estado documental actual</span>
+                <strong>{{ expediente.estado_fisico_documental }}</strong>
+                {% if expediente.rectificacion_completa %}
+                    <small>Última rectificación: {{ expediente.rectificado_en.strftime('%d/%m/%Y %H:%M') if expediente.rectificado_en else 'Sin fecha' }}</small>
+                {% else %}
+                    <small class="texto-pendiente">Pendiente de rectificar</small>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="rectificacion-anexos-cabecera">
+            <div>
+                <h2>Detalle opcional de anexos</h2>
+                <p>Al indicar el total se crearán bloques plegables. Abra únicamente los anexos que quiera describir. Si describe uno, el <strong>título</strong> será obligatorio.</p>
+            </div>
+            <span id="contador-anexos" class="badge badge-neutral">0 anexos</span>
+        </div>
+
+        <div id="anexos-detalle-container" class="anexos-detalle-container" aria-live="polite"></div>
+
+        <div class="rectificacion-acciones">
+            <button type="submit" class="boton">Guardar rectificación</button>
+            <a class="boton-cancelar" href="{{ url_for('expedientes.listado', q=expediente.no_sp) }}">Cancelar</a>
+        </div>
+    </form>
+</section>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function () {
+    const tipos = {{ tipos_anexo|tojson }};
+    let datosConservados = {{ detalles_iniciales|tojson }};
+    const inputTotal = document.getElementById('anexos_rectificados');
+    const contenedor = document.getElementById('anexos-detalle-container');
+    const contador = document.getElementById('contador-anexos');
+    const maximo = {{ max_anexos }};
+
+    function valorCampo(detalle, clave) {
+        return detalle && detalle[clave] !== undefined && detalle[clave] !== null ? detalle[clave] : '';
+    }
+
+    function recogerActuales() {
+        const actuales = [];
+        contenedor.querySelectorAll('details[data-indice]').forEach((bloque) => {
+            const indice = Number(bloque.dataset.indice);
+            const leer = (sufijo) => {
+                const campo = bloque.querySelector(`[name="anexo_${indice}_${sufijo}"]`);
+                return campo ? campo.value : '';
+            };
+            const escaneado = bloque.querySelector(`[name="anexo_${indice}_escaneado"]`);
+            actuales[indice - 1] = {
+                numero_anexo: leer('numero_anexo'),
+                titulo: leer('titulo'),
+                tipo_anexo: leer('tipo_anexo'),
+                fecha_recepcion: leer('fecha_recepcion'),
+                persona_entrega: leer('persona_entrega'),
+                rc: leer('rc'),
+                providencia: leer('providencia'),
+                folios: leer('folios'),
+                escaneado: Boolean(escaneado && escaneado.checked),
+                fecha_escaneado: leer('fecha_escaneado'),
+                observaciones: leer('observaciones')
+            };
+        });
+        return actuales;
+    }
+
+    function actualizarResumen(bloque, indice) {
+        const titulo = bloque.querySelector(`[name="anexo_${indice}_titulo"]`).value.trim();
+        const tipo = bloque.querySelector(`[name="anexo_${indice}_tipo_anexo"]`).value.trim();
+        const texto = bloque.querySelector('.anexo-resumen-texto');
+        texto.textContent = titulo || tipo ? `${titulo || 'Sin título'}${tipo ? ' · ' + tipo : ''}` : 'Sin descripción';
+    }
+
+    function crearBloque(indice, detalle) {
+        const bloque = document.createElement('details');
+        bloque.className = 'anexo-plegable';
+        bloque.dataset.indice = indice;
+        bloque.innerHTML = `
+            <summary>
+                <span class="anexo-numero">Anexo ${String(indice).padStart(2, '0')}</span>
+                <span class="anexo-resumen-texto">Sin descripción</span>
+                <span class="anexo-opcional">Opcional</span>
+            </summary>
+            <div class="anexo-cuerpo">
+                <div class="anexo-grid">
+                    <div class="campo campo-anexo-titulo">
+                        <label for="anexo_${indice}_titulo">Título del anexo</label>
+                        <input id="anexo_${indice}_titulo" name="anexo_${indice}_titulo" maxlength="180" placeholder="Ej. Resolución de movilización">
+                    </div>
+                    <div class="campo">
+                        <label for="anexo_${indice}_tipo_anexo">Tipo de anexo</label>
+                        <select id="anexo_${indice}_tipo_anexo" name="anexo_${indice}_tipo_anexo">
+                            <option value="">Seleccione</option>
+                        </select>
+                    </div>
+                    <div class="campo">
+                        <label for="anexo_${indice}_numero_anexo">Anexo No.</label>
+                        <input id="anexo_${indice}_numero_anexo" name="anexo_${indice}_numero_anexo" maxlength="50" placeholder="${indice}">
+                    </div>
+                    <div class="campo">
+                        <label for="anexo_${indice}_fecha_recepcion">Fecha recibido</label>
+                        <input id="anexo_${indice}_fecha_recepcion" name="anexo_${indice}_fecha_recepcion" type="date">
+                    </div>
+                    <div class="campo campo-ancho-doble">
+                        <label for="anexo_${indice}_persona_entrega">Quién entrega / remite</label>
+                        <input id="anexo_${indice}_persona_entrega" name="anexo_${indice}_persona_entrega" maxlength="180" placeholder="Persona, unidad o institución">
+                    </div>
+                    <div class="campo">
+                        <label for="anexo_${indice}_rc">RC</label>
+                        <input id="anexo_${indice}_rc" name="anexo_${indice}_rc" maxlength="80" placeholder="Ej. 202624183">
+                    </div>
+                    <div class="campo">
+                        <label for="anexo_${indice}_providencia">Providencia</label>
+                        <input id="anexo_${indice}_providencia" name="anexo_${indice}_providencia" maxlength="120" placeholder="Ej. 5908-2026">
+                    </div>
+                    <div class="campo">
+                        <label for="anexo_${indice}_folios">Folios del anexo</label>
+                        <input id="anexo_${indice}_folios" name="anexo_${indice}_folios" maxlength="80" placeholder="Ej. 145-153 o 9">
+                    </div>
+                    <div class="campo campo-check">
+                        <label>
+                            <input type="checkbox" name="anexo_${indice}_escaneado" value="1">
+                            Escaneado
+                        </label>
+                    </div>
+                    <div class="campo">
+                        <label for="anexo_${indice}_fecha_escaneado">Fecha escaneado</label>
+                        <input id="anexo_${indice}_fecha_escaneado" name="anexo_${indice}_fecha_escaneado" type="date">
+                    </div>
+                    <div class="campo campo-observaciones-anexo">
+                        <label for="anexo_${indice}_observaciones">Observaciones</label>
+                        <textarea id="anexo_${indice}_observaciones" name="anexo_${indice}_observaciones" rows="2" placeholder="Observaciones administrativas del anexo"></textarea>
+                    </div>
+                </div>
+            </div>`;
+
+        const selectorTipo = bloque.querySelector(`[name="anexo_${indice}_tipo_anexo"]`);
+        tipos.forEach((tipo) => {
+            const opcion = document.createElement('option');
+            opcion.value = tipo;
+            opcion.textContent = tipo;
+            selectorTipo.appendChild(opcion);
+        });
+
+        const asignar = (sufijo, clave) => {
+            const campo = bloque.querySelector(`[name="anexo_${indice}_${sufijo}"]`);
+            if (campo) campo.value = valorCampo(detalle, clave);
+        };
+        asignar('titulo', 'titulo');
+        asignar('tipo_anexo', 'tipo_anexo');
+        asignar('numero_anexo', 'numero_anexo');
+        asignar('fecha_recepcion', 'fecha_recepcion');
+        asignar('persona_entrega', 'persona_entrega');
+        asignar('rc', 'rc');
+        asignar('providencia', 'providencia');
+        asignar('folios', 'folios');
+        asignar('fecha_escaneado', 'fecha_escaneado');
+        asignar('observaciones', 'observaciones');
+        bloque.querySelector(`[name="anexo_${indice}_escaneado"]`).checked = Boolean(detalle && detalle.escaneado);
+
+        bloque.querySelectorAll('input, select, textarea').forEach((campo) => {
+            campo.addEventListener('input', () => actualizarResumen(bloque, indice));
+            campo.addEventListener('change', () => actualizarResumen(bloque, indice));
+        });
+        actualizarResumen(bloque, indice);
+        return bloque;
+    }
+
+    function renderizar() {
+        const actuales = recogerActuales();
+        if (actuales.length) datosConservados = actuales;
+        let total = Number.parseInt(inputTotal.value, 10);
+        if (!Number.isFinite(total) || total < 0) total = 0;
+        total = Math.min(total, maximo);
+
+        contenedor.replaceChildren();
+        contador.textContent = `${total} ${total === 1 ? 'anexo' : 'anexos'}`;
+
+        if (total === 0) {
+            const mensaje = document.createElement('div');
+            mensaje.className = 'anexos-vacio';
+            mensaje.textContent = 'No hay anexos para describir. Puede guardar la rectificación con total 0.';
+            contenedor.appendChild(mensaje);
+            return;
+        }
+
+        for (let indice = 1; indice <= total; indice += 1) {
+            contenedor.appendChild(crearBloque(indice, datosConservados[indice - 1] || {}));
+        }
+    }
+
+    inputTotal.addEventListener('input', renderizar);
+    inputTotal.addEventListener('change', renderizar);
+    renderizar();
+})();
+</script>
+{% endblock %}
