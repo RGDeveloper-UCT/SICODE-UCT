@@ -17,8 +17,20 @@ class Config:
     SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "false").lower() in {"1", "true", "yes", "si"}
     PERMANENT_SESSION_LIFETIME = timedelta(hours=int(os.getenv("SESSION_HOURS", "8")))
 
-    # Limita cargas accidentales o maliciosas de archivos. Puede ajustarse por .env.
-    MAX_CONTENT_LENGTH = int(os.getenv("MAX_UPLOAD_MB", "16")) * 1024 * 1024
+    # Límite global de cargas HTTP. El análisis documental aplica además su
+    # propio límite más estricto y elimina el archivo temporal al finalizar.
+    MAX_CONTENT_LENGTH = int(os.getenv("MAX_UPLOAD_MB", "45")) * 1024 * 1024
+
+    # Análisis documental asistido. El PDF nunca forma parte del repositorio de
+    # SICODE: se procesa temporalmente y solo se persisten metadatos validados.
+    DOCUMENT_ANALYSIS_MAX_MB = int(os.getenv("DOCUMENT_ANALYSIS_MAX_MB", "40"))
+    DOCUMENT_ANALYSIS_MAX_PAGES = int(os.getenv("DOCUMENT_ANALYSIS_MAX_PAGES", "200"))
+    DOCUMENT_ANALYSIS_OCR_ENABLED = os.getenv("DOCUMENT_ANALYSIS_OCR_ENABLED", "true").lower() in {
+        "1", "true", "yes", "si"
+    }
+    DOCUMENT_ANALYSIS_OCR_LANGUAGE = os.getenv("DOCUMENT_ANALYSIS_OCR_LANGUAGE", "spa")
+    DOCUMENT_ANALYSIS_TEMP_DIR = os.getenv("DOCUMENT_ANALYSIS_TEMP_DIR") or None
+    DOCUMENT_ANALYSIS_TEMP_TTL_MINUTES = int(os.getenv("DOCUMENT_ANALYSIS_TEMP_TTL_MINUTES", "30"))
 
     # Herramienta PostgreSQL para respaldos. Normalmente se autodetecta; esta
     # variable permite fijar la ruta cuando systemd/Gunicorn usa un PATH reducido.
