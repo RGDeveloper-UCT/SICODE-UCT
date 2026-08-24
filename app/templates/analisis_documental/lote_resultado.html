@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Lote documental {{ analisis.id }} — SICODE-UCT{% endblock %}
+{% block content %}
+<style>
+.lr{max-width:1580px;margin:0 auto;padding:16px}.lr-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;background:linear-gradient(135deg,#071a33,#12365d);color:#fff;border-radius:20px;padding:24px}.lr-head h1{margin:4px 0 6px}.lr-head p{margin:0;color:#cfe0f0}.lr-back{background:#fff;color:#15385e;padding:10px 13px;border-radius:10px;text-decoration:none;font-weight:800}.lr-summary{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:14px 0}.lr-kpi{background:#fff;border:1px solid #dfe7f1;border-radius:14px;padding:14px;box-shadow:0 6px 18px rgba(18,48,78,.05)}.lr-kpi b{display:block;font-size:1.45rem;color:#102c4c}.lr-kpi span{font-size:.72rem;color:#65798d;text-transform:uppercase;letter-spacing:.05em}.lr-pipe{display:flex;gap:7px;overflow:auto;background:#fff;border:1px solid #e0e7ef;border-radius:14px;padding:10px;margin-bottom:16px}.lr-step{min-width:170px;padding:10px;border-radius:10px;background:#f5f8fc}.lr-step strong{display:block;font-size:.8rem}.lr-step small{color:#65778a}.lr-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}.lr-docs{display:grid;gap:14px}.doc{background:#fff;border:1px solid #dce5ef;border-radius:18px;overflow:hidden;box-shadow:0 8px 24px rgba(12,38,66,.06)}.doc.done{opacity:.8}.doc-top{display:grid;grid-template-columns:60px minmax(160px,.7fr) minmax(240px,1.2fr) 120px;gap:12px;align-items:center;padding:14px 16px;background:#f8fbfe;border-bottom:1px solid #e5ebf2}.doc-num{width:46px;height:46px;border-radius:14px;background:#102d4d;color:#fff;display:grid;place-items:center;font-weight:900}.doc-type{font-size:1.08rem;font-weight:900}.doc-pages{font-size:.76rem;color:#667a8d}.q{height:8px;background:#e8eef4;border-radius:999px;overflow:hidden;margin-top:6px}.q i{display:block;height:100%;background:linear-gradient(90deg,#efb24d,#5fc5e8,#54be84);border-radius:inherit}.badge{display:inline-block;padding:5px 8px;border-radius:999px;font-size:.69rem;font-weight:800;background:#edf4fb;color:#31536f}.badge.ok{background:#e8f7ef;color:#187545}.badge.warn{background:#fff2d9;color:#8a5b00}.doc-body{padding:16px}.field-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.field{display:flex;flex-direction:column;gap:4px}.field label{font-size:.7rem;font-weight:800;color:#5d7185;text-transform:uppercase}.field input,.field select,.field textarea{border:1px solid #cad7e4;border-radius:9px;padding:9px;background:#fff;min-width:0}.field small{font-size:.66rem;color:#718396}.field.w2{grid-column:span 2}.field.w4{grid-column:1/-1}.confidence{display:flex;align-items:center;gap:6px}.confidence b{font-size:.67rem;color:#43617c}.mini{height:4px;flex:1;background:#e7edf3;border-radius:999px;overflow:hidden}.mini i{display:block;height:100%;background:#55a9d5}.alerts{margin:12px 0;display:grid;gap:6px}.alertx{font-size:.77rem;background:#fff5df;border:1px solid #f2d28c;padding:8px 10px;border-radius:9px;color:#6f5008}.doc-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid #edf1f5}.btn-confirm{border:0;background:#123d68;color:#fff;border-radius:10px;padding:10px 14px;font-weight:800;cursor:pointer}.btn-discard{border:1px solid #d8a5a5;background:#fff;color:#934040;border-radius:10px;padding:9px 12px;font-weight:700;cursor:pointer}.index-box{font-size:.75rem;color:#536d82;display:flex;gap:7px;align-items:center}.brain{position:sticky;top:14px;background:linear-gradient(145deg,#101e37,#183253);color:#fff;border-radius:18px;padding:18px;box-shadow:0 14px 38px rgba(9,27,49,.18)}.brain-icon{width:72px;height:72px;margin:auto;border-radius:22px;background:rgba(255,255,255,.08);display:grid;place-items:center;font-size:2.5rem;animation:pulse 2.3s infinite}@keyframes pulse{50%{transform:scale(1.06);box-shadow:0 0 0 14px rgba(77,197,255,0)}0%,100%{box-shadow:0 0 0 0 rgba(77,197,255,.18)}}.brain h3{text-align:center;margin:10px 0 3px}.brain-level{text-align:center;font-size:1.8rem;font-weight:900}.brain-bar{height:9px;background:rgba(255,255,255,.12);border-radius:999px;overflow:hidden;margin:10px 0}.brain-bar i{display:block;height:100%;background:linear-gradient(90deg,#60d3ff,#81edba)}.brain-stats{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:12px}.brain-stat{background:rgba(255,255,255,.07);border-radius:10px;padding:9px;text-align:center}.brain-stat b{display:block}.brain-stat small{font-size:.62rem;opacity:.65}.privacy{font-size:.7rem;opacity:.68;margin-top:12px}.type-note{display:none;padding:9px;background:#eef7ff;border-radius:9px;font-size:.75rem;color:#345976;margin-top:8px}.doc[data-type="DPI"] .type-note.dpi{display:block}.status-msg{padding:12px 16px;background:#edf8f2;color:#256745;border-top:1px solid #d6eadf;font-weight:700}.collapsible summary{cursor:pointer;font-weight:800;color:#345777;margin:12px 0 8px}@media(max-width:1100px){.lr-layout{grid-template-columns:1fr}.brain{position:relative}.lr-summary{grid-template-columns:repeat(3,1fr)}.field-grid{grid-template-columns:repeat(2,1fr)}.doc-top{grid-template-columns:50px 1fr 1fr}.doc-top>div:last-child{grid-column:2/-1}}@media(max-width:650px){.lr-summary{grid-template-columns:1fr 1fr}.field-grid{grid-template-columns:1fr}.field.w2,.field.w4{grid-column:auto}.doc-top{grid-template-columns:48px 1fr}.doc-top>div:nth-child(3),.doc-top>div:last-child{grid-column:1/-1}.lr-head{display:block}.lr-back{display:inline-block;margin-top:12px}}
+</style>
+
+<div class="lr">
+  <header class="lr-head"><div><div style="font-size:.7rem;letter-spacing:.16em;opacity:.7;font-weight:800">LOTE DOCUMENTAL · {{ analisis.id }}</div><h1>{{ segmentos|length }} documentos detectados</h1><p>Revise cada pieza. Ningún registro se crea hasta que usted confirme ese documento.</p></div><a class="lr-back" href="{{ url_for('analisis_documental.inicio') }}">Nuevo análisis</a></header>
+
+  {% set pendientes = segmentos|selectattr('estado','equalto','PENDIENTE_VALIDACION')|list|length %}
+  {% set confirmados = segmentos|selectattr('estado','equalto','CONFIRMADO')|list|length %}
+  <div class="lr-summary">
+    <div class="lr-kpi"><b>{{ analisis.paginas_pdf }}</b><span>Páginas del PDF</span></div>
+    <div class="lr-kpi"><b>{{ segmentos|length }}</b><span>Documentos separados</span></div>
+    <div class="lr-kpi"><b>{{ analisis.paginas_ocr }}</b><span>Páginas con OCR</span></div>
+    <div class="lr-kpi"><b>{{ analisis.calidad_global or 0 }}%</b><span>Calidad media</span></div>
+    <div class="lr-kpi"><b>{{ pendientes }}</b><span>Pendientes de validar</span></div>
+  </div>
+
+  <div class="lr-pipe">{% for etapa in (analisis.pipeline_diagnostico or {}).get('etapas',[]) %}<div class="lr-step"><strong>{{ etapa.nombre }}</strong><small>{{ etapa.detalle }}</small></div>{% endfor %}</div>
+
+  <div class="lr-layout">
+    <main class="lr-docs">
+    {% for s in segmentos %}
+      {% set d = s.datos_confirmados if s.estado == 'CONFIRMADO' and s.datos_confirmados else s.datos_detectados %}
+      {% set tipo_actual = d.get('tipo_documento_lote') or s.tipo_confirmado or s.tipo_detectado %}
+      <article class="doc {{ 'done' if s.estado != 'PENDIENTE_VALIDACION' else '' }}" id="doc-{{ s.id }}" data-type="{{ tipo_actual }}">
+        <div class="doc-top">
+          <div class="doc-num">{{ s.orden }}</div>
+          <div><div class="doc-type">{{ tipo_actual|replace('_',' ')|title if tipo_actual != 'IFT' and tipo_actual != 'DPI' else tipo_actual }}</div><div class="doc-pages">Páginas PDF {{ s.pagina_inicio }}–{{ s.pagina_fin }} · {{ s.paginas }} pág.</div></div>
+          <div><div style="display:flex;justify-content:space-between;font-size:.72rem;color:#61758a"><span>Confianza del documento</span><b>{{ s.calidad_global }}%</b></div><div class="q"><i style="width:{{ s.calidad_global }}%"></i></div></div>
+          <div>{% if s.estado == 'CONFIRMADO' %}<span class="badge ok">Confirmado</span>{% elif s.estado == 'DESCARTADO' %}<span class="badge warn">Descartado</span>{% else %}<span class="badge">Revisión humana</span>{% endif %}</div>
+        </div>
+        {% if s.estado == 'PENDIENTE_VALIDACION' %}
+        <div class="doc-body">
+          {% if s.discrepancias %}<div class="alerts">{% for a in s.discrepancias %}<div class="alertx">⚠ {{ a }}</div>{% endfor %}</div>{% endif %}
+          <form method="post" action="{{ url_for('lote_documental.confirmar_segmento', analisis_id=analisis.id, segmento_id=s.id) }}" data-doc-form>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="field-grid">
+              <div class="field"><label>Tipo documental</label><select name="tipo_documento_lote" data-type-select>{% for t in tipos_documento %}<option value="{{ t }}" {{ 'selected' if t == tipo_actual else '' }}>{{ t }}</option>{% endfor %}</select><small>Corrija si SICODE separó/clasificó mal.</small></div>
+              <div class="field"><label>SP</label><input name="no_sp" value="{{ d.get('no_sp') or '' }}"><div class="confidence"><b>{{ ((s.confianzas or {}).get('no_sp',0)*100)|round|int }}%</b><span class="mini"><i style="width:{{ ((s.confianzas or {}).get('no_sp',0)*100)|round|int }}%"></i></span></div></div>
+              <div class="field"><label>Fecha</label><input type="date" name="fecha_recepcion" value="{{ d.get('fecha_recepcion') or '' }}"><div class="confidence"><b>{{ ((s.confianzas or {}).get('fecha_recepcion',0)*100)|round|int }}%</b><span class="mini"><i style="width:{{ ((s.confianzas or {}).get('fecha_recepcion',0)*100)|round|int }}%"></i></span></div></div>
+              <div class="field"><label>No. documento</label><input name="numero_documento" value="{{ d.get('numero_documento') or '' }}"></div>
+              <div class="field"><label>Providencia</label><input name="providencia" value="{{ d.get('providencia') or '' }}"><div class="confidence"><b>{{ ((s.confianzas or {}).get('providencia',0)*100)|round|int }}%</b><span class="mini"><i style="width:{{ ((s.confianzas or {}).get('providencia',0)*100)|round|int }}%"></i></span></div></div>
+              <div class="field"><label>RC</label><input name="rc" value="{{ d.get('rc') or '' }}"></div>
+              <div class="field"><label>Folio inicial</label><input type="number" min="1" name="folio_inicio" value="{{ d.get('folio_inicio') or '' }}"></div>
+              <div class="field"><label>Folio final</label><input type="number" min="1" name="folio_fin" value="{{ d.get('folio_fin') or '' }}"></div>
+            </div>
+            <div class="type-note dpi">🔐 SICODE identificó un DPI. Por privacidad, el análisis no persiste nombre, CUI, dirección ni otros datos personales del documento.</div>
+            <details class="collapsible"><summary>Datos específicos del documento</summary><div class="field-grid">
+              <div class="field"><label>No. anexo</label><input name="numero_anexo" value="{{ d.get('numero_anexo') or '' }}"></div>
+              <div class="field w2"><label>Título de anexo</label><input name="titulo_anexo" value="{{ d.get('titulo_anexo') or '' }}"></div>
+              <div class="field"><label>Tipo de anexo</label><select name="tipo_anexo"><option value=""></option>{% for t in tipos_anexo %}<option value="{{ t }}" {{ 'selected' if d.get('tipo_anexo') == t else '' }}>{{ t }}</option>{% endfor %}</select></div>
+              <div class="field"><label>Boleta</label><input name="boleta" value="{{ d.get('boleta') or '' }}"></div>
+              <div class="field"><label>Total</label><input name="total" value="{{ d.get('total') or '' }}"></div>
+              <div class="field"><label>No. reporte</label><input name="numero_reporte" value="{{ d.get('numero_reporte') or '' }}"></div>
+              <div class="field"><label>Evento</label><select name="tipo_evento"><option value=""></option>{% for t in tipos_evento %}<option value="{{ t }}" {{ 'selected' if d.get('tipo_evento') == t else '' }}>{{ t }}</option>{% endfor %}</select></div>
+              <div class="field w2"><label>Nombre para índice</label><input name="nombre_documento" value="{{ d.get('nombre_documento') or '' }}" placeholder="Ej. Acta 12-2026"></div>
+              <div class="field w2"><label>Observaciones</label><textarea name="observaciones" rows="2">{{ d.get('observaciones') or '' }}</textarea></div>
+            </div></details>
+            <div class="doc-actions"><label class="index-box"><input type="checkbox" name="crear_indice" value="1" checked> Agregar al índice documental si hay SP + folios válidos</label><button class="btn-confirm" type="submit">Confirmar y registrar</button></div>
+          </form>
+          <form method="post" action="{{ url_for('lote_documental.descartar_segmento', analisis_id=analisis.id, segmento_id=s.id) }}" style="margin-top:8px;text-align:right"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn-discard" type="submit">Descartar esta pieza</button></form>
+        </div>
+        {% else %}<div class="status-msg">{{ 'Documento validado por usuario y retroalimentación incorporada al aprendizaje.' if s.estado == 'CONFIRMADO' else 'Documento descartado; no creó registro.' }}</div>{% endif %}
+      </article>
+    {% endfor %}
+    </main>
+
+    <aside><section class="brain"><div class="brain-icon">🧠</div><h3>Cerebro documental</h3><div class="brain-level">{{ aprendizaje.nivel }}%</div><div class="brain-bar"><i style="width:{{ aprendizaje.nivel }}%"></i></div><div style="font-size:.72rem;text-align:center;opacity:.7">Madurez de retroalimentación</div><div class="brain-stats"><div class="brain-stat"><b>{{ aprendizaje.muestras }}</b><small>documentos validados</small></div><div class="brain-stat"><b>{{ aprendizaje.precision_clasificacion }}%</b><small>tipo confirmado</small></div><div class="brain-stat"><b>{{ aprendizaje.tipos_aprendidos }}</b><small>tipos aprendidos</small></div><div class="brain-stat"><b>{{ confirmados }}/{{ segmentos|length }}</b><small>validados en este lote</small></div></div><p class="privacy">Cada corrección ajusta pesos de características predefinidas (por ejemplo “boleta”, “providencia”, “acta”). No se guarda texto OCR ni se entrena con nombres, CUI u otros datos sensibles.</p></section></aside>
+  </div>
+</div>
+<script>
+document.querySelectorAll('[data-doc-form]').forEach(form=>{const sel=form.querySelector('[data-type-select]'),doc=form.closest('.doc');if(sel&&doc)sel.addEventListener('change',()=>doc.dataset.type=sel.value)});
+</script>
+{% endblock %}
