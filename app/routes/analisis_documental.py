@@ -15,6 +15,7 @@ from app.models.coordinacion import (
 )
 from app.models.documento_expediente import DocumentoExpediente
 from app.models.expediente import Expediente
+from app.services.analisis_documental_inteligencia import calcular_calidad_global
 from app.services.analisis_documental_service import (
     DocumentoInvalido,
     OCRNoDisponible,
@@ -108,6 +109,70 @@ def _discrepancias_bd(datos, expediente):
                 )
 
     return discrepancias
+
+
+def _agregar_fuente(fuentes, campo, fuente):
+    actuales = list(fuentes.get(campo) or [])
+    if fuente not in actuales:
+        actuales.append(fuente)
+    fuentes[campo] = actuales
+
+
+def _reconciliar_con_sicode(datos, confianzas, fuentes, explicaciones, expediente):
+    """Aumenta/reduce confianza con coincidencias reales, sin cambiar valores."""
+    if datos.get("no_sp"):
+        if expediente:
+            confianzas["no_sp"] = max(float(confianzas.get("no_sp") or 0), 0.99)
+            _agregar_fuente(fuentes, "no_sp", "SICODE")
+            explicaciones["no_sp"] = "El SP propuesto existe y coincide con el expediente maestro de SICODE."
+        else:
+            confianzas["no_sp"] = max(0.10, float(confianzas.get("no_sp") or 0) * 0.65)
+            explicaciones["no_sp"] = "El SP fue leído del documento, pero no existe como expediente activo en SICODE."
+
+    if not expediente:
+        return "No fue posible conciliar contra un expediente maestro; revise especialmente el SP."
+
+    coincidencias = []
+    for campo, atributo in (("rc", RegistroCoordinacion.rc), ("providencia", RegistroCoordinacion.providencia)):
+        valor = _limpiar(datos.get(campo), 120)
+        if not valor:
+            continue
+        existe = (
+            RegistroCoordinacion.query
+            .filter(RegistroCoordinacion.expediente_id == expediente.id, atributo == valor)
+            .first()
+        )
+        if existe:
+            confianzas[campo] = max(float(confianzas.get(campo) or 0), 0.96)
+            _agregar_fuente(fuentes, campo, "SICODE")
+            explicaciones[campo] = "El valor propuesto coincide con un registro previo del mismo SP en SICODE."
+            coincidencias.append(campo)
+
+    numero_anexo = _limpiar(datos.get("numero_anexo"), 50)
+    if numero_anexo:
+        detalle = next(
+            (
+                item
+                for item in expediente.anexos_rectificados_activos
+                if str(item.numero_anexo or "").strip().upper() == numero_anexo.upper()
+            ),
+            None,
+        )
+        if detalle:
+            confianzas["numero_anexo"] = max(float(confianzas.get("numero_anexo") or 0), 0.98)
+            _agregar_fuente(fuentes, "numero_anexo", "SICODE")
+            explicaciones["numero_anexo"] = "El número de anexo coincide con la rectificación registrada del expediente."
+            coincidencias.append("anexo")
+            if datos.get("tipo_anexo") and detalle.tipo_anexo:
+                if str(datos["tipo_anexo"]).strip().upper() == str(detalle.tipo_anexo).strip().upper():
+                    confianzas["tipo_anexo"] = max(float(confianzas.get("tipo_anexo") or 0), 0.96)
+                    _agregar_fuente(fuentes, "tipo_anexo", "SICODE")
+                    explicaciones["tipo_anexo"] = "El tipo de anexo coincide con el detalle rectificado en SICODE."
+
+    if coincidencias:
+        legible = ", ".join(dict.fromkeys(coincidencias))
+        return f"Expediente SP {expediente.no_sp} localizado; se confirmaron coincidencias administrativas: {legible}."
+    return f"Expediente SP {expediente.no_sp} localizado; no había registros históricos suficientes para reforzar otros campos."
 
 
 def _datos_formulario(analisis):
@@ -257,6 +322,13 @@ def inicio():
                 ocr_habilitado=current_app.config.get("DOCUMENT_ANALYSIS_OCR_ENABLED", True),
                 ocr_idioma=current_app.config.get("DOCUMENT_ANALYSIS_OCR_LANGUAGE", "spa"),
                 limpieza_minutos=current_app.config.get("DOCUMENT_ANALYSIS_TEMP_TTL_MINUTES", 30),
+                tesseract_cmd=current_app.config.get("DOCUMENT_ANALYSIS_TESSERACT_CMD"),
+                ocr_segunda_pasada=current_app.config.get("DOCUMENT_ANALYSIS_OCR_SECOND_PASS", True),
+                ia_habilitada=current_app.config.get("DOCUMENT_ANALYSIS_AI_ENABLED", True),
+                ollama_url=current_app.config.get("OLLAMA_URL", "http://127.0.0.1:11434"),
+                ollama_model=current_app.config.get("DOCUMENT_ANALYSIS_AI_MODEL", current_app.config.get("OLLAMA_MODEL", "qwen3:1.7b")),
+                ollama_timeout=current_app.config.get("DOCUMENT_ANALYSIS_AI_TIMEOUT", 90),
+                ia_max_chars=current_app.config.get("DOCUMENT_ANALYSIS_AI_MAX_CHARS", 24000),
             )
         except (DocumentoInvalido, OCRNoDisponible, RuntimeError) as exc:
             current_app.logger.warning("Análisis documental rechazado: %s", exc)
@@ -268,12 +340,39 @@ def inicio():
             return redirect(url_for("analisis_documental.inicio"))
 
         datos = resultado["datos"]
+        confianzas = dict(resultado.get("confianzas") or {})
+        fuentes = dict(resultado.get("fuentes_campos") or {})
+        explicaciones = dict(resultado.get("explicaciones_campos") or {})
+        diagnostico = dict(resultado.get("pipeline_diagnostico") or {})
+
         expediente, no_sp_normalizado = _resolver_sp(datos.get("no_sp"))
         if no_sp_normalizado:
             datos["no_sp"] = no_sp_normalizado
 
+        detalle_sicode = _reconciliar_con_sicode(datos, confianzas, fuentes, explicaciones, expediente)
+        calidad_global = calcular_calidad_global(datos, confianzas)
+        etapas = list(diagnostico.get("etapas") or [])
+        etapas.append(
+            {
+                "clave": "sicode",
+                "nombre": "Conciliación SICODE",
+                "estado": "completada" if expediente else "advertencia",
+                "detalle": detalle_sicode,
+            }
+        )
+        etapas.append(
+            {
+                "clave": "usuario",
+                "nombre": "Validación humana",
+                "estado": "pendiente",
+                "detalle": "La propuesta no modifica registros hasta que un usuario la revise y confirme.",
+            }
+        )
+        diagnostico["etapas"] = etapas
+
         discrepancias = list(resultado["advertencias"])
         discrepancias.extend(_discrepancias_bd(datos, expediente))
+        discrepancias = list(dict.fromkeys(discrepancias))
 
         analisis = AnalisisDocumental(
             usuario_id=current_user.id,
@@ -285,8 +384,15 @@ def inicio():
             paginas_ocr=resultado["paginas_ocr"],
             metodo_extraccion=resultado["metodo_extraccion"],
             datos_detectados=datos,
-            confianzas=resultado["confianzas"],
+            confianzas=confianzas,
             discrepancias=discrepancias,
+            calidad_global=calidad_global,
+            pipeline_diagnostico=diagnostico,
+            fuentes_campos=fuentes,
+            explicaciones_campos=explicaciones,
+            ia_utilizada=resultado.get("ia_utilizada", False),
+            ia_modelo=resultado.get("ia_modelo"),
+            duracion_ms=resultado.get("duracion_ms"),
         )
         db.session.add(analisis)
         db.session.flush()
@@ -295,8 +401,8 @@ def inicio():
             modulo="Coordinación",
             descripcion=(
                 f"Análisis temporal No. {analisis.id}: {analisis.paginas_pdf} página(s), "
-                f"tipo propuesto {analisis.tipo_detectado}, SP {datos.get('no_sp') or 'no detectado'}. "
-                "El PDF y el texto de extracción no se conservaron."
+                f"tipo propuesto {analisis.tipo_detectado}, SP {datos.get('no_sp') or 'no detectado'}, "
+                f"calidad {calidad_global}%. El PDF y el texto de extracción no se conservaron."
             ),
             usuario_id=current_user.id,
             expediente_id=expediente.id if expediente else None,
@@ -308,6 +414,9 @@ def inicio():
                 "paginas_ocr": analisis.paginas_ocr,
                 "metodo_extraccion": analisis.metodo_extraccion,
                 "sp": datos.get("no_sp"),
+                "calidad_global": calidad_global,
+                "ia_utilizada": bool(analisis.ia_utilizada),
+                "ia_modelo": analisis.ia_modelo,
                 "archivo_temporal_eliminado": True,
             },
             commit=False,
@@ -323,6 +432,8 @@ def inicio():
         "analisis_documental/inicio.html",
         recientes=recientes,
         tipos_objetivo=("AUTO", "ANEXO", "INSTALACION", "DESINSTALACION", "PAGO", "MONITOREO"),
+        ia_habilitada=current_app.config.get("DOCUMENT_ANALYSIS_AI_ENABLED", True),
+        ia_modelo=current_app.config.get("DOCUMENT_ANALYSIS_AI_MODEL", current_app.config.get("OLLAMA_MODEL", "qwen3:1.7b")),
     )
 
 
@@ -338,6 +449,7 @@ def resultado(analisis_id):
         tipos_anexo=TIPOS_ANEXO,
         tipos_evento=TIPOS_EVENTO,
         tipos_confirmables=sorted(TIPOS_CONFIRMABLES),
+        mostrar_diagnostico=current_app.config.get("DOCUMENT_ANALYSIS_SHOW_DIAGNOSTICS", True),
     )
 
 
@@ -387,6 +499,7 @@ def confirmar(analisis_id):
             tipos_anexo=TIPOS_ANEXO,
             tipos_evento=TIPOS_EVENTO,
             tipos_confirmables=sorted(TIPOS_CONFIRMABLES),
+            mostrar_diagnostico=current_app.config.get("DOCUMENT_ANALYSIS_SHOW_DIAGNOSTICS", True),
         )
 
     tipo = validacion["tipo"]
@@ -500,6 +613,8 @@ def confirmar(analisis_id):
             "tipo": tipo,
             "sp": no_sp,
             "estado": registro.estado,
+            "calidad_propuesta": analisis.calidad_global,
+            "ia_utilizada": bool(analisis.ia_utilizada),
             "archivo_temporal_eliminado": True,
         },
         commit=False,
