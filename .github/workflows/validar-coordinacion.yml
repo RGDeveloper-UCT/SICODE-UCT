@@ -6,6 +6,7 @@ on:
     branches:
       - feature/coordinacion-operativa
       - feature/analisis-documental-pdf
+      - feature/lote-documental-inteligente
   pull_request:
     branches:
       - main
@@ -55,6 +56,9 @@ jobs:
                   'remisiones_coordinacion',
                   'remisiones_expedientes',
                   'analisis_documentales',
+                  'segmentos_documentales',
+                  'aprendizaje_documental',
+                  'patrones_aprendizaje_documental',
               }
               faltantes = esperadas - tablas
               assert not faltantes, f'Tablas faltantes: {sorted(faltantes)}'
@@ -68,6 +72,11 @@ jobs:
           assert '/coordinacion/analisis-documental/' in rutas
           assert '/coordinacion/analisis-documental/<int:analisis_id>' in rutas
           assert '/coordinacion/analisis-documental/<int:analisis_id>/confirmar' in rutas
+          assert '/coordinacion/analisis-documental/lotes/analizar' in rutas
+          assert '/coordinacion/analisis-documental/lotes/<int:analisis_id>' in rutas
+          assert '/coordinacion/analisis-documental/lotes/<int:analisis_id>/segmentos/<int:segmento_id>/confirmar' in rutas
+          assert '/coordinacion/analisis-documental/lotes/<int:analisis_id>/segmentos/<int:segmento_id>/descartar' in rutas
+          assert '/coordinacion/analisis-documental/lotes/aprendizaje' in rutas
 
           plantillas = [
               'coordinacion/inicio.html',
@@ -78,6 +87,7 @@ jobs:
               'coordinacion/importar.html',
               'analisis_documental/inicio.html',
               'analisis_documental/resultado.html',
+              'analisis_documental/lote_resultado.html',
           ]
           for nombre in plantillas:
               app.jinja_env.get_template(nombre)
@@ -85,5 +95,5 @@ jobs:
           print('Validacion de Coordinacion completada correctamente.')
           PY
 
-      - name: Probar extractor documental
-        run: pytest -q tests/test_analisis_documental_service.py
+      - name: Probar extractores documentales
+        run: pytest -q tests/test_analisis_documental_service.py tests/test_lote_documental_service.py
