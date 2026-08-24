@@ -2,31 +2,47 @@
 {% block title %}{{ 'Editar' if boleta else 'Nueva' }} boleta de soporte — SICODE-UCT{% endblock %}
 {% block body_class %}vista-soporte-tecnico{% endblock %}
 {% block content %}
-<section class="panel panel-ancho soporte-formulario">
-    <div class="encabezado-modulo soporte-encabezado">
+<section class="panel panel-ancho soporte-formulario soporte-layout-compacto">
+    <div class="encabezado-modulo soporte-encabezado soporte-encabezado-compacto">
         <div>
             <p class="soporte-eyebrow">Coordinación · Soporte técnico y servicios TI</p>
             <h1>{{ 'Editar boleta ' ~ boleta.numero_boleta if boleta else 'Nueva boleta de soporte técnico' }}</h1>
-            <p>El formulario muestra únicamente los campos relacionados con el servicio seleccionado. El cronómetro del ticket continúa aunque navegue por otros módulos de SICODE.</p>
+            <p>Registre únicamente lo necesario. El cronómetro continúa aunque navegue por otros módulos de SICODE.</p>
         </div>
-        <div class="acciones-detalle">
-            {% if boleta %}<a class="boton-secundario" href="{{ url_for('soporte_tecnico.detalle', boleta_id=boleta.id) }}">Ver boleta</a>{% endif %}
-            <a class="boton-cancelar" data-minimizar-ticket href="{{ url_for('coordinacion.inicio') }}">Minimizar y seguir en SICODE</a>
+        <div class="acciones-detalle soporte-acciones-superiores">
+            {% if boleta %}
+                <a class="boton-cancelar" href="{{ url_for('soporte_tecnico.detalle', boleta_id=boleta.id) }}">Cancelar edición</a>
+                <a class="boton-secundario" href="{{ url_for('soporte_tecnico.detalle', boleta_id=boleta.id) }}">Ver boleta</a>
+            {% else %}
+                <a class="boton-cancelar soporte-boton-cancelar-ticket" data-cancelar-ticket href="{{ url_for('soporte_tecnico.listado') }}">Cancelar boleta</a>
+            {% endif %}
+            <a class="boton-secundario" data-minimizar-ticket href="{{ url_for('coordinacion.inicio') }}">Minimizar y seguir en SICODE</a>
         </div>
     </div>
 
-    <div class="aviso soporte-aviso-ticket">
-        <strong>Ticket en atención:</strong> el tiempo de resolución se calcula automáticamente desde que abrió esta boleta. Puede minimizarla, utilizar SICODE y volver desde la burbuja “Ticket TI activo”.
+    <div class="soporte-notificaciones" data-soporte-notificaciones aria-live="polite" aria-atomic="false">
+        <aside class="soporte-toast soporte-toast-ticket" data-soporte-toast role="status">
+            <button type="button" class="soporte-toast-cerrar" data-soporte-toast-cerrar aria-label="Cerrar notificación">×</button>
+            <div class="soporte-toast-icono" aria-hidden="true">⏱</div>
+            <div>
+                <strong>Ticket en atención</strong>
+                <p>El tiempo de resolución se calcula desde que abrió la boleta. Puede minimizarla, usar SICODE y volver desde la burbuja “Ticket TI activo”.</p>
+            </div>
+        </aside>
+        <aside class="soporte-toast soporte-toast-seguridad" data-soporte-toast role="status">
+            <button type="button" class="soporte-toast-cerrar" data-soporte-toast-cerrar aria-label="Cerrar notificación">×</button>
+            <div class="soporte-toast-icono" aria-hidden="true">i</div>
+            <div>
+                <strong>Registro administrativo</strong>
+                <p>No escriba contraseñas, claves, contenido de archivos respaldados ni información sensible. SICODE registra el trabajo realizado, no el contenido intervenido.</p>
+            </div>
+        </aside>
     </div>
 
-    <div class="aviso soporte-aviso-seguridad">
-        <strong>Registro administrativo:</strong> no escriba contraseñas, claves, contenido de archivos respaldados ni información sensible. SICODE registra qué trabajo se realizó, no el contenido intervenido.
-    </div>
-
-    <form method="post" class="soporte-form" data-soporte-form novalidate>
+    <form method="post" class="soporte-form soporte-form-compacto" data-soporte-form novalidate>
         {{ form.hidden_tag() }}
 
-        <section class="soporte-paso soporte-paso-activo">
+        <section class="soporte-paso soporte-paso-activo soporte-paso-datos">
             <div class="soporte-paso-titulo"><span>1</span><div><h2>Usuario, ubicación y atención</h2><p>Datos básicos de la solicitud.</p></div></div>
             <div class="grid-form soporte-grid-4">
                 <div class="campo campo-doble">
@@ -52,14 +68,14 @@
                 <div class="campo campo-doble">
                     {{ form.fecha_hora_solicitud.label }}
                     {{ form.fecha_hora_solicitud() }}
-                    <small>La fecha puede corregirse; el cronómetro del ticket usa su propia marca de inicio para no perder precisión.</small>
+                    <small>Puede corregirse; el cronómetro conserva su propia marca de inicio.</small>
                     {% for error in form.fecha_hora_solicitud.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
                 </div>
             </div>
         </section>
 
-        <section class="soporte-paso">
-            <div class="soporte-paso-titulo"><span>2</span><div><h2>Tipo de servicio solicitado</h2><p>Puede seleccionar más de uno. Al marcar una opción aparecerá solamente su detalle.</p></div></div>
+        <section class="soporte-paso soporte-paso-tipos">
+            <div class="soporte-paso-titulo"><span>2</span><div><h2>Tipo de servicio solicitado</h2><p>Seleccione una o varias opciones; solo se abrirán sus detalles.</p></div></div>
             <div class="soporte-tipos-grid" data-tipos-servicio>
                 {% for opcion in form.tipos_servicio %}
                 <label class="soporte-tipo-card">
@@ -75,8 +91,8 @@
             </div>
         </section>
 
-        <section class="soporte-paso" data-detalle-funcional>
-            <div class="soporte-paso-titulo"><span>3</span><div><h2>Detalle funcional del servicio</h2><p>Las opciones corresponden a la boleta física actual.</p></div></div>
+        <section class="soporte-paso soporte-paso-detalle" data-detalle-funcional>
+            <div class="soporte-paso-titulo"><span>3</span><div><h2>Detalle funcional del servicio</h2><p>Se muestran únicamente las categorías seleccionadas.</p></div></div>
 
             <div class="soporte-detalle-panel" data-soporte-section="GESTION_USUARIO" hidden>
                 <h3>3.1 Creación / gestión de usuario</h3>
@@ -94,59 +110,59 @@
             </div>
         </section>
 
-        <section class="soporte-paso" data-soporte-section="INSTALACION" hidden>
-            <div class="soporte-paso-titulo"><span>4.1</span><div><h2>Instalación de equipo</h2><p>Seleccione las acciones realizadas.</p></div></div>
-            <div class="soporte-check-grid">{% for opcion in form.instalacion_detalles %}<label>{{ opcion() }}<span>{{ opcion.label.text }}</span></label>{% endfor %}</div>
+        <section class="soporte-paso soporte-paso-accion" data-soporte-section="INSTALACION" hidden>
+            <div class="soporte-paso-titulo"><span>4.1</span><div><h2>Instalación de equipo</h2><p>Acciones realizadas.</p></div></div>
+            <div class="soporte-check-grid soporte-check-grid-accion">{% for opcion in form.instalacion_detalles %}<label>{{ opcion() }}<span>{{ opcion.label.text }}</span></label>{% endfor %}</div>
             <div class="campo" data-otro-detalle="instalacion" hidden>{{ form.otro_instalacion.label }}{{ form.otro_instalacion(placeholder="Especifique otro trabajo de instalación") }}</div>
         </section>
 
-        <section class="soporte-paso" data-soporte-section="TRASLADO" hidden>
-            <div class="soporte-paso-titulo"><span>4.2</span><div><h2>Traslado de equipo</h2><p>Registre el proceso realizado.</p></div></div>
-            <div class="soporte-check-grid">{% for opcion in form.traslado_detalles %}<label>{{ opcion() }}<span>{{ opcion.label.text }}</span></label>{% endfor %}</div>
+        <section class="soporte-paso soporte-paso-accion" data-soporte-section="TRASLADO" hidden>
+            <div class="soporte-paso-titulo"><span>4.2</span><div><h2>Traslado de equipo</h2><p>Proceso realizado.</p></div></div>
+            <div class="soporte-check-grid soporte-check-grid-accion">{% for opcion in form.traslado_detalles %}<label>{{ opcion() }}<span>{{ opcion.label.text }}</span></label>{% endfor %}</div>
             <div class="campo" data-otro-detalle="traslado" hidden>{{ form.otro_traslado.label }}{{ form.otro_traslado(placeholder="Especifique otro trabajo de traslado") }}</div>
         </section>
 
-        <section class="soporte-paso" data-soporte-section="REVISION" hidden>
-            <div class="soporte-paso-titulo"><span>4.3</span><div><h2>Revisión y diagnóstico</h2><p>Marque el síntoma o falla reportada.</p></div></div>
-            <div class="soporte-check-grid">{% for opcion in form.revision_detalles %}<label>{{ opcion() }}<span>{{ opcion.label.text }}</span></label>{% endfor %}</div>
+        <section class="soporte-paso soporte-paso-accion" data-soporte-section="REVISION" hidden>
+            <div class="soporte-paso-titulo"><span>4.3</span><div><h2>Revisión y diagnóstico</h2><p>Síntoma o falla reportada.</p></div></div>
+            <div class="soporte-check-grid soporte-check-grid-accion">{% for opcion in form.revision_detalles %}<label>{{ opcion() }}<span>{{ opcion.label.text }}</span></label>{% endfor %}</div>
             <div class="campo" data-otro-detalle="revision" hidden>{{ form.otro_revision.label }}{{ form.otro_revision(placeholder="Especifique otra falla o revisión") }}</div>
         </section>
 
-        <section class="soporte-paso" data-equipo-section hidden>
-            <div class="soporte-paso-titulo"><span>5</span><div><h2>Identificación del equipo</h2><p>Complete únicamente los datos disponibles; no es obligatorio para gestión de cuentas sin equipo asociado.</p></div></div>
+        <section class="soporte-paso soporte-paso-equipo" data-equipo-section hidden>
+            <div class="soporte-paso-titulo"><span>5</span><div><h2>Identificación del equipo</h2><p>Complete solo lo disponible.</p></div></div>
             <div class="grid-form soporte-grid-5">
                 <div class="campo">{{ form.tipo_equipo.label }}{{ form.tipo_equipo() }}</div>
                 <div class="campo" data-tipo-equipo-otro hidden>{{ form.tipo_equipo_otro.label }}{{ form.tipo_equipo_otro() }}</div>
                 <div class="campo">{{ form.marca_modelo.label }}{{ form.marca_modelo() }}</div>
                 <div class="campo">{{ form.numero_serie.label }}{{ form.numero_serie() }}</div>
-                <div class="campo">{{ form.inventario.label }}{{ form.inventario(placeholder="Código SICOIN") }}</div>
+                <div class="campo"><label for="inventario">SICOIN</label>{{ form.inventario(placeholder="Código SICOIN") }}</div>
                 <div class="campo">{{ form.ip_nombre_equipo.label }}{{ form.ip_nombre_equipo() }}</div>
             </div>
         </section>
 
-        <section class="soporte-paso">
-            <div class="soporte-paso-titulo"><span>6–7</span><div><h2>Solicitud, diagnóstico y trabajo realizado</h2><p>La solicitud es obligatoria. El diagnóstico puede completarse después si el caso queda pendiente.</p></div></div>
+        <section class="soporte-paso soporte-paso-trabajo">
+            <div class="soporte-paso-titulo"><span>6–7</span><div><h2>Solicitud, diagnóstico y trabajo realizado</h2><p>La solicitud es obligatoria; el diagnóstico puede completarse después.</p></div></div>
             <div class="grid-form soporte-grid-2">
                 <div class="campo">
                     {{ form.descripcion_solicitud.label }}
-                    {{ form.descripcion_solicitud(rows="5", placeholder="Describa el problema o solicitud de forma concreta") }}
+                    {{ form.descripcion_solicitud(rows="4", placeholder="Describa el problema o solicitud de forma concreta") }}
                     {% for error in form.descripcion_solicitud.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
                 </div>
                 <div class="campo">
                     {{ form.diagnostico_trabajo.label }}
-                    {{ form.diagnostico_trabajo(rows="5", placeholder="Diagnóstico, acciones ejecutadas y validaciones realizadas") }}
+                    {{ form.diagnostico_trabajo(rows="4", placeholder="Diagnóstico, acciones ejecutadas y validaciones realizadas") }}
                 </div>
             </div>
         </section>
 
-        <section class="soporte-paso soporte-cierre">
-            <div class="soporte-paso-titulo"><span>8</span><div><h2>Resultado y cierre del servicio</h2><p>Si guarda como Pendiente, el cronómetro seguirá activo. Al cerrar en otro estado se congela automáticamente el tiempo de resolución.</p></div></div>
+        <section class="soporte-paso soporte-cierre soporte-paso-cierre">
+            <div class="soporte-paso-titulo"><span>8</span><div><h2>Resultado y cierre del servicio</h2><p>Al guardar como Pendiente el cronómetro continúa; al cerrar se congela el tiempo automáticamente.</p></div></div>
             <div class="grid-form soporte-grid-4">
                 <div class="campo">{{ form.estado_final.label }}{{ form.estado_final(data_estado_final="1") }}</div>
                 <div class="campo">{{ form.seguimiento.label }}{{ form.seguimiento() }}</div>
-                <div class="campo">{{ form.fecha_hora_cierre.label }}{{ form.fecha_hora_cierre(data_fecha_cierre="1") }}<small>Se propone la hora actual al cambiar a un estado distinto de Pendiente.</small></div>
-                <div class="campo">{{ form.tiempo_empleado.label }}{{ form.tiempo_empleado(placeholder="Calculado automáticamente") }}<small>Mientras el ticket esté activo este valor se actualiza cada segundo.</small></div>
-                <div class="campo campo-ancho">{{ form.observaciones_cierre.label }}{{ form.observaciones_cierre(rows="3") }}</div>
+                <div class="campo">{{ form.fecha_hora_cierre.label }}{{ form.fecha_hora_cierre(data_fecha_cierre="1") }}<small>Se propone al cerrar el ticket.</small></div>
+                <div class="campo">{{ form.tiempo_empleado.label }}{{ form.tiempo_empleado(placeholder="Calculado automáticamente") }}<small>Se actualiza cada segundo mientras el ticket esté activo.</small></div>
+                <div class="campo campo-ancho">{{ form.observaciones_cierre.label }}{{ form.observaciones_cierre(rows="2") }}</div>
             </div>
 
             <details class="soporte-firmas">
@@ -166,8 +182,13 @@
                 <strong data-resumen-servicio>Seleccione el tipo de servicio</strong>
                 <span data-resumen-estado>Estado: {{ dict(form.estado_final.choices).get(form.estado_final.data, 'Pendiente') }}</span>
             </div>
-            <div class="acciones">
-                <a class="boton-cancelar" data-minimizar-ticket href="{{ url_for('coordinacion.inicio') }}">Minimizar</a>
+            <div class="acciones soporte-acciones-inferiores">
+                {% if boleta %}
+                    <a class="boton-cancelar" href="{{ url_for('soporte_tecnico.detalle', boleta_id=boleta.id) }}">Cancelar edición</a>
+                {% else %}
+                    <a class="boton-cancelar soporte-boton-cancelar-ticket" data-cancelar-ticket href="{{ url_for('soporte_tecnico.listado') }}">Cancelar boleta</a>
+                {% endif %}
+                <a class="boton-secundario" data-minimizar-ticket href="{{ url_for('coordinacion.inicio') }}">Minimizar</a>
                 {{ form.submit(class_="boton-primario") }}
             </div>
         </div>
