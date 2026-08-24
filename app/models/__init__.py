@@ -9,6 +9,7 @@ from app.models.traslado_virtual import TrasladoVirtualExpediente
 from app.models.importacion_portadores import ImportacionPortadores
 from app.models.verificacion import VerificacionExpediente
 from app.models.presencia import PresenciaUsuario
+from app.models.anexo_rectificado import AnexoRectificado
 from app.models.coordinacion import (
     RegistroCoordinacion,
     PagoCoordinacion,

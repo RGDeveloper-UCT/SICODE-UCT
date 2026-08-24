@@ -67,6 +67,8 @@
                     <th>Nombre</th>
                     <th>Expediente físico</th>
                     <th>Código SICODE</th>
+                    <th>Folios</th>
+                    <th>Anexos</th>
                     <th>Préstamo físico</th>
                     <th>Último traslado virtual</th>
                     <th class="columna-accion columna-acciones-prestamos">{% if current_user.es_visor %}Consulta{% else %}Acciones{% endif %}</th>
@@ -93,6 +95,8 @@
                             {% endif %}
                         </td>
                         <td><strong>{{ expediente.codigo_interno }}</strong></td>
+                        <td>{% if expediente.folios_rectificados is not none %}<strong>{{ expediente.folios_rectificados }}</strong>{% else %}<span class="badge badge-advertencia">Pendiente</span>{% endif %}</td>
+                        <td>{% if expediente.anexos_rectificados is not none %}<strong>{{ expediente.anexos_rectificados }}</strong>{% else %}<span class="badge badge-advertencia">Pendiente</span>{% endif %}</td>
                         <td class="movimiento-prestamo">
                             {% if fila.estado_prestamo == 'Vencido' %}
                                 <span class="badge badge-vencido">Vencido</span>
@@ -135,6 +139,8 @@
                                     {% if fila.prestamo_activo %}
                                         <a class="boton-tabla" href="{{ url_for('prestamos.devolver', prestamo_id=fila.prestamo_activo.id) }}">Registrar devolución</a>
                                         <a class="enlace-secundario-tabla" href="{{ url_for('prestamos.detalle', prestamo_id=fila.prestamo_activo.id) }}">Ver préstamo</a>
+                                    {% elif not expediente.rectificacion_completa %}
+                                        <a class="boton-rectificar-pendiente" href="{{ url_for('rectificaciones.rectificar', expediente_id=expediente.id) }}">Rectificar antes de prestar</a>
                                     {% elif fila.puede_prestar %}
                                         <a class="boton-tabla boton-tabla-secundario" href="{{ url_for('prestamos.nuevo', expediente_id=expediente.id) }}">Generar préstamo físico</a>
                                     {% else %}
@@ -144,7 +150,9 @@
 
                                 <div class="accion-modalidad-prestamo accion-modalidad-virtual">
                                     <span class="etiqueta-modalidad">Virtual</span>
-                                    {% if fila.puede_traslado_virtual %}
+                                    {% if not expediente.rectificacion_completa %}
+                                        <a class="boton-rectificar-pendiente" href="{{ url_for('rectificaciones.rectificar', expediente_id=expediente.id) }}">Rectificar antes de traslado virtual</a>
+                                    {% elif fila.puede_traslado_virtual %}
                                         <a class="boton-tabla boton-traslado-virtual" href="{{ url_for('prestamos.nuevo_traslado_virtual', expediente_id=expediente.id) }}">Generar constancia de traslado de expediente virtual</a>
                                     {% else %}
                                         <span class="boton-tabla-deshabilitado">SP inactivo</span>
@@ -156,7 +164,7 @@
                         </td>
                     </tr>
                 {% else %}
-                    <tr><td colspan="7">No se encontraron SP con los criterios seleccionados.</td></tr>
+                    <tr><td colspan="9">No se encontraron SP con los criterios seleccionados.</td></tr>
                 {% endfor %}
             </tbody>
         </table>

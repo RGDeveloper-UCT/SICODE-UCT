@@ -28,7 +28,7 @@
     <p class="contador-resultados">SP encontrados: <strong>{{ expedientes|length }}</strong></p>
     <div class="tabla-contenedor">
         <table>
-            <thead><tr><th>No. SP</th><th>Nombre</th><th>Expediente físico</th><th>Disponibilidad</th><th>Estado documental</th><th>Código interno</th><th>Acción</th></tr></thead>
+            <thead><tr><th>No. SP</th><th>Nombre</th><th>Expediente físico</th><th>Disponibilidad</th><th>Estado documental</th><th>Folios</th><th>Anexos</th><th>Código interno</th><th>Acción</th></tr></thead>
             <tbody>
             {% for expediente in expedientes %}
                 <tr>
@@ -37,11 +37,18 @@
                     <td>{% if expediente.expediente_fisico_registrado %}<span class="badge badge-activo">Registrado</span>{% else %}<span class="badge badge-advertencia">Pendiente</span>{% endif %}</td>
                     <td>{{ expediente.disponibilidad }}</td>
                     <td>{{ expediente.estado_fisico_documental }}</td>
+                    <td>{% if expediente.folios_rectificados is not none %}<strong>{{ expediente.folios_rectificados }}</strong>{% else %}<span class="badge badge-advertencia">Pendiente</span>{% endif %}</td>
+                    <td>{% if expediente.anexos_rectificados is not none %}<strong>{{ expediente.anexos_rectificados }}</strong>{% else %}<span class="badge badge-advertencia">Pendiente</span>{% endif %}</td>
                     <td>{{ expediente.codigo_interno }}</td>
                     <td>
                         <a href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Ver</a>
                         {% if current_user.puede_modificar %}
-                            {% if expediente.expediente_fisico_registrado %} | <a href="{{ url_for('expedientes.editar', expediente_id=expediente.id) }}">Editar</a>{% else %} | <a href="{{ url_for('expediente_fisico.registrar', expediente_id=expediente.id) }}">Registrar físico</a>{% endif %}
+                            {% if expediente.expediente_fisico_registrado %}
+                                | <a class="{% if not expediente.rectificacion_completa %}enlace-rectificar-pendiente{% endif %}" href="{{ url_for('rectificaciones.rectificar', expediente_id=expediente.id) }}">Rectificar</a>
+                                | <a href="{{ url_for('expedientes.editar', expediente_id=expediente.id) }}">Editar</a>
+                            {% else %}
+                                | <a href="{{ url_for('expediente_fisico.registrar', expediente_id=expediente.id) }}">Registrar físico</a>
+                            {% endif %}
                         {% endif %}
                         {% if current_user.rol == 'administrador' %}
                         <form method="POST" action="{{ url_for('expedientes_admin.eliminar', expediente_id=expediente.id) }}" class="form-inline">
@@ -51,7 +58,7 @@
                         {% endif %}
                     </td>
                 </tr>
-            {% else %}<tr><td colspan="7">No hay registros con los filtros seleccionados.</td></tr>{% endfor %}
+            {% else %}<tr><td colspan="9">No hay registros con los filtros seleccionados.</td></tr>{% endfor %}
             </tbody>
         </table>
     </div>

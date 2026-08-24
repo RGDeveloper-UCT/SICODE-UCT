@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/visor_permisos.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/transiciones.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/expediente_detalle.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/rectificaciones.css') }}">
 </head>
 <body class="{% block body_class %}{% endblock %}{% if modo_solo_lectura %} modo-visor{% endif %}"
       {% if current_user.is_authenticated %}data-presencia-url="{{ url_for('uo.pulso') }}" data-sicode-user="{{ current_user.id }}"{% endif %}>

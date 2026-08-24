@@ -30,6 +30,8 @@ def app_virtual():
             estado_administrativo="Activo",
             estado_fisico_documental="Verificado",
             expediente_fisico_registrado=True,
+            folios_rectificados=145,
+            anexos_rectificados=3,
             activo=True,
         )
         db.session.add_all([usuario, expediente])
@@ -59,6 +61,8 @@ def test_panel_muestra_acciones_fisica_y_virtual(cliente_virtual):
     assert "Generar préstamo físico" in texto
     assert "Generar constancia de traslado de expediente virtual" in texto
     assert "Persona Prueba Virtual" in texto
+    assert ">145<" in texto
+    assert ">3<" in texto
 
 
 def test_crear_traslado_virtual_y_generar_pdf(app_virtual, cliente_virtual):
@@ -84,7 +88,10 @@ def test_crear_traslado_virtual_y_generar_pdf(app_virtual, cliente_virtual):
         assert traslado.enlace_corto == "https://proton.me/drive/test-link"
         traslado_id = traslado.id
 
-    pdf = cliente_virtual.get(f"/prestamos/traslado-virtual/{traslado_id}/constancia/pdf")
+    pdf = cliente_virtual.get(
+        f"/prestamos/traslado-virtual/{traslado_id}/constancia/pdf",
+        follow_redirects=True,
+    )
     assert pdf.status_code == 200
     assert pdf.mimetype == "application/pdf"
     assert pdf.data.startswith(b"%PDF")
