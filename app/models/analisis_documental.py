@@ -7,8 +7,8 @@ class AnalisisDocumental(db.Model):
     """Resultado persistido de una lectura temporal de PDF.
 
     Nunca almacena el archivo, imágenes, texto OCR completo ni el nombre del
-    documento. Solo conserva metadatos administrativos autorizados para que un
-    usuario los revise antes de registrar información en SICODE.
+    documento. Solo conserva metadatos administrativos autorizados, porcentajes
+    y diagnósticos técnicos no sensibles para que el usuario valide la propuesta.
     """
 
     __tablename__ = "analisis_documentales"
@@ -38,6 +38,16 @@ class AnalisisDocumental(db.Model):
     discrepancias = db.Column(db.JSON, nullable=False, default=list)
     datos_confirmados = db.Column(db.JSON, nullable=True)
 
+    # Diagnóstico visual seguro de la Fase 2. No contiene el texto OCR ni
+    # fragmentos del documento: solo etapas, porcentajes, fuentes y tiempos.
+    calidad_global = db.Column(db.Integer, nullable=True)
+    pipeline_diagnostico = db.Column(db.JSON, nullable=True)
+    fuentes_campos = db.Column(db.JSON, nullable=True)
+    explicaciones_campos = db.Column(db.JSON, nullable=True)
+    ia_utilizada = db.Column(db.Boolean, nullable=False, default=False)
+    ia_modelo = db.Column(db.String(80), nullable=True)
+    duracion_ms = db.Column(db.Integer, nullable=True)
+
     creado_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
     actualizado_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     confirmado_en = db.Column(db.DateTime, nullable=True)
@@ -49,6 +59,15 @@ class AnalisisDocumental(db.Model):
     @property
     def pendiente(self):
         return self.estado == "PENDIENTE_VALIDACION"
+
+    @property
+    def calidad_etiqueta(self):
+        valor = int(self.calidad_global or 0)
+        if valor >= 90:
+            return "Alta"
+        if valor >= 70:
+            return "Media"
+        return "Revisión necesaria"
 
     def __repr__(self):
         return f"<AnalisisDocumental {self.id} {self.tipo_detectado} {self.estado}>"
