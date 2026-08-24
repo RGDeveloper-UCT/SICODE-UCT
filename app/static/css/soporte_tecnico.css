@@ -1,0 +1,103 @@
+.vista-soporte-tecnico .contenedor { max-width: 1900px; }
+.soporte-panel, .soporte-formulario, .soporte-detalle { padding: 18px 20px 26px; }
+.soporte-eyebrow { margin: 0 0 4px; font-size: .76rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #4b617f; }
+.soporte-encabezado { align-items: flex-start; gap: 18px; }
+.soporte-encabezado h1 { margin-bottom: 5px; }
+.soporte-encabezado p { max-width: 920px; }
+.soporte-aviso-seguridad { margin: 12px 0 16px; }
+
+.soporte-indicadores { display: grid; grid-template-columns: repeat(5, minmax(150px, 1fr)); gap: 10px; margin: 12px 0; }
+.soporte-indicadores .tarjeta { padding: 13px 15px; }
+.soporte-indicadores span { display: block; font-size: .78rem; color: #52637a; }
+.soporte-indicadores strong { display: block; margin-top: 2px; font-size: 1.7rem; color: #17233c; }
+.soporte-indicadores a { display: inline-block; margin-top: 4px; font-size: .72rem; }
+
+.soporte-filtros { display: grid; grid-template-columns: minmax(320px, 2fr) minmax(220px, 1fr) minmax(160px, .7fr) auto; gap: 10px; align-items: end; padding: 11px; border: 1px solid #dbe3ee; border-radius: 10px; background: #f8fafc; margin: 12px 0; }
+.soporte-filtros .acciones { margin: 0; white-space: nowrap; }
+.soporte-tabla-contenedor { max-height: calc(100vh - 340px); min-height: 330px; overflow: auto; }
+.soporte-tabla { min-width: 1350px; }
+.soporte-tabla th { position: sticky; top: 0; z-index: 1; background: #f2f5f9; }
+.soporte-tabla td { vertical-align: top; }
+.soporte-tabla td small { display: block; margin-top: 3px; color: #667085; }
+.soporte-acciones-fila { white-space: nowrap; }
+.soporte-acciones-fila a { margin-right: 9px; }
+.soporte-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.soporte-chips span { display: inline-flex; padding: 2px 6px; border-radius: 999px; background: #eaf0f8; font-size: .68rem; line-height: 1.25; }
+.soporte-chips-grandes span { padding: 5px 9px; font-size: .8rem; }
+.soporte-estado { white-space: nowrap; }
+.soporte-estado-resuelto, .soporte-estado-texto.soporte-estado-resuelto { color: #17643a; background: #dcfce7; }
+.soporte-estado-pendiente, .soporte-estado-texto.soporte-estado-pendiente { color: #8a4b00; background: #fff2d5; }
+.soporte-estado-parcial, .soporte-estado-texto.soporte-estado-parcial { color: #7a4a00; background: #fef3c7; }
+.soporte-estado-escalado, .soporte-estado-texto.soporte-estado-escalado { color: #8f2935; background: #fee2e2; }
+
+.soporte-form { display: grid; gap: 12px; }
+.soporte-paso { border: 1px solid #dce4ef; border-radius: 12px; background: #fff; padding: 14px 16px; }
+.soporte-paso-activo { border-left: 4px solid #17233c; }
+.soporte-paso-titulo { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+.soporte-paso-titulo > span { min-width: 30px; height: 30px; padding: 0 5px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; background: #17233c; color: #fff; font-weight: 800; font-size: .78rem; }
+.soporte-paso-titulo h2 { margin: 0 0 2px; font-size: 1.05rem; }
+.soporte-paso-titulo p { margin: 0; color: #65758b; font-size: .8rem; }
+.soporte-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.soporte-grid-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.soporte-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.soporte-grid-4 .campo-doble { grid-column: span 2; }
+.soporte-grid-4 .campo-ancho { grid-column: 1 / -1; }
+.soporte-form .campo small { display: block; margin-top: 4px; color: #748196; font-size: .72rem; }
+.error-campo { color: #a61b2b; font-size: .75rem; font-weight: 700; }
+.error-bloque { display: block; margin-top: 7px; }
+
+.soporte-tipos-grid { display: grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap: 8px; }
+.soporte-tipo-card, .soporte-check-grid label { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; border: 1px solid #dce4ef; border-radius: 9px; background: #f8fafc; padding: 9px 10px; line-height: 1.25; }
+.soporte-tipo-card:has(input:checked), .soporte-check-grid label:has(input:checked) { border-color: #526b94; background: #eef4ff; box-shadow: inset 0 0 0 1px #526b94; }
+.soporte-tipo-card input, .soporte-check-grid input { margin-top: 2px; flex: 0 0 auto; }
+.soporte-tipo-card span { font-weight: 700; font-size: .82rem; }
+.soporte-check-grid { display: grid; grid-template-columns: repeat(3, minmax(190px, 1fr)); gap: 7px; }
+.soporte-check-grid label { padding: 7px 9px; font-size: .78rem; }
+.soporte-detalle-panel + .soporte-detalle-panel { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #ccd6e4; }
+.soporte-detalle-panel h3 { margin: 0 0 8px; font-size: .9rem; }
+.soporte-otro-ti, [data-otro-detalle] { margin-top: 10px; }
+.soporte-firmas { margin-top: 10px; border-top: 1px solid #e0e6ef; padding-top: 9px; }
+.soporte-firmas summary { cursor: pointer; font-weight: 800; color: #263853; }
+.soporte-firmas > p { color: #667085; font-size: .78rem; }
+
+.soporte-barra-guardar { position: sticky; bottom: 8px; z-index: 8; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 13px; border: 1px solid #cbd7e6; border-radius: 11px; background: rgba(255,255,255,.96); box-shadow: 0 8px 24px rgba(23,35,60,.14); backdrop-filter: blur(8px); }
+.soporte-barra-guardar > div:first-child { min-width: 0; }
+.soporte-barra-guardar strong, .soporte-barra-guardar span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.soporte-barra-guardar strong { max-width: 900px; font-size: .82rem; }
+.soporte-barra-guardar span { margin-top: 2px; color: #5d6c80; font-size: .72rem; }
+.soporte-barra-guardar .acciones { margin: 0; flex: 0 0 auto; }
+
+.soporte-detalle-resumen { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; margin: 12px 0; }
+.soporte-detalle-resumen > div, .soporte-detalle-grid > div { border: 1px solid #dce4ef; border-radius: 9px; padding: 10px 12px; background: #fafbfd; }
+.soporte-detalle-resumen span, .soporte-detalle-grid span { display: block; color: #65758b; font-size: .72rem; }
+.soporte-detalle-resumen strong, .soporte-detalle-grid strong { display: inline-block; margin-top: 3px; }
+.soporte-estado-texto { border-radius: 999px; padding: 3px 8px; }
+.soporte-detalle-seccion { margin-top: 14px; padding-top: 12px; border-top: 1px solid #dfe6ef; }
+.soporte-detalle-seccion h2, .soporte-textos-detalle h2 { margin: 0 0 9px; font-size: 1rem; }
+.soporte-detalle-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.soporte-detalle-columnas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.soporte-detalle-columnas > div { border: 1px solid #dce4ef; border-radius: 9px; padding: 9px 11px; }
+.soporte-detalle-columnas h3 { margin: 0 0 5px; font-size: .82rem; }
+.soporte-detalle-columnas ul { margin: 0; padding-left: 18px; font-size: .78rem; }
+.soporte-textos-detalle { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+.soporte-textos-detalle section { border: 1px solid #dce4ef; border-radius: 9px; padding: 11px 13px; }
+.soporte-textos-detalle p { white-space: pre-line; }
+.soporte-firmas-vista { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.soporte-firmas-vista h2 { grid-column: 1 / -1; }
+.soporte-firmas-vista > div { min-height: 80px; border: 1px dashed #9caabd; border-radius: 9px; padding: 10px 12px; }
+
+@media (max-width: 1250px) {
+  .soporte-tipos-grid { grid-template-columns: repeat(3, 1fr); }
+  .soporte-check-grid { grid-template-columns: repeat(2, 1fr); }
+  .soporte-grid-4, .soporte-grid-5 { grid-template-columns: repeat(2, 1fr); }
+  .soporte-detalle-grid { grid-template-columns: repeat(3, 1fr); }
+  .soporte-filtros { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 780px) {
+  .soporte-indicadores, .soporte-detalle-resumen, .soporte-tipos-grid, .soporte-check-grid, .soporte-grid-4, .soporte-grid-5, .soporte-grid-2, .soporte-detalle-grid, .soporte-detalle-columnas, .soporte-textos-detalle, .soporte-firmas-vista, .soporte-filtros { grid-template-columns: 1fr; }
+  .soporte-grid-4 .campo-doble, .soporte-grid-4 .campo-ancho { grid-column: auto; }
+  .soporte-barra-guardar { position: static; align-items: stretch; flex-direction: column; }
+  .soporte-barra-guardar .acciones { display: grid; grid-template-columns: 1fr 1fr; }
+}
+
+.tarjeta-registro-soporte .enlace-secundario-tarjeta { margin-left: 10px; font-size: .75rem; font-weight: 600; }
