@@ -29,8 +29,16 @@ class Config:
         "1", "true", "yes", "si"
     }
     DOCUMENT_ANALYSIS_OCR_LANGUAGE = os.getenv("DOCUMENT_ANALYSIS_OCR_LANGUAGE", "spa")
+    # Ruta explícita para instalaciones systemd con PATH restringido.
+    DOCUMENT_ANALYSIS_TESSERACT_CMD = os.getenv("DOCUMENT_ANALYSIS_TESSERACT_CMD", "/usr/bin/tesseract")
+    DOCUMENT_ANALYSIS_OCR_SECOND_PASS = os.getenv("DOCUMENT_ANALYSIS_OCR_SECOND_PASS", "true").lower() in {
+        "1", "true", "yes", "si"
+    }
     DOCUMENT_ANALYSIS_TEMP_DIR = os.getenv("DOCUMENT_ANALYSIS_TEMP_DIR") or None
     DOCUMENT_ANALYSIS_TEMP_TTL_MINUTES = int(os.getenv("DOCUMENT_ANALYSIS_TEMP_TTL_MINUTES", "30"))
+    DOCUMENT_ANALYSIS_SHOW_DIAGNOSTICS = os.getenv("DOCUMENT_ANALYSIS_SHOW_DIAGNOSTICS", "true").lower() in {
+        "1", "true", "yes", "si"
+    }
 
     # Herramienta PostgreSQL para respaldos. Normalmente se autodetecta; esta
     # variable permite fijar la ruta cuando systemd/Gunicorn usa un PATH reducido.
@@ -44,6 +52,15 @@ class Config:
     # El servidor institucional puede ejecutar Ollama únicamente con CPU. Se
     # concede un margen amplio antes de recurrir al intérprete básico seguro.
     OLLAMA_TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT", "60"))
+
+    # IA documental reutiliza Ollama local, pero tiene límites independientes
+    # porque analizar un PDF puede requerir más contexto y más tiempo que una búsqueda.
+    DOCUMENT_ANALYSIS_AI_ENABLED = os.getenv("DOCUMENT_ANALYSIS_AI_ENABLED", "true").lower() in {
+        "1", "true", "yes", "si"
+    }
+    DOCUMENT_ANALYSIS_AI_MODEL = os.getenv("DOCUMENT_ANALYSIS_AI_MODEL", OLLAMA_MODEL)
+    DOCUMENT_ANALYSIS_AI_TIMEOUT = float(os.getenv("DOCUMENT_ANALYSIS_AI_TIMEOUT", "90"))
+    DOCUMENT_ANALYSIS_AI_MAX_CHARS = int(os.getenv("DOCUMENT_ANALYSIS_AI_MAX_CHARS", "24000"))
 
     # UO · Usuarios Online. El navegador envía un pulso cada 20 segundos; una
     # presencia sin pulso deja de considerarse online al superar esta ventana.
