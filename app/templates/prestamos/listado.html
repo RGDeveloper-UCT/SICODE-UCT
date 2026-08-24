@@ -12,6 +12,7 @@
         </div>
         {% if current_user.puede_modificar %}
         <div class="acciones-detalle">
+            <a class="boton-secundario" href="{{ url_for('prestamos_grupales.listado_grupos') }}">Préstamo por rango de SP</a>
             <a class="boton-exito" href="{{ url_for('prestamos.exportar_excel', q=busqueda, estado=filtro_estado) }}">Exportar Excel</a>
         </div>
         {% endif %}
@@ -109,6 +110,10 @@
                             {% endif %}
 
                             {% if movimiento %}
+                                {% if movimiento.detalle_grupal %}
+                                    <br><span class="badge badge-neutral">Préstamo grupal</span>
+                                    <br><a href="{{ url_for('prestamos_grupales.constancia_grupal_pdf', grupo_id=movimiento.detalle_grupal.grupo.id) }}"><small>{{ movimiento.detalle_grupal.grupo.numero_control }}</small></a>
+                                {% endif %}
                                 <br><a href="{{ url_for('prestamos.detalle', prestamo_id=movimiento.id) }}"><strong>{{ movimiento.numero_control }}</strong></a>
                                 <br><span>{{ movimiento.solicitante }}</span>
                                 <br><small>{{ movimiento.fecha_prestamo.strftime('%d/%m/%Y %H:%M') if movimiento.fecha_prestamo else 'Sin fecha' }}</small>
