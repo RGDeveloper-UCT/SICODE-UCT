@@ -66,6 +66,8 @@ def create_app():
         DocumentoExpediente,
         Alerta,
         PrestamoExpediente,
+        PrestamoGrupo,
+        PrestamoGrupoDetalle,
         TrasladoVirtualExpediente,
         ImportacionPortadores,
         VerificacionExpediente,
@@ -91,14 +93,14 @@ def create_app():
 
     from app.routes import (
         auth_bp, dashboard_bp, expedientes_bp, expedientes_admin_bp, expediente_fisico_bp, verificaciones_bp,
-        bitacora_bp, indice_documental_bp, alertas_bp, prestamos_bp, admin_bp,
+        bitacora_bp, indice_documental_bp, alertas_bp, prestamos_bp, prestamos_grupales_bp, admin_bp,
         integridad_bp, busqueda_bp, cuenta_bp, coordinacion_bp, coordinacion_export_bp, portadores_bp, uo_bp,
         codigos_barras_bp, rectificaciones_bp, soporte_tecnico_bp, soporte_tecnico_pdf_bp,
         analisis_documental_bp,
     )
     for blueprint in (
         auth_bp, dashboard_bp, expedientes_bp, expedientes_admin_bp, expediente_fisico_bp, verificaciones_bp,
-        bitacora_bp, indice_documental_bp, alertas_bp, prestamos_bp, admin_bp,
+        bitacora_bp, indice_documental_bp, alertas_bp, prestamos_bp, prestamos_grupales_bp, admin_bp,
         integridad_bp, busqueda_bp, cuenta_bp, coordinacion_bp, coordinacion_export_bp, portadores_bp, uo_bp,
         codigos_barras_bp, rectificaciones_bp, soporte_tecnico_bp, soporte_tecnico_pdf_bp,
         analisis_documental_bp,
