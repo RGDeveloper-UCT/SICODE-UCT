@@ -63,7 +63,7 @@ def _tabla_seccion(titulo, filas, mini):
 
 
 def _lista_texto(valores):
-    return "<br/>".join(f"• {escape(str(valor))}" for valor in valores if valor)
+    return " • ".join(str(valor) for valor in valores if valor)
 
 
 def _agregar(elementos, tabla):
