@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Revisar análisis {{ analisis.id }} — SICODE-UCT{% endblock %}
+{% block body_class %}vista-analisis-documental{% endblock %}
+
+{% macro confianza(campo) -%}
+{% set valor = (analisis.confianzas or {}).get(campo, 0) %}
+{% if valor %}
+<span class="analisis-documental__confianza {% if valor >= 0.9 %}es-alta{% elif valor >= 0.7 %}es-media{% else %}es-baja{% endif %}">{{ (valor * 100)|round|int }}%</span>
+{% else %}
+<span class="analisis-documental__confianza es-baja">revisar</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro campo_texto(nombre, etiqueta, valor='', tipo='text', extra='') -%}
+<div class="campo analisis-documental__campo">
+    <label for="{{ nombre }}">{{ etiqueta }} {% if nombre in (analisis.confianzas or {}) %}{{ confianza(nombre) }}{% endif %}</label>
+    <input id="{{ nombre }}" name="{{ nombre }}" type="{{ tipo }}" value="{{ valor or '' }}" {{ extra|safe }}>
+</div>
+{%- endmacro %}
+
+{% block content %}
+<section class="panel panel-ancho analisis-documental">
+    <div class="encabezado-modulo analisis-documental__encabezado">
+        <div>
+            <span class="analisis-documental__eyebrow">ANÁLISIS #{{ analisis.id }} · {{ analisis.estado|replace('_', ' ') }}</span>
+            <h1>Revise los datos detectados</h1>
+            <p>El PDF ya fue eliminado. Esta pantalla contiene únicamente la propuesta de metadatos para validación humana.</p>
+        </div>
+        <a class="boton-cancelar" href="{{ url_for('analisis_documental.inicio') }}">Volver</a>
+    </div>
+
+    <div class="analisis-documental__resumen">
+        <div><span>Páginas PDF</span><strong>{{ analisis.paginas_pdf }}</strong></div>
+        <div><span>Páginas con OCR</span><strong>{{ analisis.paginas_ocr }}</strong></div>
+        <div><span>Método</span><strong>{{ analisis.metodo_extraccion }}</strong></div>
+        <div><span>Tipo propuesto</span><strong>{{ analisis.tipo_detectado|replace('_', ' ') }}</strong></div>
+    </div>
+
+    {% if analisis.discrepancias %}
+    <section class="analisis-documental__discrepancias" aria-labelledby="titulo-discrepancias">
+        <h2 id="titulo-discrepancias">Revisión requerida</h2>
+        <p>Estas observaciones no bloquean el análisis, pero deben comprobarse contra el documento físico o la información oficial antes de guardar.</p>
+        <ul>
+            {% for mensaje in analisis.discrepancias %}<li>{{ mensaje }}</li>{% endfor %}
+        </ul>
+        {% if analisis.expediente_id %}
+        <div class="acciones">
+            <a class="boton-secundario" href="{{ url_for('expedientes.detalle', expediente_id=analisis.expediente_id) }}" target="_blank" rel="noopener">Abrir expediente</a>
+            <a class="boton-secundario" href="{{ url_for('rectificaciones.rectificar', expediente_id=analisis.expediente_id) }}" target="_blank" rel="noopener">Revisar rectificación</a>
+        </div>
+        {% endif %}
+    </section>
+    {% endif %}
+
+    {% if analisis.estado == 'CONFIRMADO' %}
+    <div class="analisis-documental__seguridad">
+        <div class="analisis-documental__seguridad-icono" aria-hidden="true">✓</div>
+        <div><strong>Análisis confirmado.</strong><p>Los metadatos fueron validados y vinculados al registro operativo No. {{ analisis.registro_id }}.</p></div>
+    </div>
+    {% elif analisis.estado == 'DESCARTADO' %}
+    <div class="aviso"><strong>Análisis descartado.</strong> No se creó ningún registro operativo con esta propuesta.</div>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('analisis_documental.confirmar', analisis_id=analisis.id) }}" class="analisis-documental__revision" data-confirmacion-form>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <section class="analisis-documental__seccion">
+            <div class="analisis-documental__titulo-bloque">
+                <div><h2>Datos comunes</h2><p>Corrija cualquier lectura dudosa antes de confirmar.</p></div>
+                <span class="analisis-documental__paso">Paso 2 de 2</span>
+            </div>
+            <div class="grid-form">
+                <div class="campo analisis-documental__campo">
+                    <label for="tipo_registro">Tipo de registro {{ confianza('tipo_registro') }}</label>
+                    <select id="tipo_registro" name="tipo_registro" data-tipo-registro required>
+                        {% for tipo in tipos_confirmables %}<option value="{{ tipo }}" {% if (datos.tipo_registro or analisis.tipo_detectado) == tipo %}selected{% endif %}>{{ tipo|replace('_', ' ')|title }}</option>{% endfor %}
+                    </select>
+                </div>
+                {{ campo_texto('no_sp', 'No. de SP', datos.no_sp, 'text', 'required maxlength="50"') }}
+                {{ campo_texto('fecha_recepcion', 'Fecha recibida', datos.fecha_recepcion, 'date') }}
+                {{ campo_texto('persona_entrega', 'Quién entrega / remite', datos.persona_entrega, 'text', 'maxlength="180"') }}
+                {{ campo_texto('rc', 'RC', datos.rc, 'text', 'maxlength="80"') }}
+                {{ campo_texto('providencia', 'Providencia', datos.providencia, 'text', 'maxlength="120"') }}
+                {{ campo_texto('folios', 'Folios recibidos / total confirmado', datos.folios, 'text', 'maxlength="80"') }}
+            </div>
+        </section>
+
+        <section class="analisis-documental__seccion" data-tipo-panel="ANEXO">
+            <h2>Datos del anexo</h2>
+            <div class="grid-form">
+                {{ campo_texto('numero_anexo', 'Anexo No.', datos.numero_anexo, 'text', 'maxlength="50"') }}
+                {{ campo_texto('titulo_anexo', 'Título del anexo', datos.titulo_anexo, 'text', 'required maxlength="180"') }}
+                <div class="campo analisis-documental__campo">
+                    <label for="tipo_anexo">Tipo de anexo {{ confianza('tipo_anexo') }}</label>
+                    <input id="tipo_anexo" name="tipo_anexo" list="tipos-anexo-analisis" value="{{ datos.tipo_anexo or '' }}" maxlength="120">
+                </div>
+                {{ campo_texto('folio_inicio', 'Folio inicial', datos.folio_inicio, 'number', 'min="1"') }}
+                {{ campo_texto('folio_fin', 'Folio final', datos.folio_fin, 'number', 'min="1"') }}
+            </div>
+            <label class="analisis-documental__check">
+                <input type="checkbox" name="crear_indice" value="1" {% if datos.folio_inicio and datos.folio_fin %}checked{% endif %}>
+                <span><strong>Incorporar al índice documental</strong><small>Solo se hará si el SP existe y el rango confirmado no se cruza con otro documento activo.</small></span>
+            </label>
+            <datalist id="tipos-anexo-analisis">{% for tipo in tipos_anexo %}<option value="{{ tipo }}">{% endfor %}</datalist>
+        </section>
+
+        <section class="analisis-documental__seccion" data-tipo-panel="PAGO">
+            <h2>Datos del pago</h2>
+            <div class="grid-form">
+                {{ campo_texto('boleta', 'Boleta', datos.boleta, 'text', 'maxlength="120"') }}
+                {{ campo_texto('total', 'Total', datos.total, 'text') }}
+                {{ campo_texto('periodo_texto', 'Período', datos.periodo_texto, 'text', 'maxlength="120"') }}
+            </div>
+        </section>
+
+        <section class="analisis-documental__seccion" data-tipo-panel="INSTALACION DESINSTALACION">
+            <h2>Datos del movimiento</h2>
+            <div class="grid-form">{{ campo_texto('descripcion', 'Descripción', datos.descripcion or 'EXPEDIENTE', 'text', 'maxlength="180"') }}</div>
+        </section>
+
+        <section class="analisis-documental__seccion" data-tipo-panel="MONITOREO">
+            <h2>Datos del reporte de monitoreo</h2>
+            <div class="grid-form">
+                <div class="campo analisis-documental__campo">
+                    <label for="tipo_documento">Tipo documento {{ confianza('tipo_documento') }}</label>
+                    <select id="tipo_documento" name="tipo_documento">
+                        {% for tipo in ['PROVIDENCIA','OFICIO','INFORME'] %}<option value="{{ tipo }}" {% if (datos.tipo_documento or 'PROVIDENCIA') == tipo %}selected{% endif %}>{{ tipo }}</option>{% endfor %}
+                    </select>
+                </div>
+                {{ campo_texto('numero_reporte', 'Reporte No.', datos.numero_reporte, 'text', 'maxlength="120"') }}
+                <div class="campo analisis-documental__campo">
+                    <label for="tipo_evento">Tipo de evento {{ confianza('tipo_evento') }}</label>
+                    <input id="tipo_evento" name="tipo_evento" list="eventos-analisis" value="{{ datos.tipo_evento or '' }}" maxlength="180">
+                </div>
+            </div>
+            <datalist id="eventos-analisis">{% for evento in tipos_evento %}<option value="{{ evento }}">{% endfor %}</datalist>
+        </section>
+
+        <section class="analisis-documental__seccion">
+            <div class="campo">
+                <label for="observaciones">Observaciones de validación</label>
+                <textarea id="observaciones" name="observaciones" rows="3">{{ datos.observaciones or '' }}</textarea>
+            </div>
+        </section>
+
+        {% if analisis.estado == 'PENDIENTE_VALIDACION' %}
+        <div class="analisis-documental__confirmacion">
+            <div><strong>La confirmación crea un registro real en Coordinación.</strong><p>Verifique especialmente SP, tipo documental y foliación. La rectificación maestra del expediente nunca se modifica automáticamente.</p></div>
+            <button class="boton" type="submit">Confirmar y registrar</button>
+        </div>
+        {% endif %}
+    </form>
+
+    {% if analisis.estado == 'PENDIENTE_VALIDACION' %}
+    <form method="post" action="{{ url_for('analisis_documental.descartar', analisis_id=analisis.id) }}" class="analisis-documental__descartar" onsubmit="return confirm('¿Descartar esta propuesta? No se creará ningún registro.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="boton-cancelar" type="submit">Descartar propuesta</button>
+    </form>
+    {% elif analisis.registro_id %}
+    <div class="acciones"><a class="boton" href="{{ url_for('coordinacion.detalle', registro_id=analisis.registro_id) }}">Abrir registro creado</a></div>
+    {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/analisis_documental.js') }}" defer></script>
+{% endblock %}
