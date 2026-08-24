@@ -84,7 +84,7 @@ class PrestamoGrupoDetalle(db.Model):
     prestamo = db.relationship(
         "PrestamoExpediente",
         lazy="joined",
-        backref=db.backref("detalle_grupal", uselist=False, lazy="joined"),
+        backref=db.backref("detalle_grupal", uselist=False, lazy="selectin"),
     )
     expediente = db.relationship("Expediente", lazy="joined")
 
