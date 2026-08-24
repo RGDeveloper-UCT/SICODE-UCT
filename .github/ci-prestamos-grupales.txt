@@ -1,1 +1,0 @@
-Validación temporal de la suite completa para préstamos grupales por rango.
