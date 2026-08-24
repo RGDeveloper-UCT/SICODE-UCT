@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/transiciones.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/expediente_detalle.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/rectificaciones.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/reloj_guatemala.css') }}">
 </head>
 <body class="{% block body_class %}{% endblock %}{% if modo_solo_lectura %} modo-visor{% endif %}"
       {% if current_user.is_authenticated %}data-presencia-url="{{ url_for('uo.pulso') }}" data-sicode-user="{{ current_user.id }}"{% endif %}>
@@ -59,6 +60,11 @@
         {% if current_user.is_authenticated %}
         <nav>
             <a href="{{ url_for('dashboard.inicio') }}">Dashboard</a>
+            <span class="reloj-guatemala" aria-label="Hora local de Guatemala">
+                <span class="reloj-guatemala__icono" aria-hidden="true"></span>
+                <span class="reloj-guatemala__zona">GT</span>
+                <time data-reloj-guatemala aria-live="off">--:--:--</time>
+            </span>
             <a href="{{ url_for('busqueda.global_') }}">Buscar</a>
             <a href="{{ url_for('expedientes.listado') }}">SP / Expedientes</a>
             <a href="{{ url_for('coordinacion.inicio') }}">Coordinación</a>
@@ -83,6 +89,7 @@
     <footer class="pie-sicode">SICODE-UCT · versión {{ sicode_version }}</footer>
     {% if current_user.is_authenticated %}
     <script src="{{ url_for('static', filename='js/presencia.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/reloj_guatemala.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/transiciones.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/ticket_soporte.js') }}" defer></script>
     {% endif %}
