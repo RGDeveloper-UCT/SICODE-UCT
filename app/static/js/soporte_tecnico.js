@@ -4,6 +4,7 @@
 
   const servicios = [...form.querySelectorAll('input[name="tipos_servicio"]')];
   const secciones = [...form.querySelectorAll('[data-soporte-section]')];
+  const detalleFuncional = form.querySelector('[data-detalle-funcional]');
   const equipo = form.querySelector('[data-equipo-section]');
   const resumenServicio = form.querySelector('[data-resumen-servicio]');
   const resumenEstado = form.querySelector('[data-resumen-estado]');
@@ -12,10 +13,13 @@
   const tiempoResolucion = form.querySelector('#tiempo_empleado');
   const tipoEquipo = form.querySelector('#tipo_equipo');
   const tipoEquipoOtro = form.querySelector('[data-tipo-equipo-otro]');
-  const minimizar = document.querySelector('[data-minimizar-ticket]');
+  const minimizarLinks = [...document.querySelectorAll('[data-minimizar-ticket]')];
+  const cancelarLinks = [...document.querySelectorAll('[data-cancelar-ticket]')];
+  const avisos = [...document.querySelectorAll('[data-soporte-toast]')];
   const ticketApi = window.SICODETicketSoporte;
 
   const necesitaEquipo = new Set(['HARDWARE', 'SOFTWARE', 'INSTALACION', 'TRASLADO', 'REVISION']);
+  const tieneDetalleFuncional = new Set(['GESTION_USUARIO', 'HARDWARE', 'SOFTWARE']);
 
   function seleccionados() {
     return servicios.filter((item) => item.checked).map((item) => item.value);
@@ -33,6 +37,9 @@
       const codigo = seccion.dataset.soporteSection;
       seccion.hidden = !activos.has(codigo);
     });
+    if (detalleFuncional) {
+      detalleFuncional.hidden = ![...activos].some((codigo) => tieneDetalleFuncional.has(codigo));
+    }
     if (equipo) equipo.hidden = ![...activos].some((codigo) => necesitaEquipo.has(codigo));
 
     const etiquetas = etiquetasSeleccionadas();
@@ -127,6 +134,18 @@
     tiempoResolucion.title = 'Calculado automáticamente desde que se inició el ticket.';
   }
 
+  function cerrarAviso(aviso) {
+    if (!aviso || aviso.dataset.cerrando === '1') return;
+    aviso.dataset.cerrando = '1';
+    aviso.classList.add('soporte-toast-saliendo');
+    window.setTimeout(() => aviso.remove(), 220);
+  }
+
+  avisos.forEach((aviso, indice) => {
+    aviso.querySelector('[data-soporte-toast-cerrar]')?.addEventListener('click', () => cerrarAviso(aviso));
+    window.setTimeout(() => cerrarAviso(aviso), 60000 + (indice * 350));
+  });
+
   const activeTicket = ticketApi?.read();
   if (currentTicketMatches(activeTicket)) {
     if (activeTicket.draft && Object.keys(activeTicket.draft).length) {
@@ -145,10 +164,24 @@
   form.addEventListener('change', saveDraft);
   window.addEventListener('pagehide', saveDraft);
 
-  minimizar?.addEventListener('click', (event) => {
-    event.preventDefault();
-    saveDraft();
-    window.location.href = minimizar.href;
+  minimizarLinks.forEach((link) => {
+    link.addEventListener('click', (event) => {
+      event.preventDefault();
+      saveDraft();
+      window.location.href = link.href;
+    });
+  });
+
+  cancelarLinks.forEach((link) => {
+    link.addEventListener('click', (event) => {
+      event.preventDefault();
+      const confirmar = window.confirm(
+        '¿Cancelar esta boleta de soporte? Se detendrá el cronómetro y se descartarán los datos no guardados.'
+      );
+      if (!confirmar) return;
+      ticketApi?.clear();
+      window.location.href = link.href;
+    });
   });
 
   form.addEventListener('submit', () => {
@@ -158,6 +191,7 @@
     updateTimerField();
     saveDraft();
     const refreshed = ticketApi.read();
+    if (!refreshed) return;
     refreshed.pendingSubmitState = selectEstado?.value || 'PENDIENTE';
     ticketApi.write(refreshed);
   });

@@ -98,6 +98,30 @@ def test_panel_y_formulario_contienen_boleta_completa(cliente_soporte):
     assert "ticket_soporte.js" in texto
 
 
+def test_formulario_compacto_cancelacion_y_avisos(cliente_soporte):
+    formulario = cliente_soporte.get("/coordinacion/soporte-tecnico/nuevo")
+    texto = formulario.get_data(as_text=True)
+
+    assert formulario.status_code == 200
+    assert "soporte-layout-compacto" in texto
+    assert "soporte-form-compacto" in texto
+    assert "Cancelar boleta" in texto
+    assert 'data-cancelar-ticket' in texto
+    assert texto.count('data-soporte-toast') >= 2
+    assert 'data-soporte-toast-cerrar' in texto
+    assert "Ticket en atención" in texto
+    assert "Registro administrativo" in texto
+
+    javascript = cliente_soporte.get("/static/js/soporte_tecnico.js").get_data(as_text=True)
+    estilos = cliente_soporte.get("/static/css/soporte_tecnico.css").get_data(as_text=True)
+    assert "60000" in javascript
+    assert "window.confirm" in javascript
+    assert "ticketApi?.clear()" in javascript
+    assert "detalleFuncional.hidden" in javascript
+    assert ".soporte-notificaciones" in estilos
+    assert "grid-template-columns: repeat(12" in estilos
+
+
 def test_registrar_soporte_se_integra_con_coordinacion_y_bitacora(app_soporte, cliente_soporte):
     respuesta = cliente_soporte.post(
         "/coordinacion/soporte-tecnico/nuevo",
