@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Préstamos por rango — SICODE-UCT{% endblock %}
+{% block body_class %}vista-prestamos vista-prestamos-grupales{% endblock %}
+
+{% block content %}
+<section class="panel panel-ancho">
+    <div class="encabezado-modulo">
+        <div>
+            <h1>Préstamos de expedientes por rango</h1>
+            <p>Genere una sola constancia para un rango de SP. Cada expediente queda registrado además como préstamo individual para su trazabilidad y devolución.</p>
+        </div>
+        <div class="acciones-detalle">
+            <a class="boton-secundario" href="{{ url_for('prestamos.listado') }}">Volver a préstamos</a>
+        </div>
+    </div>
+
+    {% if not current_user.es_visor %}
+    <div class="bloque-prestamo-grupal">
+        <div class="aviso-prestamo-grupal">
+            <strong>Validación obligatoria del rango</strong>
+            <p>Antes de guardar, SICODE comprueba todos los SP del rango. El grupo no se crea si falta un SP, está inactivo, no tiene expediente físico, tiene folios/anexos pendientes de rectificación o ya posee un préstamo activo.</p>
+        </div>
+
+        <form method="POST" action="{{ url_for('prestamos_grupales.nuevo_grupal') }}" class="formulario-prestamo-grupal">
+            {{ form.hidden_tag() }}
+            <div class="rango-prestamo-grupal">
+                <div class="campo-formulario">
+                    {{ form.sp_desde.label }}
+                    {{ form.sp_desde(min=1, placeholder='Ej. 1') }}
+                    {% for error in form.sp_desde.errors %}<small class="error-campo">{{ error }}</small>{% endfor %}
+                </div>
+                <div class="campo-formulario">
+                    {{ form.sp_hasta.label }}
+                    {{ form.sp_hasta(min=1, placeholder='Ej. 10') }}
+                    {% for error in form.sp_hasta.errors %}<small class="error-campo">{{ error }}</small>{% endfor %}
+                </div>
+            </div>
+
+            <div class="datos-prestamo-grupal">
+                <div class="campo-formulario">
+                    {{ form.solicitante.label }}
+                    {{ form.solicitante(placeholder='Persona solicitante') }}
+                    {% for error in form.solicitante.errors %}<small class="error-campo">{{ error }}</small>{% endfor %}
+                </div>
+                <div class="campo-formulario">
+                    {{ form.persona_entrega.label }}
+                    {{ form.persona_entrega(placeholder='Persona que entrega') }}
+                    {% for error in form.persona_entrega.errors %}<small class="error-campo">{{ error }}</small>{% endfor %}
+                </div>
+                <div class="campo-formulario">
+                    {{ form.persona_recibe.label }}
+                    {{ form.persona_recibe(placeholder='Persona que recibe') }}
+                    {% for error in form.persona_recibe.errors %}<small class="error-campo">{{ error }}</small>{% endfor %}
+                </div>
+                <div class="campo-formulario">
+                    {{ form.fecha_estimada_devolucion.label }}
+                    {{ form.fecha_estimada_devolucion() }}
+                    {% for error in form.fecha_estimada_devolucion.errors %}<small class="error-campo">{{ error }}</small>{% endfor %}
+                </div>
+            </div>
+
+            <div class="campo-formulario">
+                {{ form.observaciones.label }}
+                {{ form.observaciones(rows=3, placeholder='Observaciones generales para todos los expedientes del rango') }}
+            </div>
+
+            <div class="acciones-formulario">
+                {{ form.submit(class_='boton-exito') }}
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
+    <div class="encabezado-subseccion-prestamos">
+        <div>
+            <h2>Historial de préstamos grupales</h2>
+            <p>Las devoluciones continúan registrándose individualmente desde el panel maestro de préstamos.</p>
+        </div>
+        <span class="badge badge-neutral">{{ grupos|length }} recientes</span>
+    </div>
+
+    <div class="tabla-contenedor">
+        <table class="tabla-prestamos tabla-prestamos-grupales">
+            <thead>
+                <tr>
+                    <th>Control grupal</th>
+                    <th>Rango</th>
+                    <th>Expedientes</th>
+                    <th>Solicitante / receptor</th>
+                    <th>Fecha</th>
+                    <th>Estado</th>
+                    <th>Constancia y detalle</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for grupo in grupos %}
+                <tr>
+                    <td><strong>{{ grupo.numero_control }}</strong></td>
+                    <td><strong>SP {{ grupo.sp_desde }} al {{ grupo.sp_hasta }}</strong></td>
+                    <td>
+                        <strong>{{ grupo.total_expedientes }}</strong> asociados<br>
+                        <small>{{ grupo.total_pendientes }} aún en préstamo</small>
+                    </td>
+                    <td>
+                        <strong>{{ grupo.solicitante }}</strong><br>
+                        <small>Recibe: {{ grupo.persona_recibe }}</small>
+                    </td>
+                    <td>
+                        {{ grupo.fecha_prestamo.strftime('%d/%m/%Y %H:%M') if grupo.fecha_prestamo else 'Sin fecha' }}
+                        {% if grupo.fecha_estimada_devolucion %}<br><small>Dev. estimada: {{ grupo.fecha_estimada_devolucion.strftime('%d/%m/%Y') }}</small>{% endif %}
+                    </td>
+                    <td>
+                        {% if grupo.estado == 'Devuelto' %}
+                            <span class="badge badge-activo">Devuelto</span>
+                        {% elif grupo.estado == 'Parcialmente devuelto' %}
+                            <span class="badge badge-advertencia">Parcial</span>
+                        {% else %}
+                            <span class="badge badge-advertencia">En préstamo</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a class="boton-tabla" href="{{ url_for('prestamos_grupales.constancia_grupal_pdf', grupo_id=grupo.id) }}">Descargar constancia</a>
+                        <details class="detalle-sp-grupo">
+                            <summary>Ver SP individuales</summary>
+                            <div class="lista-sp-grupo">
+                                {% for detalle in grupo.detalles %}
+                                    <a href="{{ url_for('prestamos.detalle', prestamo_id=detalle.prestamo.id) }}">
+                                        SP {{ detalle.expediente.no_sp }} · {{ detalle.prestamo.estado }}
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        </details>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7">Todavía no existen préstamos grupales registrados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<style>
+.bloque-prestamo-grupal{display:grid;grid-template-columns:minmax(250px,.7fr) minmax(560px,1.8fr);gap:18px;margin:18px 0 28px;align-items:start}
+.aviso-prestamo-grupal{padding:18px;border:1px solid #cbd5e1;border-radius:14px;background:#f8fafc}.aviso-prestamo-grupal strong{display:block;margin-bottom:8px}.aviso-prestamo-grupal p{margin:0;line-height:1.5}
+.formulario-prestamo-grupal{padding:18px;border:1px solid #dbe3ee;border-radius:14px;background:#fff}.rango-prestamo-grupal,.datos-prestamo-grupal{display:grid;gap:14px;margin-bottom:14px}.rango-prestamo-grupal{grid-template-columns:repeat(2,minmax(0,1fr))}.datos-prestamo-grupal{grid-template-columns:repeat(4,minmax(0,1fr))}.campo-formulario{display:flex;flex-direction:column;gap:6px}.campo-formulario input,.campo-formulario textarea{width:100%}.error-campo{color:#b42318}.encabezado-subseccion-prestamos{display:flex;justify-content:space-between;gap:16px;align-items:end;margin:22px 0 12px}.encabezado-subseccion-prestamos h2,.encabezado-subseccion-prestamos p{margin:0}.encabezado-subseccion-prestamos p{margin-top:4px}.detalle-sp-grupo{margin-top:8px}.detalle-sp-grupo summary{cursor:pointer;font-weight:600}.lista-sp-grupo{display:grid;gap:5px;margin-top:7px;max-height:180px;overflow:auto}.lista-sp-grupo a{white-space:nowrap}.tabla-prestamos-grupales{min-width:1180px}
+@media(max-width:1100px){.bloque-prestamo-grupal{grid-template-columns:1fr}.datos-prestamo-grupal{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.rango-prestamo-grupal,.datos-prestamo-grupal{grid-template-columns:1fr}}
+</style>
+{% endblock %}
