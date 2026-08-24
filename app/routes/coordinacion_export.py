@@ -8,6 +8,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from app.models.coordinacion import RegistroCoordinacion
+from app.models.soporte_tecnico import ServicioSoporteTecnico
 from app.security import admin_required
 from app.services.bitacora_service import registrar_bitacora
 
@@ -29,6 +30,10 @@ def _fecha(valor):
 
 def _fecha_hora(valor):
     return valor.strftime("%d/%m/%Y %H:%M:%S") if valor else ""
+
+
+def _lista(valores):
+    return "; ".join(str(valor) for valor in (valores or []))
 
 
 def _folios(registro):
@@ -80,6 +85,13 @@ def _resumen_especifico(registro):
     if registro.tipo == "DOCUMENTO_EMITIDO" and registro.documento_emitido:
         documento = registro.documento_emitido
         return f"Documento: {documento.numero_documento or ''} | Destino: {documento.destino or ''} | {documento.descripcion or ''}"
+    if registro.tipo == "ACTIVIDAD" and registro.soporte_tecnico:
+        soporte = registro.soporte_tecnico
+        return (
+            f"Boleta soporte: {soporte.numero_boleta} | Usuario: {soporte.usuario_solicitante} | "
+            f"Área: {soporte.coordinacion_area} | Estado: {soporte.estado_legible} | "
+            f"Servicios: {_lista(soporte.tipos_servicio)}"
+        )
     if registro.tipo == "ACTIVIDAD" and registro.actividad_coordinacion:
         actividad = registro.actividad_coordinacion
         return f"Tipo: {actividad.tipo_actividad or ''} | Área: {actividad.area_apoyo or ''} | {actividad.descripcion or ''}"
@@ -284,6 +296,69 @@ def exportar_todos():
         ],
     )
 
+    soportes = ServicioSoporteTecnico.query.order_by(
+        ServicioSoporteTecnico.fecha_hora_solicitud.desc(),
+        ServicioSoporteTecnico.id.desc(),
+    ).all()
+    _agregar_hoja(
+        wb,
+        "Soporte técnico",
+        [
+            "ID boleta", "No. boleta", "ID registro coordinación", "Fecha/hora solicitud",
+            "Usuario solicitante", "Puesto/cargo", "Coordinación/área", "Técnico asignado",
+            "Tipos de servicio", "Gestión usuario", "Hardware", "Software", "Instalación",
+            "Traslado", "Revisión", "Otro servicio TI", "Otro instalación", "Otro traslado",
+            "Otro revisión", "Tipo equipo", "Otro tipo equipo", "Marca/modelo", "No. serie",
+            "Inventario", "IP/nombre equipo", "Solicitud/falla", "Diagnóstico/trabajo",
+            "Estado final", "Seguimiento", "Fecha/hora cierre", "Tiempo empleado",
+            "Observaciones cierre", "Nombre firma usuario", "Fecha firma usuario",
+            "Nombre firma técnico", "Fecha firma técnico", "Creado", "Actualizado",
+        ],
+        [
+            [
+                s.id,
+                s.numero_boleta,
+                s.registro_id,
+                _fecha_hora(s.fecha_hora_solicitud),
+                s.usuario_solicitante,
+                s.puesto_cargo or "",
+                s.coordinacion_area,
+                s.tecnico_asignado,
+                _lista(s.tipos_servicio),
+                _lista(s.gestion_usuario_detalles),
+                _lista(s.hardware_detalles),
+                _lista(s.software_detalles),
+                _lista(s.instalacion_detalles),
+                _lista(s.traslado_detalles),
+                _lista(s.revision_detalles),
+                s.otro_servicio_ti or "",
+                s.otro_instalacion or "",
+                s.otro_traslado or "",
+                s.otro_revision or "",
+                s.tipo_equipo or "",
+                s.tipo_equipo_otro or "",
+                s.marca_modelo or "",
+                s.numero_serie or "",
+                s.inventario or "",
+                s.ip_nombre_equipo or "",
+                s.descripcion_solicitud or "",
+                s.diagnostico_trabajo or "",
+                s.estado_legible,
+                "Sí" if s.seguimiento else "No",
+                _fecha_hora(s.fecha_hora_cierre),
+                s.tiempo_empleado or "",
+                s.observaciones_cierre or "",
+                s.nombre_firma_usuario or "",
+                _fecha(s.fecha_firma_usuario),
+                s.nombre_firma_tecnico or "",
+                _fecha(s.fecha_firma_tecnico),
+                _fecha_hora(s.creado_en),
+                _fecha_hora(s.actualizado_en),
+            ]
+            for s in soportes
+        ],
+    )
+
     remisiones = [r for r in registros if r.tipo == "REMISION" and r.remision_coordinacion]
     _agregar_hoja(
         wb,
@@ -338,7 +413,11 @@ def exportar_todos():
         descripcion=f"Se exportaron {len(registros)} registros de Coordinación a Excel.",
         usuario_id=current_user.id,
         entidad="RegistroCoordinacion",
-        datos_posteriores={"registros_exportados": len(registros), "formato": "XLSX"},
+        datos_posteriores={
+            "registros_exportados": len(registros),
+            "boletas_soporte_exportadas": len(soportes),
+            "formato": "XLSX",
+        },
     )
 
     nombre = f"SICODE_Coordinacion_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"

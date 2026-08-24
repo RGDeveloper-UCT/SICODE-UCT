@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Soporte técnico y servicios TI — SICODE-UCT{% endblock %}
+{% block body_class %}vista-soporte-tecnico{% endblock %}
+{% block content %}
+<section class="panel panel-ancho soporte-panel">
+    <div class="encabezado-modulo soporte-encabezado">
+        <div>
+            <p class="soporte-eyebrow">Coordinación</p>
+            <h1>Soporte técnico y servicios TI</h1>
+            <p>Control de boletas, atención informática, diagnóstico, seguimiento y constancias PDF.</p>
+        </div>
+        <div class="acciones-detalle">
+            <a class="boton-cancelar" href="{{ url_for('coordinacion.inicio') }}">Coordinación</a>
+            {% if not current_user.es_visor %}<a class="boton-primario" href="{{ url_for('soporte_tecnico.nuevo') }}">Nueva boleta</a>{% endif %}
+        </div>
+    </div>
+
+    <div class="soporte-indicadores">
+        <div class="tarjeta"><span>Total de boletas</span><strong>{{ total }}</strong></div>
+        <div class="tarjeta"><span>Pendientes / parciales / escaladas</span><strong>{{ pendientes }}</strong></div>
+        <div class="tarjeta"><span>Resueltas</span><strong>{{ resueltos }}</strong></div>
+        <div class="tarjeta"><span>Con seguimiento</span><strong>{{ seguimiento }}</strong></div>
+        <div class="tarjeta"><span>Actividades históricas</span><strong>{{ historicos }}</strong><a href="{{ url_for('coordinacion.listado', tipo='ACTIVIDAD') }}">Ver registros anteriores</a></div>
+    </div>
+
+    <form method="get" class="soporte-filtros">
+        <div class="campo campo-busqueda-soporte"><label for="q">Buscar</label><input id="q" name="q" value="{{ q }}" placeholder="Boleta, usuario, área, técnico, equipo, inventario o descripción"></div>
+        <div class="campo"><label for="tipo">Servicio</label><select id="tipo" name="tipo"><option value="">Todos</option>{% for codigo, etiqueta in tipos_servicio %}<option value="{{ codigo }}" {% if tipo == codigo %}selected{% endif %}>{{ etiqueta }}</option>{% endfor %}</select></div>
+        <div class="campo"><label for="estado">Estado</label><select id="estado" name="estado"><option value="">Todos</option>{% for codigo, etiqueta in estados %}<option value="{{ codigo }}" {% if estado == codigo %}selected{% endif %}>{{ etiqueta }}</option>{% endfor %}</select></div>
+        <div class="acciones"><button class="boton-secundario" type="submit">Filtrar</button><a class="boton-cancelar" href="{{ url_for('soporte_tecnico.listado') }}">Limpiar</a></div>
+    </form>
+
+    <div class="tabla-contenedor soporte-tabla-contenedor">
+        <table class="soporte-tabla">
+            <thead><tr><th>Boleta</th><th>Fecha</th><th>Usuario / área</th><th>Servicio</th><th>Técnico</th><th>Equipo</th><th>Estado</th><th>Seguimiento</th><th>Acciones</th></tr></thead>
+            <tbody>
+            {% for boleta in boletas %}
+                <tr>
+                    <td><strong>{{ boleta.numero_boleta }}</strong></td>
+                    <td>{{ boleta.fecha_hora_solicitud.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td><strong>{{ boleta.usuario_solicitante }}</strong><small>{{ boleta.coordinacion_area }}</small></td>
+                    <td><div class="soporte-chips">{% for codigo in boleta.tipos_servicio %}<span>{{ dict(tipos_servicio).get(codigo, codigo) }}</span>{% endfor %}</div></td>
+                    <td>{{ boleta.tecnico_asignado }}</td>
+                    <td>{% if boleta.tipo_equipo %}{{ boleta.tipo_equipo }}{% if boleta.inventario %}<small>Inv. {{ boleta.inventario }}</small>{% endif %}{% else %}—{% endif %}</td>
+                    <td><span class="badge soporte-estado soporte-estado-{{ boleta.estado_final|lower }}">{{ boleta.estado_legible }}</span></td>
+                    <td>{{ 'Sí' if boleta.seguimiento else 'No' }}</td>
+                    <td class="soporte-acciones-fila"><a href="{{ url_for('soporte_tecnico.detalle', boleta_id=boleta.id) }}">Ver</a>{% if not current_user.es_visor %}<a href="{{ url_for('soporte_tecnico.editar', boleta_id=boleta.id) }}">Editar</a><a href="{{ url_for('soporte_tecnico.generar_pdf', boleta_id=boleta.id) }}">PDF</a>{% endif %}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="9" class="sin-registros-recientes">No hay boletas que coincidan con los filtros.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if paginacion.pages > 1 %}
+    <nav class="paginacion">
+        {% if paginacion.has_prev %}<a href="{{ url_for('soporte_tecnico.listado', page=paginacion.prev_num, q=q, estado=estado, tipo=tipo) }}">Anterior</a>{% endif %}
+        <span>Página {{ paginacion.page }} de {{ paginacion.pages }}</span>
+        {% if paginacion.has_next %}<a href="{{ url_for('soporte_tecnico.listado', page=paginacion.next_num, q=q, estado=estado, tipo=tipo) }}">Siguiente</a>{% endif %}
+    </nav>
+    {% endif %}
+</section>
+{% endblock %}
