@@ -20,6 +20,15 @@ class Expediente(db.Model):
     # sinónimos. Portadores puede conocer un SP antes de recibir su expediente.
     expediente_fisico_registrado = db.Column(db.Boolean, nullable=False, default=True, index=True)
 
+    # Rectificación física previa a préstamo/traslado. Estos valores son el
+    # conteo maestro confirmado manualmente del expediente y no se calculan a
+    # partir de documentos sensibles ni archivos cargados al sistema.
+    folios_rectificados = db.Column(db.Integer, nullable=True)
+    anexos_rectificados = db.Column(db.Integer, nullable=True)
+    rectificado_en = db.Column(db.DateTime, nullable=True)
+    rectificado_por_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=True, index=True)
+    rectificado_por = db.relationship("Usuario", foreign_keys=[rectificado_por_id], lazy="joined")
+
     nombres = db.Column(db.String(150), nullable=True)
     apellidos = db.Column(db.String(150), nullable=True)
     genero = db.Column(db.String(30), nullable=True)
@@ -73,6 +82,19 @@ class Expediente(db.Model):
         if valor in {"En préstamo", "Devuelto"}:
             return "Activo"
         return valor
+
+    @property
+    def rectificacion_completa(self):
+        return bool(
+            self.folios_rectificados is not None
+            and self.folios_rectificados > 0
+            and self.anexos_rectificados is not None
+            and self.anexos_rectificados >= 0
+        )
+
+    @property
+    def anexos_rectificados_activos(self):
+        return [anexo for anexo in self.anexos_rectificados_detalle if anexo.activo]
 
     @property
     def prestamo_activo(self):
