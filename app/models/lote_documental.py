@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from sqlalchemy import event
+
 from app import db
 
 
@@ -70,6 +72,31 @@ class SegmentoDocumental(db.Model):
     @property
     def pendiente(self):
         return self.estado == "PENDIENTE_VALIDACION"
+
+
+@event.listens_for(SegmentoDocumental, "before_insert")
+def _blindar_dpi_antes_de_persistir(_mapper, _connection, target):
+    """Defensa adicional para impedir persistencia accidental de PII desde DPI.
+
+    La asociación administrativa posterior (por ejemplo SP confirmado por el
+    usuario) se guarda en `datos_confirmados`, no en la propuesta OCR inicial.
+    """
+    datos = dict(target.datos_detectados or {})
+    tipo = str(target.tipo_detectado or datos.get("tipo_documento_lote") or "").upper()
+    if tipo != "DPI":
+        return
+
+    target.datos_detectados = {
+        "tipo_documento_lote": "DPI",
+        "pagina_inicio_pdf": datos.get("pagina_inicio_pdf"),
+        "pagina_fin_pdf": datos.get("pagina_fin_pdf"),
+    }
+    target.confianzas = {
+        "tipo_documento_lote": (target.confianzas or {}).get("tipo_documento_lote", 0.0)
+    }
+    target.fuentes_campos = {
+        "tipo_documento_lote": (target.fuentes_campos or {}).get("tipo_documento_lote", [])
+    }
 
 
 class AprendizajeDocumental(db.Model):
