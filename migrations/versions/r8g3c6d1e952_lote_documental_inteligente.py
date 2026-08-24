@@ -48,6 +48,7 @@ def upgrade():
         "segmentos_documentales",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("analisis_id", sa.Integer(), nullable=False),
+        sa.Column("expediente_id", sa.Integer(), nullable=True),
         sa.Column("orden", sa.Integer(), nullable=False),
         sa.Column("pagina_inicio", sa.Integer(), nullable=False),
         sa.Column("pagina_fin", sa.Integer(), nullable=False),
@@ -68,12 +69,14 @@ def upgrade():
         sa.Column("creado_en", sa.DateTime(), nullable=False),
         sa.Column("confirmado_en", sa.DateTime(), nullable=True),
         sa.ForeignKeyConstraint(["analisis_id"], ["analisis_documentales.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["expediente_id"], ["expedientes.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["registro_id"], ["registros_coordinacion.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["documento_expediente_id"], ["documentos_expediente.id"], ondelete="SET NULL"),
         sa.CheckConstraint("pagina_inicio >= 1", name="ck_segmento_pagina_inicio"),
         sa.CheckConstraint("pagina_fin >= pagina_inicio", name="ck_segmento_rango_paginas"),
     )
     op.create_index("ix_segmentos_documentales_analisis_id", "segmentos_documentales", ["analisis_id"])
+    op.create_index("ix_segmentos_documentales_expediente_id", "segmentos_documentales", ["expediente_id"])
     op.create_index("ix_segmentos_documentales_tipo_detectado", "segmentos_documentales", ["tipo_detectado"])
     op.create_index("ix_segmentos_documentales_estado", "segmentos_documentales", ["estado"])
     op.create_index("ix_segmentos_documentales_registro_id", "segmentos_documentales", ["registro_id"])
