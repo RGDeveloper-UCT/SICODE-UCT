@@ -4,6 +4,7 @@
 
   const servicios = [...form.querySelectorAll('input[name="tipos_servicio"]')];
   const secciones = [...form.querySelectorAll('[data-soporte-section]')];
+  const detalleFuncional = form.querySelector('[data-detalle-funcional]');
   const equipo = form.querySelector('[data-equipo-section]');
   const resumenServicio = form.querySelector('[data-resumen-servicio]');
   const resumenEstado = form.querySelector('[data-resumen-estado]');
@@ -18,6 +19,7 @@
   const ticketApi = window.SICODETicketSoporte;
 
   const necesitaEquipo = new Set(['HARDWARE', 'SOFTWARE', 'INSTALACION', 'TRASLADO', 'REVISION']);
+  const tieneDetalleFuncional = new Set(['GESTION_USUARIO', 'HARDWARE', 'SOFTWARE']);
 
   function seleccionados() {
     return servicios.filter((item) => item.checked).map((item) => item.value);
@@ -35,6 +37,9 @@
       const codigo = seccion.dataset.soporteSection;
       seccion.hidden = !activos.has(codigo);
     });
+    if (detalleFuncional) {
+      detalleFuncional.hidden = ![...activos].some((codigo) => tieneDetalleFuncional.has(codigo));
+    }
     if (equipo) equipo.hidden = ![...activos].some((codigo) => necesitaEquipo.has(codigo));
 
     const etiquetas = etiquetasSeleccionadas();
