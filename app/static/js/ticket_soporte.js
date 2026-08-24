@@ -12,6 +12,7 @@
   const overlayText = document.querySelector('[data-ticket-soporte-inicio-texto]');
   const overlayClock = document.querySelector('[data-ticket-soporte-inicio-reloj]');
   const newTicketPath = '/coordinacion/soporte-tecnico/nuevo';
+  const dashboardPath = '/dashboard/';
 
   function readTicket() {
     try {
@@ -127,8 +128,9 @@
   }
 
   // Después de un POST correcto el backend redirige al detalle de la boleta.
-  // En ese momento conservamos la burbuja si quedó Pendiente o finalizamos el
-  // cronómetro si el técnico cerró el ticket.
+  // Si quedó Pendiente conservamos la burbuja para continuar el ticket. Si el
+  // técnico lo cerró (Resuelto, Parcial o Escalado), limpiamos el cronómetro y
+  // regresamos automáticamente al Dashboard para continuar trabajando en SICODE.
   const detailMatch = window.location.pathname.match(/^\/coordinacion\/soporte-tecnico\/boletas\/(\d+)$/);
   if (detailMatch) {
     const ticket = readTicket();
@@ -140,6 +142,8 @@
         writeTicket(ticket);
       } else {
         clearTicket();
+        window.location.replace(dashboardPath);
+        return;
       }
     }
   }
