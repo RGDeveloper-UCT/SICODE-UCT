@@ -13,8 +13,12 @@ def test_reloj_guatemala_integrado_en_barra_superior():
     assert 'Hora local de Guatemala' in base
     assert 'reloj_guatemala.js' in base
     assert 'reloj_guatemala.css' in base
+    assert 'class="topbar-utilidad"' in base
+    assert base.index('class="topbar-utilidad"') < base.index('<nav>')
     assert "America/Guatemala" in javascript
     assert "second: '2-digit'" in javascript
     assert "hour12: false" in javascript
     assert ".reloj-guatemala" in estilos
+    assert ".topbar-utilidad" in estilos
+    assert "left: clamp(285px, 17vw, 340px)" in estilos
     assert "font-variant-numeric: tabular-nums" in estilos

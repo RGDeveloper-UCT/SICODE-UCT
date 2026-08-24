@@ -58,13 +58,15 @@
             {% if modo_solo_lectura %}<span class="badge-modo-visor">VISOR · SOLO CONSULTA</span>{% endif %}
         </div>
         {% if current_user.is_authenticated %}
-        <nav>
-            <a href="{{ url_for('dashboard.inicio') }}">Dashboard</a>
+        <div class="topbar-utilidad" aria-label="Utilidades de la barra superior">
             <span class="reloj-guatemala" aria-label="Hora local de Guatemala">
                 <span class="reloj-guatemala__icono" aria-hidden="true"></span>
                 <span class="reloj-guatemala__zona">GT</span>
                 <time data-reloj-guatemala aria-live="off">--:--:--</time>
             </span>
+        </div>
+        <nav>
+            <a href="{{ url_for('dashboard.inicio') }}">Dashboard</a>
             <a href="{{ url_for('busqueda.global_') }}">Buscar</a>
             <a href="{{ url_for('expedientes.listado') }}">SP / Expedientes</a>
             <a href="{{ url_for('coordinacion.inicio') }}">Coordinación</a>
