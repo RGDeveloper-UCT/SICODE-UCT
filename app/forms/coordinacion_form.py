@@ -33,7 +33,6 @@ class MovimientoForm(RegistroBaseForm):
 
 class AnexoForm(RegistroBaseForm):
     tipo_anexo = StringField("Tipo de anexo", validators=[Optional(), Length(max=120)])
-    titulo = StringField("Título del anexo", validators=[Optional(), Length(max=180)])
     folios = StringField("Folios recibidos", validators=[Optional(), Length(max=80)])
     escaneado = BooleanField("Escaneado")
     fecha_escaneado = DateField("Fecha escaneado", validators=[Optional()], format="%Y-%m-%d")
