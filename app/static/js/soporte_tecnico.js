@@ -9,8 +9,11 @@
   const resumenEstado = form.querySelector('[data-resumen-estado]');
   const selectEstado = form.querySelector('[data-estado-final]');
   const fechaCierre = form.querySelector('[data-fecha-cierre]');
+  const tiempoResolucion = form.querySelector('#tiempo_empleado');
   const tipoEquipo = form.querySelector('#tipo_equipo');
   const tipoEquipoOtro = form.querySelector('[data-tipo-equipo-otro]');
+  const minimizar = document.querySelector('[data-minimizar-ticket]');
+  const ticketApi = window.SICODETicketSoporte;
 
   const necesitaEquipo = new Set(['HARDWARE', 'SOFTWARE', 'INSTALACION', 'TRASLADO', 'REVISION']);
 
@@ -71,13 +74,97 @@
     }
   }
 
+  function currentTicketMatches(ticket) {
+    if (!ticket) return false;
+    const current = window.location.pathname;
+    const resume = ticket.resumeUrl || '/coordinacion/soporte-tecnico/nuevo';
+    return current === resume || (current.endsWith('/nuevo') && resume.endsWith('/nuevo'));
+  }
+
+  function serializeDraft() {
+    const draft = {};
+    const fields = [...form.elements].filter((field) => field.name && !['csrf_token', 'submit'].includes(field.name));
+    fields.forEach((field) => {
+      if (field.type === 'checkbox' || field.type === 'radio') {
+        if (!draft[field.name]) draft[field.name] = [];
+        if (field.checked) draft[field.name].push(field.value);
+      } else {
+        draft[field.name] = field.value;
+      }
+    });
+    return draft;
+  }
+
+  function restoreDraft(draft) {
+    if (!draft || typeof draft !== 'object') return;
+    Object.entries(draft).forEach(([name, value]) => {
+      const fields = [...form.querySelectorAll(`[name="${CSS.escape(name)}"]`)];
+      fields.forEach((field) => {
+        if (field.type === 'checkbox' || field.type === 'radio') {
+          field.checked = Array.isArray(value) && value.includes(field.value);
+        } else if (typeof value === 'string') {
+          field.value = value;
+        }
+      });
+    });
+  }
+
+  function saveDraft() {
+    if (!ticketApi) return;
+    const ticket = ticketApi.read();
+    if (!currentTicketMatches(ticket)) return;
+    ticket.draft = serializeDraft();
+    ticket.label = etiquetasSeleccionadas()[0] || 'Tiempo de resolución';
+    ticketApi.write(ticket);
+  }
+
+  function updateTimerField() {
+    if (!ticketApi || !tiempoResolucion) return;
+    const ticket = ticketApi.read();
+    if (!currentTicketMatches(ticket)) return;
+    tiempoResolucion.value = ticketApi.formatDuration(ticketApi.elapsed(ticket));
+    tiempoResolucion.readOnly = true;
+    tiempoResolucion.title = 'Calculado automáticamente desde que se inició el ticket.';
+  }
+
+  const activeTicket = ticketApi?.read();
+  if (currentTicketMatches(activeTicket)) {
+    if (activeTicket.draft && Object.keys(activeTicket.draft).length) {
+      restoreDraft(activeTicket.draft);
+    }
+    updateTimerField();
+    window.setInterval(updateTimerField, 1000);
+  }
+
   servicios.forEach((item) => item.addEventListener('change', actualizarSecciones));
   form.querySelectorAll('input[name$="_detalles"]').forEach((item) => item.addEventListener('change', actualizarOtrosDetalles));
   tipoEquipo?.addEventListener('change', actualizarOtroEquipo);
   selectEstado?.addEventListener('change', actualizarCierre);
 
+  form.addEventListener('input', saveDraft);
+  form.addEventListener('change', saveDraft);
+  window.addEventListener('pagehide', saveDraft);
+
+  minimizar?.addEventListener('click', (event) => {
+    event.preventDefault();
+    saveDraft();
+    window.location.href = minimizar.href;
+  });
+
+  form.addEventListener('submit', () => {
+    if (!ticketApi) return;
+    const ticket = ticketApi.read();
+    if (!currentTicketMatches(ticket)) return;
+    updateTimerField();
+    saveDraft();
+    const refreshed = ticketApi.read();
+    refreshed.pendingSubmitState = selectEstado?.value || 'PENDIENTE';
+    ticketApi.write(refreshed);
+  });
+
   actualizarSecciones();
   actualizarOtrosDetalles();
   actualizarOtroEquipo();
   actualizarCierre();
+  saveDraft();
 })();

@@ -60,14 +60,14 @@ def _datos_boleta():
         "tipo_equipo": "PC",
         "marca_modelo": "Equipo institucional",
         "numero_serie": "SERIE-123",
-        "inventario": "INV-456",
+        "inventario": "SICOIN-456",
         "ip_nombre_equipo": "PC-DIRECCION-01",
         "descripcion_solicitud": "Respaldo de información y revisión de conectividad.",
         "diagnostico_trabajo": "Se verificó conectividad y se realizó el respaldo autorizado.",
         "estado_final": "RESUELTO",
         "seguimiento": "NO",
         "fecha_hora_cierre": "2026-08-24T10:10",
-        "tiempo_empleado": "40 min",
+        "tiempo_empleado": "00:40:00",
         "observaciones_cierre": "Pruebas satisfactorias.",
         "nombre_firma_usuario": "Usuario Atendido",
         "fecha_firma_usuario": "2026-08-24",
@@ -91,6 +91,11 @@ def test_panel_y_formulario_contienen_boleta_completa(cliente_soporte):
     assert "Identificación del equipo" in texto
     assert "Resultado y cierre del servicio" in texto
     assert "data-soporte-section" in texto
+    assert "SICOIN" in texto
+    assert "Tiempo de resolución" in texto
+    assert "Minimizar y seguir en SICODE" in texto
+    assert "data-ticket-soporte-burbuja" in texto
+    assert "ticket_soporte.js" in texto
 
 
 def test_registrar_soporte_se_integra_con_coordinacion_y_bitacora(app_soporte, cliente_soporte):
@@ -112,6 +117,8 @@ def test_registrar_soporte_se_integra_con_coordinacion_y_bitacora(app_soporte, c
         assert boleta.tipos_servicio == ["SOFTWARE", "REVISION"]
         assert "BACKUP" in boleta.software_detalles
         assert boleta.estado_final == "RESUELTO"
+        assert boleta.inventario == "SICOIN-456"
+        assert boleta.tiempo_empleado == "00:40:00"
         assert registro.tipo == "ACTIVIDAD"
         assert registro.estado == "Completo"
         assert actividad.tipo_actividad == "SOPORTE TI"
@@ -134,3 +141,33 @@ def test_boleta_pdf_es_constancia_imprimible(app_soporte, cliente_soporte):
     assert respuesta.mimetype == "application/pdf"
     assert respuesta.data.startswith(b"%PDF")
     assert "boleta_soporte_BST-2026-" in respuesta.headers["Content-Disposition"]
+
+
+def test_pdf_limpio_y_ruta_nueva(app_soporte, cliente_soporte):
+    cliente_soporte.post(
+        "/coordinacion/soporte-tecnico/nuevo",
+        data=_datos_boleta(),
+        follow_redirects=False,
+    )
+    with app_soporte.app_context():
+        boleta_id = ServicioSoporteTecnico.query.one().id
+
+    detalle = cliente_soporte.get(f"/coordinacion/soporte-tecnico/boletas/{boleta_id}")
+    texto_detalle = detalle.get_data(as_text=True)
+    assert detalle.status_code == 200
+    assert "SICOIN" in texto_detalle
+    assert "Tiempo de resolución" in texto_detalle
+    assert f"/coordinacion/soporte-tecnico/boletas/{boleta_id}/pdf-limpio" in texto_detalle
+
+    respuesta = cliente_soporte.get(
+        f"/coordinacion/soporte-tecnico/boletas/{boleta_id}/pdf-limpio"
+    )
+    assert respuesta.status_code == 200
+    assert respuesta.mimetype == "application/pdf"
+    assert respuesta.data.startswith(b"%PDF")
+    assert f"BST-2026-{boleta_id:05d}_soporte_tecnico.pdf" in respuesta.headers["Content-Disposition"]
+
+    with app_soporte.app_context():
+        auditoria = Bitacora.query.filter_by(accion="EXPORTAR_BOLETA_SOPORTE_PDF").order_by(Bitacora.id.desc()).first()
+        assert auditoria is not None
+        assert auditoria.datos_posteriores["modo"] == "solo_campos_con_datos"

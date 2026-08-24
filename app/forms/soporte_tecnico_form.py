@@ -149,7 +149,7 @@ class SoporteTecnicoForm(FlaskForm):
     tipo_equipo_otro = StringField("Otro tipo de equipo", validators=[Optional(), Length(max=80)])
     marca_modelo = StringField("Marca / modelo", validators=[Optional(), Length(max=180)])
     numero_serie = StringField("No. de serie", validators=[Optional(), Length(max=120)])
-    inventario = StringField("Inventario", validators=[Optional(), Length(max=120)])
+    inventario = StringField("SICOIN", validators=[Optional(), Length(max=120)])
     ip_nombre_equipo = StringField("IP / nombre de equipo", validators=[Optional(), Length(max=180)])
 
     descripcion_solicitud = TextAreaField(
@@ -165,7 +165,7 @@ class SoporteTecnicoForm(FlaskForm):
         validators=[Optional()],
         format="%Y-%m-%dT%H:%M",
     )
-    tiempo_empleado = StringField("Tiempo empleado", validators=[Optional(), Length(max=80)])
+    tiempo_empleado = StringField("Tiempo de resolución", validators=[Optional(), Length(max=80)])
     observaciones_cierre = TextAreaField("Observaciones", validators=[Optional()])
 
     nombre_firma_usuario = StringField("Nombre del usuario / solicitante", validators=[Optional(), Length(max=180)])

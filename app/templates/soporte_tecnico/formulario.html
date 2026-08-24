@@ -7,12 +7,16 @@
         <div>
             <p class="soporte-eyebrow">Coordinación · Soporte técnico y servicios TI</p>
             <h1>{{ 'Editar boleta ' ~ boleta.numero_boleta if boleta else 'Nueva boleta de soporte técnico' }}</h1>
-            <p>El formulario muestra únicamente los campos relacionados con el servicio seleccionado. Fecha, hora y técnico se proponen automáticamente, pero pueden corregirse.</p>
+            <p>El formulario muestra únicamente los campos relacionados con el servicio seleccionado. El cronómetro del ticket continúa aunque navegue por otros módulos de SICODE.</p>
         </div>
         <div class="acciones-detalle">
             {% if boleta %}<a class="boton-secundario" href="{{ url_for('soporte_tecnico.detalle', boleta_id=boleta.id) }}">Ver boleta</a>{% endif %}
-            <a class="boton-cancelar" href="{{ url_for('soporte_tecnico.listado') }}">Volver</a>
+            <a class="boton-cancelar" data-minimizar-ticket href="{{ url_for('coordinacion.inicio') }}">Minimizar y seguir en SICODE</a>
         </div>
+    </div>
+
+    <div class="aviso soporte-aviso-ticket">
+        <strong>Ticket en atención:</strong> el tiempo de resolución se calcula automáticamente desde que abrió esta boleta. Puede minimizarla, utilizar SICODE y volver desde la burbuja “Ticket TI activo”.
     </div>
 
     <div class="aviso soporte-aviso-seguridad">
@@ -48,6 +52,7 @@
                 <div class="campo campo-doble">
                     {{ form.fecha_hora_solicitud.label }}
                     {{ form.fecha_hora_solicitud() }}
+                    <small>La fecha puede corregirse; el cronómetro del ticket usa su propia marca de inicio para no perder precisión.</small>
                     {% for error in form.fecha_hora_solicitud.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
                 </div>
             </div>
@@ -114,7 +119,7 @@
                 <div class="campo" data-tipo-equipo-otro hidden>{{ form.tipo_equipo_otro.label }}{{ form.tipo_equipo_otro() }}</div>
                 <div class="campo">{{ form.marca_modelo.label }}{{ form.marca_modelo() }}</div>
                 <div class="campo">{{ form.numero_serie.label }}{{ form.numero_serie() }}</div>
-                <div class="campo">{{ form.inventario.label }}{{ form.inventario() }}</div>
+                <div class="campo">{{ form.inventario.label }}{{ form.inventario(placeholder="Código SICOIN") }}</div>
                 <div class="campo">{{ form.ip_nombre_equipo.label }}{{ form.ip_nombre_equipo() }}</div>
             </div>
         </section>
@@ -135,12 +140,12 @@
         </section>
 
         <section class="soporte-paso soporte-cierre">
-            <div class="soporte-paso-titulo"><span>8</span><div><h2>Resultado y cierre del servicio</h2><p>Puede guardar como pendiente y completar el cierre posteriormente.</p></div></div>
+            <div class="soporte-paso-titulo"><span>8</span><div><h2>Resultado y cierre del servicio</h2><p>Si guarda como Pendiente, el cronómetro seguirá activo. Al cerrar en otro estado se congela automáticamente el tiempo de resolución.</p></div></div>
             <div class="grid-form soporte-grid-4">
                 <div class="campo">{{ form.estado_final.label }}{{ form.estado_final(data_estado_final="1") }}</div>
                 <div class="campo">{{ form.seguimiento.label }}{{ form.seguimiento() }}</div>
                 <div class="campo">{{ form.fecha_hora_cierre.label }}{{ form.fecha_hora_cierre(data_fecha_cierre="1") }}<small>Se propone la hora actual al cambiar a un estado distinto de Pendiente.</small></div>
-                <div class="campo">{{ form.tiempo_empleado.label }}{{ form.tiempo_empleado(placeholder="Ej. 45 min, 2 h") }}</div>
+                <div class="campo">{{ form.tiempo_empleado.label }}{{ form.tiempo_empleado(placeholder="Calculado automáticamente") }}<small>Mientras el ticket esté activo este valor se actualiza cada segundo.</small></div>
                 <div class="campo campo-ancho">{{ form.observaciones_cierre.label }}{{ form.observaciones_cierre(rows="3") }}</div>
             </div>
 
@@ -162,7 +167,7 @@
                 <span data-resumen-estado>Estado: {{ dict(form.estado_final.choices).get(form.estado_final.data, 'Pendiente') }}</span>
             </div>
             <div class="acciones">
-                <a class="boton-cancelar" href="{{ url_for('soporte_tecnico.listado') }}">Cancelar</a>
+                <a class="boton-cancelar" data-minimizar-ticket href="{{ url_for('coordinacion.inicio') }}">Minimizar</a>
                 {{ form.submit(class_="boton-primario") }}
             </div>
         </div>
