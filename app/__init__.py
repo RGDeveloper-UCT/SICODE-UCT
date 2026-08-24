@@ -30,6 +30,7 @@ _ACCIONES_ESCRITURA_VISOR = {
     "agregar",
     "quitar",
     "cambiar_estado",
+    "rectificar",
 }
 
 
@@ -66,6 +67,7 @@ def create_app():
         ImportacionPortadores,
         VerificacionExpediente,
         PresenciaUsuario,
+        AnexoRectificado,
     )
     from app.services.integridad_events import registrar_eventos_integridad
     from app.services.version_service import obtener_version
@@ -86,13 +88,13 @@ def create_app():
         auth_bp, dashboard_bp, expedientes_bp, expedientes_admin_bp, expediente_fisico_bp, verificaciones_bp,
         bitacora_bp, indice_documental_bp, alertas_bp, prestamos_bp, admin_bp,
         integridad_bp, busqueda_bp, cuenta_bp, coordinacion_bp, coordinacion_export_bp, portadores_bp, uo_bp,
-        codigos_barras_bp,
+        codigos_barras_bp, rectificaciones_bp,
     )
     for blueprint in (
         auth_bp, dashboard_bp, expedientes_bp, expedientes_admin_bp, expediente_fisico_bp, verificaciones_bp,
         bitacora_bp, indice_documental_bp, alertas_bp, prestamos_bp, admin_bp,
         integridad_bp, busqueda_bp, cuenta_bp, coordinacion_bp, coordinacion_export_bp, portadores_bp, uo_bp,
-        codigos_barras_bp,
+        codigos_barras_bp, rectificaciones_bp,
     ):
         app.register_blueprint(blueprint)
 
@@ -130,6 +132,36 @@ def create_app():
         # editar, eliminar, importar o exportar información.
         if _endpoint_es_accion_escritura(request.endpoint):
             abort(403)
+
+        return None
+
+    @app.before_request
+    def exigir_rectificacion_para_prestamos_y_constancias():
+        """Folios y anexos deben estar rectificados antes de mover un expediente."""
+        if not current_user.is_authenticated:
+            return None
+
+        if request.endpoint in {"prestamos.nuevo", "prestamos.nuevo_traslado_virtual"}:
+            expediente_id = (request.view_args or {}).get("expediente_id")
+            expediente = db.session.get(Expediente, expediente_id) if expediente_id else None
+            if expediente and not expediente.rectificacion_completa:
+                flash(
+                    f"Antes de generar un préstamo o traslado del SP {expediente.no_sp} debe rectificar el total de folios y anexos.",
+                    "warning",
+                )
+                return redirect(url_for("rectificaciones.rectificar", expediente_id=expediente.id))
+
+        # Mantiene compatibles todos los enlaces existentes: las rutas históricas
+        # de PDF se redirigen a las constancias nuevas, que incluyen la rectificación.
+        if request.endpoint == "prestamos.comprobante_pdf":
+            prestamo_id = (request.view_args or {}).get("prestamo_id")
+            if prestamo_id:
+                return redirect(url_for("rectificaciones.comprobante_prestamo_pdf", prestamo_id=prestamo_id))
+
+        if request.endpoint == "prestamos.constancia_virtual_pdf":
+            traslado_id = (request.view_args or {}).get("traslado_id")
+            if traslado_id:
+                return redirect(url_for("rectificaciones.constancia_virtual_pdf", traslado_id=traslado_id))
 
         return None
 
