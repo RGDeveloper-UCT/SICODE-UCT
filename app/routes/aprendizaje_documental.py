@@ -1,19 +1,10 @@
-from flask import Blueprint
 from flask_login import login_required
 
 from app.models.lote_documental import AprendizajeDocumental
+from app.routes.lote_documental import lote_documental_bp
 
 
-aprendizaje_documental_bp = Blueprint(
-    "aprendizaje_documental",
-    __name__,
-    url_prefix="/coordinacion/analisis-documental/lotes",
-)
-
-
-@aprendizaje_documental_bp.route("/aprendizaje")
-@login_required
-def estado():
+def estado_aprendizaje():
     perfiles = AprendizajeDocumental.query.all()
     muestras = sum(int(p.muestras_confirmadas or 0) for p in perfiles)
     aciertos = sum(int(p.clasificaciones_correctas or 0) for p in perfiles)
@@ -28,3 +19,11 @@ def estado():
         "precision_clasificacion": max(0, min(100, precision)),
         "tipos_aprendidos": sum(1 for p in perfiles if p.muestras_confirmadas),
     }
+
+
+lote_documental_bp.add_url_rule(
+    "/aprendizaje",
+    endpoint="aprendizaje",
+    view_func=login_required(estado_aprendizaje),
+    methods=["GET"],
+)
