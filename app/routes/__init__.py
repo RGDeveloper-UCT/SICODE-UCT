@@ -20,3 +20,4 @@ from app.routes.codigos_barras import codigos_barras_bp
 from app.routes.rectificaciones import rectificaciones_bp
 from app.routes.soporte_tecnico import soporte_tecnico_bp
 from app.routes.soporte_tecnico_pdf import soporte_tecnico_pdf_bp
+from app.routes.analisis_documental import analisis_documental_bp
