@@ -16,23 +16,24 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column("expedientes", sa.Column("folios_rectificados", sa.Integer(), nullable=True))
-    op.add_column("expedientes", sa.Column("anexos_rectificados", sa.Integer(), nullable=True))
-    op.add_column("expedientes", sa.Column("rectificado_en", sa.DateTime(), nullable=True))
-    op.add_column("expedientes", sa.Column("rectificado_por_id", sa.Integer(), nullable=True))
-    op.create_foreign_key(
-        "fk_expedientes_rectificado_por_id_usuarios",
-        "expedientes",
-        "usuarios",
-        ["rectificado_por_id"],
-        ["id"],
-    )
-    op.create_index(
-        op.f("ix_expedientes_rectificado_por_id"),
-        "expedientes",
-        ["rectificado_por_id"],
-        unique=False,
-    )
+    # Batch mode conserva compatibilidad con SQLite de QA y aplica la misma
+    # estructura en PostgreSQL productivo.
+    with op.batch_alter_table("expedientes", schema=None) as batch_op:
+        batch_op.add_column(sa.Column("folios_rectificados", sa.Integer(), nullable=True))
+        batch_op.add_column(sa.Column("anexos_rectificados", sa.Integer(), nullable=True))
+        batch_op.add_column(sa.Column("rectificado_en", sa.DateTime(), nullable=True))
+        batch_op.add_column(sa.Column("rectificado_por_id", sa.Integer(), nullable=True))
+        batch_op.create_foreign_key(
+            "fk_expedientes_rectificado_por_id_usuarios",
+            "usuarios",
+            ["rectificado_por_id"],
+            ["id"],
+        )
+        batch_op.create_index(
+            op.f("ix_expedientes_rectificado_por_id"),
+            ["rectificado_por_id"],
+            unique=False,
+        )
 
     op.create_table(
         "anexos_rectificados",
@@ -76,11 +77,6 @@ def upgrade():
         unique=False,
     )
 
-    # Los defaults del servidor solo se usan durante creación/migración; la
-    # aplicación mantiene sus propios defaults para nuevos registros.
-    op.alter_column("anexos_rectificados", "escaneado", server_default=None)
-    op.alter_column("anexos_rectificados", "activo", server_default=None)
-
 
 def downgrade():
     op.drop_index(op.f("ix_anexos_rectificados_activo"), table_name="anexos_rectificados")
@@ -88,9 +84,10 @@ def downgrade():
     op.drop_index(op.f("ix_anexos_rectificados_expediente_id"), table_name="anexos_rectificados")
     op.drop_table("anexos_rectificados")
 
-    op.drop_index(op.f("ix_expedientes_rectificado_por_id"), table_name="expedientes")
-    op.drop_constraint("fk_expedientes_rectificado_por_id_usuarios", "expedientes", type_="foreignkey")
-    op.drop_column("expedientes", "rectificado_por_id")
-    op.drop_column("expedientes", "rectificado_en")
-    op.drop_column("expedientes", "anexos_rectificados")
-    op.drop_column("expedientes", "folios_rectificados")
+    with op.batch_alter_table("expedientes", schema=None) as batch_op:
+        batch_op.drop_index(op.f("ix_expedientes_rectificado_por_id"))
+        batch_op.drop_constraint("fk_expedientes_rectificado_por_id_usuarios", type_="foreignkey")
+        batch_op.drop_column("rectificado_por_id")
+        batch_op.drop_column("rectificado_en")
+        batch_op.drop_column("anexos_rectificados")
+        batch_op.drop_column("folios_rectificados")
