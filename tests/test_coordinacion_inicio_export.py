@@ -96,6 +96,7 @@ def test_inicio_coordinacion_muestra_layout_y_exportacion(cliente_admin):
     assert 'body class="vista-coordinacion-inicio"' in texto
     assert ">REGISTROS<" in texto
     assert "Últimos registros recientes" in texto
+    assert "Soporte técnico y actividades" in texto
     assert "Exportar todos los datos" in texto
     assert "/coordinacion/exportar" in texto
     assert "BOLETA-EXPORT" not in texto
@@ -118,6 +119,7 @@ def test_exportacion_coordinacion_genera_excel_completo(app_coordinacion_export,
         "Monitoreo",
         "Documentos emitidos",
         "Actividades",
+        "Soporte técnico",
         "Remisiones",
         "Expedientes remision",
     ]
@@ -126,6 +128,12 @@ def test_exportacion_coordinacion_genera_excel_completo(app_coordinacion_export,
     encabezados = [celda.value for celda in pagos[1]]
     assert "Boleta" in encabezados
     assert "Total" in encabezados
+
+    soporte = libro["Soporte técnico"]
+    encabezados_soporte = [celda.value for celda in soporte[1]]
+    assert "No. boleta" in encabezados_soporte
+    assert "Diagnóstico/trabajo" in encabezados_soporte
+    assert "Estado final" in encabezados_soporte
 
     valores = [celda.value for celda in pagos[2]]
     assert "RC-EXPORT" in valores
@@ -137,3 +145,4 @@ def test_exportacion_coordinacion_genera_excel_completo(app_coordinacion_export,
         auditoria = Bitacora.query.filter_by(accion="EXPORTAR_COORDINACION_EXCEL").one()
         assert auditoria.modulo == "Coordinación"
         assert auditoria.datos_posteriores["registros_exportados"] == 1
+        assert auditoria.datos_posteriores["boletas_soporte_exportadas"] == 0
