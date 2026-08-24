@@ -12,7 +12,9 @@
   const tiempoResolucion = form.querySelector('#tiempo_empleado');
   const tipoEquipo = form.querySelector('#tipo_equipo');
   const tipoEquipoOtro = form.querySelector('[data-tipo-equipo-otro]');
-  const minimizar = document.querySelector('[data-minimizar-ticket]');
+  const minimizarLinks = [...document.querySelectorAll('[data-minimizar-ticket]')];
+  const cancelarLinks = [...document.querySelectorAll('[data-cancelar-ticket]')];
+  const avisos = [...document.querySelectorAll('[data-soporte-toast]')];
   const ticketApi = window.SICODETicketSoporte;
 
   const necesitaEquipo = new Set(['HARDWARE', 'SOFTWARE', 'INSTALACION', 'TRASLADO', 'REVISION']);
@@ -127,6 +129,18 @@
     tiempoResolucion.title = 'Calculado automáticamente desde que se inició el ticket.';
   }
 
+  function cerrarAviso(aviso) {
+    if (!aviso || aviso.dataset.cerrando === '1') return;
+    aviso.dataset.cerrando = '1';
+    aviso.classList.add('soporte-toast-saliendo');
+    window.setTimeout(() => aviso.remove(), 220);
+  }
+
+  avisos.forEach((aviso, indice) => {
+    aviso.querySelector('[data-soporte-toast-cerrar]')?.addEventListener('click', () => cerrarAviso(aviso));
+    window.setTimeout(() => cerrarAviso(aviso), 60000 + (indice * 350));
+  });
+
   const activeTicket = ticketApi?.read();
   if (currentTicketMatches(activeTicket)) {
     if (activeTicket.draft && Object.keys(activeTicket.draft).length) {
@@ -145,10 +159,24 @@
   form.addEventListener('change', saveDraft);
   window.addEventListener('pagehide', saveDraft);
 
-  minimizar?.addEventListener('click', (event) => {
-    event.preventDefault();
-    saveDraft();
-    window.location.href = minimizar.href;
+  minimizarLinks.forEach((link) => {
+    link.addEventListener('click', (event) => {
+      event.preventDefault();
+      saveDraft();
+      window.location.href = link.href;
+    });
+  });
+
+  cancelarLinks.forEach((link) => {
+    link.addEventListener('click', (event) => {
+      event.preventDefault();
+      const confirmar = window.confirm(
+        '¿Cancelar esta boleta de soporte? Se detendrá el cronómetro y se descartarán los datos no guardados.'
+      );
+      if (!confirmar) return;
+      ticketApi?.clear();
+      window.location.href = link.href;
+    });
   });
 
   form.addEventListener('submit', () => {
@@ -158,6 +186,7 @@
     updateTimerField();
     saveDraft();
     const refreshed = ticketApi.read();
+    if (!refreshed) return;
     refreshed.pendingSubmitState = selectEstado?.value || 'PENDIENTE';
     ticketApi.write(refreshed);
   });
