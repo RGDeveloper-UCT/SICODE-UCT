@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Análisis documental asistido — SICODE-UCT{% endblock %}
+{% block body_class %}vista-analisis-documental{% endblock %}
+
+{% block content %}
+<section class="panel panel-ancho analisis-documental">
+    <div class="encabezado-modulo analisis-documental__encabezado">
+        <div>
+            <span class="analisis-documental__eyebrow">SICODE · CAPTURA ASISTIDA</span>
+            <h1>Análisis documental asistido</h1>
+            <p>Extraiga metadatos administrativos de un PDF y revíselos antes de crear el registro operativo.</p>
+        </div>
+        <a class="boton-cancelar" href="{{ url_for('coordinacion.inicio') }}">Volver a Coordinación</a>
+    </div>
+
+    <div class="analisis-documental__seguridad" role="note">
+        <div class="analisis-documental__seguridad-icono" aria-hidden="true">✓</div>
+        <div>
+            <strong>Procesamiento temporal.</strong>
+            <p>El PDF se utiliza únicamente durante el análisis. SICODE no conserva el archivo, sus imágenes ni el texto OCR completo; solo mantiene la propuesta de metadatos y la trazabilidad de la operación.</p>
+        </div>
+    </div>
+
+    <div class="analisis-documental__layout">
+        <section class="analisis-documental__carga">
+            <div class="analisis-documental__titulo-bloque">
+                <div>
+                    <h2>Analizar un PDF</h2>
+                    <p>Puede subir un anexo completo o un documento de los tipos que ya registra Coordinación.</p>
+                </div>
+                <span class="analisis-documental__paso">Paso 1 de 2</span>
+            </div>
+
+            <form method="post" enctype="multipart/form-data" class="analisis-documental__form" data-analisis-form>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="campo">
+                    <label for="tipo_objetivo">Tipo esperado</label>
+                    <select id="tipo_objetivo" name="tipo_objetivo">
+                        {% for tipo in tipos_objetivo %}
+                        <option value="{{ tipo }}">{{ 'Detectar automáticamente' if tipo == 'AUTO' else tipo|replace('_', ' ')|title }}</option>
+                        {% endfor %}
+                    </select>
+                    <small>Si lo conoce, seleccionar el tipo ayuda a reducir ambigüedades.</small>
+                </div>
+
+                <label class="analisis-documental__drop" for="archivo_pdf">
+                    <span class="analisis-documental__drop-icono" aria-hidden="true">PDF</span>
+                    <strong>Seleccione el documento</strong>
+                    <span>Solo PDF · el archivo será eliminado al terminar el procesamiento</span>
+                    <input id="archivo_pdf" name="archivo_pdf" type="file" accept="application/pdf,.pdf" required data-pdf-input>
+                    <span class="analisis-documental__archivo" data-pdf-name>Ningún archivo seleccionado</span>
+                </label>
+
+                <div class="analisis-documental__reglas">
+                    <div><strong>1.</strong><span>Se lee texto nativo cuando existe.</span></div>
+                    <div><strong>2.</strong><span>Las páginas escaneadas pasan por OCR local.</span></div>
+                    <div><strong>3.</strong><span>Se extraen únicamente campos administrativos autorizados.</span></div>
+                    <div><strong>4.</strong><span>Usted corrige y confirma antes de guardar.</span></div>
+                </div>
+
+                <button class="boton analisis-documental__boton" type="submit">Analizar PDF</button>
+            </form>
+        </section>
+
+        <aside class="analisis-documental__estado">
+            <h2>Qué puede proponer</h2>
+            <div class="analisis-documental__chips">
+                <span>SP</span><span>RC</span><span>Providencia</span><span>Fecha</span>
+                <span>Folios</span><span>No. anexo</span><span>Título</span><span>Tipo de anexo</span>
+                <span>Boleta</span><span>Total</span><span>No. reporte</span><span>Evento</span>
+            </div>
+            <div class="aviso analisis-documental__criterio">
+                <strong>Control de foliación:</strong> el número de páginas del PDF se muestra como referencia, pero nunca se convierte automáticamente en total de folios si el documento no aporta evidencia de foliación.
+            </div>
+            <div class="aviso analisis-documental__criterio">
+                <strong>Rectificación maestra:</strong> cualquier diferencia con los folios o anexos rectificados se mostrará como discrepancia. El análisis no cambia esos valores por sí solo.
+            </div>
+        </aside>
+    </div>
+
+    <section class="analisis-documental__historial">
+        <div class="analisis-documental__titulo-bloque">
+            <div><h2>Análisis recientes</h2><p>Solo se conserva la propuesta de metadatos, nunca el PDF analizado.</p></div>
+        </div>
+        <div class="tabla-contenedor">
+            <table>
+                <thead>
+                    <tr><th>Fecha</th><th>No.</th><th>Usuario</th><th>Tipo</th><th>SP</th><th>Páginas</th><th>Método</th><th>Estado</th><th></th></tr>
+                </thead>
+                <tbody>
+                    {% for item in recientes %}
+                    <tr>
+                        <td>{{ item.creado_en.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td>#{{ item.id }}</td>
+                        <td>{{ item.usuario.nombre }}</td>
+                        <td>{{ item.tipo_detectado|replace('_', ' ') }}</td>
+                        <td>{{ (item.datos_confirmados or item.datos_detectados or {}).get('no_sp') or '—' }}</td>
+                        <td>{{ item.paginas_pdf }}</td>
+                        <td>{{ item.metodo_extraccion }}</td>
+                        <td><span class="analisis-documental__estado-pill analisis-documental__estado-pill--{{ item.estado|lower }}">{{ item.estado|replace('_', ' ') }}</span></td>
+                        <td>{% if item.estado == 'PENDIENTE_VALIDACION' %}<a href="{{ url_for('analisis_documental.resultado', analisis_id=item.id) }}">Revisar</a>{% elif item.registro_id %}<a href="{{ url_for('coordinacion.detalle', registro_id=item.registro_id) }}">Ver registro</a>{% else %}<a href="{{ url_for('analisis_documental.resultado', analisis_id=item.id) }}">Ver</a>{% endif %}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="9">Todavía no se han realizado análisis documentales.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</section>
+
+<div class="analisis-documental__procesando" data-analisis-loader hidden aria-live="assertive" aria-busy="true">
+    <div class="analisis-documental__procesando-card">
+        <div class="analisis-documental__spinner" aria-hidden="true"></div>
+        <strong>Analizando documento</strong>
+        <p>Extrayendo texto, ejecutando OCR cuando sea necesario y comparando metadatos con SICODE.</p>
+        <small>No cierre esta pestaña durante el procesamiento.</small>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/analisis_documental.js') }}" defer></script>
+{% endblock %}

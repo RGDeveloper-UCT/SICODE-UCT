@@ -54,6 +54,19 @@ cd /opt/sicode/app
 pip install -r requirements.txt
 ```
 
+### Dependencia del sistema para Análisis documental asistido
+
+El OCR se ejecuta localmente en el servidor mediante Tesseract. En Debian/Ubuntu instale el motor y el idioma español:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y tesseract-ocr tesseract-ocr-spa
+tesseract --version
+tesseract --list-langs | grep -x spa
+```
+
+Esta instalación no envía documentos a servicios externos. Si Tesseract no está disponible, los PDFs que ya contienen texto pueden seguir analizándose; un PDF compuesto únicamente por imágenes mostrará un error controlado en lugar de conservar el archivo.
+
 ## 5. Revisar y aplicar migraciones
 
 ```bash
@@ -74,6 +87,8 @@ La revisión `e8b7c4d2a190` contiene comprobaciones previas. Si detecta:
 **la migración se detendrá a propósito antes de aplicar los constraints.** No la fuerce ni edite Alembic manualmente. Revise los registros indicados y corrija los datos con trazabilidad.
 
 La revisión `f4a1c9e2d730` obliga a los usuarios activos a cambiar su contraseña temporal en el siguiente acceso. No modifica ni revela hashes existentes.
+
+La revisión `p6e1f4a9c730` crea el historial de análisis documentales y el campo de título administrativo utilizado por anexos creados desde el flujo asistido. No almacena PDFs ni texto OCR.
 
 ## 6. Reiniciar la aplicación
 
@@ -110,8 +125,9 @@ La IP puede cambiar si la red institucional cambia; confirme con `ip -br addr` e
 4. Buscar un SP conocido desde **Buscar**.
 5. Abrir **SP / Expedientes**.
 6. Abrir **Coordinación**.
-7. Administrador: abrir **Sistema → Control de Integridad**.
-8. Confirmar que un usuario no administrador no puede importar Portadores ni acceder a administración.
+7. Abrir **Analizar PDF** con un documento de prueba autorizado, comprobar la propuesta y descartarla o validarla conscientemente.
+8. Administrador: abrir **Sistema → Control de Integridad**.
+9. Confirmar que un usuario Visor no puede abrir **Analizar PDF** ni realizar escrituras.
 
 No importe una manta masiva hasta terminar esta prueba básica.
 

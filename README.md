@@ -21,6 +21,7 @@ Aplicación web institucional interna para registrar, localizar, relacionar y au
 - Flask-Login / Flask-WTF
 - Gunicorn + Nginx en la instalación institucional
 - ReportLab / openpyxl / xlrd para PDF y Excel
+- pypdf / pypdfium2 / Tesseract para análisis documental local y temporal
 - GitHub Actions + pytest
 
 ## Módulos
@@ -31,6 +32,7 @@ Aplicación web institucional interna para registrar, localizar, relacionar y au
 - **Importación de Portadores:** sincronización diaria de la manta `.xls` con previsualización y reconciliación de vínculos.
 - **Índice documental:** documentos, anexos y rangos de folios; evita traslapes y valida totales.
 - **Coordinación:** pagos, instalaciones, desinstalaciones, anexos, monitoreos, documentos emitidos, actividades y remisiones.
+- **Análisis documental asistido:** procesa PDFs temporalmente, propone metadatos y exige validación humana antes de crear registros; el PDF, las imágenes y el texto OCR completo no se conservan.
 - **Préstamos:** entrega, devolución, vencimientos y comprobantes.
 - **Alertas:** control de observaciones e incidencias.
 - **Bitácora:** auditoría legible y campos estructurados de trazabilidad.
@@ -50,13 +52,21 @@ Opcionales:
 ```env
 SESSION_HOURS=8
 SESSION_COOKIE_SECURE=false
-MAX_UPLOAD_MB=16
+MAX_UPLOAD_MB=45
 SICODE_VERSION=
 UO_ONLINE_TTL_SECONDS=75
 PG_DUMP_PATH=
+DOCUMENT_ANALYSIS_MAX_MB=40
+DOCUMENT_ANALYSIS_MAX_PAGES=200
+DOCUMENT_ANALYSIS_OCR_ENABLED=true
+DOCUMENT_ANALYSIS_OCR_LANGUAGE=spa
+DOCUMENT_ANALYSIS_TEMP_TTL_MINUTES=30
+# DOCUMENT_ANALYSIS_TEMP_DIR=/ruta/temporal/restringida
 ```
 
 `PG_DUMP_PATH` normalmente puede dejarse vacío. SICODE busca `pg_dump` en el `PATH` y también en instalaciones Linux versionadas como `/usr/lib/postgresql/<version>/bin/pg_dump`. Úselo únicamente si el servidor tiene PostgreSQL Client instalado en una ruta no estándar.
+
+El análisis documental usa `/dev/shm/sicode_document_analysis` cuando está disponible para que la carga temporal permanezca en memoria; si no, utiliza el directorio temporal del sistema. Consulte [`docs/ANALISIS_DOCUMENTAL_ASISTIDO.md`](docs/ANALISIS_DOCUMENTAL_ASISTIDO.md).
 
 En producción, `SECRET_KEY` y `DATABASE_URL` son obligatorias. SICODE no arranca con una clave secreta de respaldo conocida.
 
@@ -84,7 +94,7 @@ python -m compileall -q app migrations tests
 python -m flask --app run.py db heads
 ```
 
-GitHub Actions ejecuta smoke tests de Coordinación y Portadores, además de la suite pytest de auditoría.
+GitHub Actions ejecuta smoke tests de Coordinación y Portadores, además de la suite pytest de auditoría y las pruebas del extractor documental.
 
 ## Producción institucional
 
