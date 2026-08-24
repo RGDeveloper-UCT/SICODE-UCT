@@ -18,7 +18,7 @@
         <div class="tarjeta"><strong>Folios recibidos</strong><p>{{ registro.folios_recepcion or 'Sin dato' }}</p></div>
         <div class="tarjeta"><strong>RC</strong><p>{{ registro.rc or 'Sin dato' }}</p></div>
         <div class="tarjeta"><strong>Providencia</strong><p>{{ registro.providencia or 'Sin dato' }}</p></div>
-        <div class="tarjeta"><strong>Origen</strong><p>{{ 'Excel' if registro.origen_registro == 'IMPORTACION_EXCEL' else 'Manual' }}</p></div>
+        <div class="tarjeta"><strong>Origen</strong><p>{% if registro.origen_registro == 'IMPORTACION_EXCEL' %}Excel{% elif registro.origen_registro == 'ANALISIS_PDF' %}Análisis PDF validado{% else %}Manual{% endif %}</p></div>
     </div>
 
     <h2>Información específica</h2>
@@ -33,6 +33,7 @@
     {% elif registro.tipo == 'ANEXO' and registro.anexo_coordinacion %}
         <tr><th>Tipo</th><td>{{ registro.anexo_coordinacion.tipo_anexo or 'Sin dato' }}</td></tr>
         <tr><th>Anexo No.</th><td>{{ registro.anexo_coordinacion.numero_anexo or 'Sin dato' }}</td></tr>
+        {% if registro.anexo_coordinacion.titulo %}<tr><th>Título</th><td>{{ registro.anexo_coordinacion.titulo }}</td></tr>{% endif %}
         <tr><th>Escaneado</th><td>{{ 'Sí' if registro.anexo_coordinacion.escaneado else 'Pendiente' }}</td></tr>
         <tr><th>Fecha escaneado</th><td>{{ registro.anexo_coordinacion.fecha_escaneado.strftime('%d/%m/%Y') if registro.anexo_coordinacion.fecha_escaneado else 'Sin dato' }}</td></tr>
         <tr><th>Índice documental</th><td>{% if registro.anexo_coordinacion.documento_expediente %}<a href="{{ url_for('indice_documental.listado', expediente_id=registro.expediente_id) }}">Incorporado: {{ registro.anexo_coordinacion.documento_expediente.nombre_documento }}</a>{% elif registro.expediente_id %}<a href="{{ url_for('indice_documental.listado', expediente_id=registro.expediente_id, anexo_id=registro.anexo_coordinacion.id) }}">Pendiente de incorporar</a>{% else %}Pendiente de vincular SP{% endif %}</td></tr>
@@ -51,7 +52,7 @@
     </tbody></table></div>
 
     {% if registro.observaciones %}<div class="aviso"><strong>Observaciones:</strong> {{ registro.observaciones }}</div>{% endif %}
-    {% if registro.origen_registro == 'IMPORTACION_EXCEL' %}<p class="nota">Importado de {{ registro.archivo_origen }}, hoja {{ registro.hoja_origen }}, fila {{ registro.fila_origen }}.</p>{% endif %}
+    {% if registro.origen_registro == 'IMPORTACION_EXCEL' %}<p class="nota">Importado de {{ registro.archivo_origen }}, hoja {{ registro.hoja_origen }}, fila {{ registro.fila_origen }}.</p>{% elif registro.origen_registro == 'ANALISIS_PDF' %}<p class="nota">Registro creado desde una propuesta de análisis documental validada por el usuario. El PDF fuente no se almacena en SICODE.</p>{% endif %}
     {% if registro.tipo == 'REMISION' and registro.remision_coordinacion %}<div class="acciones"><a class="boton-secundario" href="{{ url_for('coordinacion.remision_detalle', remision_id=registro.remision_coordinacion.id) }}">Ver expedientes de la remisión</a></div>{% endif %}
 </section>
 {% endblock %}
