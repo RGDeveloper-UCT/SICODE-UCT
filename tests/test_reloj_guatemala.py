@@ -22,3 +22,8 @@ def test_reloj_guatemala_integrado_en_barra_superior():
     assert ".topbar-utilidad" in estilos
     assert "left: clamp(285px, 17vw, 340px)" in estilos
     assert "font-variant-numeric: tabular-nums" in estilos
+    assert "width: 190px" in estilos
+    assert "min-width: 190px" in estilos
+    assert "flex-direction: row" in estilos
+    assert ".topbar .reloj-guatemala > span" in estilos
+    assert "margin-top: 0" in estilos
