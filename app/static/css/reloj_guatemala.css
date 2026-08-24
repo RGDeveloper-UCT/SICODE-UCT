@@ -1,9 +1,23 @@
+.topbar {
+    position: relative;
+}
+
+.topbar-utilidad {
+    position: absolute;
+    left: clamp(285px, 17vw, 340px);
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    z-index: 2;
+}
+
 .reloj-guatemala {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    margin-left: 10px;
-    padding: 5px 9px;
+    gap: 7px;
+    min-height: 34px;
+    padding: 6px 12px;
     border: 1px solid rgba(255, 255, 255, .2);
     border-radius: 999px;
     background: rgba(255, 255, 255, .08);
@@ -11,7 +25,7 @@
     vertical-align: middle;
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 2px 8px rgba(0, 0, 0, .08);
 }
 
 .reloj-guatemala__icono {
@@ -20,6 +34,7 @@
     border-radius: 50%;
     background: #86efac;
     box-shadow: 0 0 0 3px rgba(134, 239, 172, .12);
+    flex: 0 0 auto;
 }
 
 .reloj-guatemala__zona {
@@ -31,24 +46,46 @@
 
 .reloj-guatemala time {
     color: #fff;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 800;
-    letter-spacing: .03em;
+    letter-spacing: .035em;
+    line-height: 1;
 }
 
-@media (max-width: 1250px) {
-    .reloj-guatemala__zona {
-        display: none;
+@media (max-width: 1500px) {
+    .topbar-utilidad {
+        left: clamp(260px, 16vw, 300px);
     }
 
     .reloj-guatemala {
-        margin-left: 8px;
-        padding: 4px 7px;
+        min-height: 30px;
+        padding: 5px 9px;
+    }
+
+    .reloj-guatemala time {
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 1180px) {
+    .topbar-utilidad {
+        position: static;
+        transform: none;
+        margin-left: 18px;
+        margin-right: auto;
+    }
+
+    .reloj-guatemala__zona {
+        display: none;
     }
 }
 
 @media (max-width: 800px) {
+    .topbar-utilidad {
+        margin: 0;
+    }
+
     .reloj-guatemala {
-        margin-left: 0;
+        padding: 5px 8px;
     }
 }
