@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ boleta.numero_boleta }} — Soporte técnico{% endblock %}
+{% block body_class %}vista-soporte-tecnico{% endblock %}
+{% block content %}
+<section class="panel panel-ancho soporte-detalle">
+    <div class="encabezado-modulo soporte-encabezado">
+        <div>
+            <p class="soporte-eyebrow">Boleta de servicio de soporte técnico</p>
+            <h1>{{ boleta.numero_boleta }}</h1>
+            <p>{{ boleta.fecha_hora_solicitud.strftime('%d/%m/%Y %H:%M') }} · {{ boleta.usuario_solicitante }} · {{ boleta.coordinacion_area }}</p>
+        </div>
+        <div class="acciones-detalle">
+            <a class="boton-cancelar" href="{{ url_for('soporte_tecnico.listado') }}">Volver</a>
+            {% if not current_user.es_visor %}<a class="boton-secundario" href="{{ url_for('soporte_tecnico.editar', boleta_id=boleta.id) }}">Editar / cerrar</a><a class="boton-primario" href="{{ url_for('soporte_tecnico.generar_pdf', boleta_id=boleta.id) }}">Generar PDF</a>{% endif %}
+        </div>
+    </div>
+
+    <div class="soporte-detalle-resumen">
+        <div><span>Estado</span><strong class="soporte-estado-texto soporte-estado-{{ boleta.estado_final|lower }}">{{ boleta.estado_legible }}</strong></div>
+        <div><span>Técnico</span><strong>{{ boleta.tecnico_asignado }}</strong></div>
+        <div><span>Seguimiento</span><strong>{{ 'Sí' if boleta.seguimiento else 'No' }}</strong></div>
+        <div><span>Cierre</span><strong>{{ boleta.fecha_hora_cierre.strftime('%d/%m/%Y %H:%M') if boleta.fecha_hora_cierre else 'Pendiente' }}</strong></div>
+    </div>
+
+    <section class="soporte-detalle-seccion"><h2>1. Datos del usuario y ubicación</h2><div class="detalle-grid soporte-detalle-grid"><div><span>Nombre</span><strong>{{ boleta.usuario_solicitante }}</strong></div><div><span>Puesto / cargo</span><strong>{{ boleta.puesto_cargo or '—' }}</strong></div><div><span>Coordinación / área</span><strong>{{ boleta.coordinacion_area }}</strong></div><div><span>Técnico asignado</span><strong>{{ boleta.tecnico_asignado }}</strong></div></div></section>
+
+    <section class="soporte-detalle-seccion"><h2>2. Tipo de servicio solicitado</h2><div class="soporte-chips soporte-chips-grandes">{% for codigo in boleta.tipos_servicio %}<span>{{ dict(catalogos.tipos_servicio).get(codigo, codigo) }}</span>{% endfor %}</div>{% if boleta.otro_servicio_ti %}<p><strong>Otro:</strong> {{ boleta.otro_servicio_ti }}</p>{% endif %}</section>
+
+    <section class="soporte-detalle-seccion"><h2>3–4. Detalle funcional</h2>
+        <div class="soporte-detalle-columnas">
+        {% set bloques = [
+            ('Gestión de usuario', boleta.gestion_usuario_detalles, catalogos.gestion_usuario_detalles),
+            ('Hardware', boleta.hardware_detalles, catalogos.hardware_detalles),
+            ('Software', boleta.software_detalles, catalogos.software_detalles),
+            ('Instalación', boleta.instalacion_detalles, catalogos.instalacion_detalles),
+            ('Traslado', boleta.traslado_detalles, catalogos.traslado_detalles),
+            ('Revisión', boleta.revision_detalles, catalogos.revision_detalles)
+        ] %}
+        {% for titulo, seleccionados, opciones in bloques %}{% if seleccionados %}<div><h3>{{ titulo }}</h3><ul>{% for codigo in seleccionados %}<li>{{ dict(opciones).get(codigo, codigo) }}</li>{% endfor %}</ul></div>{% endif %}{% endfor %}
+        </div>
+        {% if boleta.otro_instalacion or boleta.otro_traslado or boleta.otro_revision %}<p><strong>Otros detalles:</strong> {{ boleta.otro_instalacion or '' }} {{ boleta.otro_traslado or '' }} {{ boleta.otro_revision or '' }}</p>{% endif %}
+    </section>
+
+    <section class="soporte-detalle-seccion"><h2>5. Identificación del equipo</h2><div class="detalle-grid soporte-detalle-grid"><div><span>Tipo</span><strong>{{ tipos_equipo.get(boleta.tipo_equipo, boleta.tipo_equipo or '—') }}{% if boleta.tipo_equipo == 'OTRO' and boleta.tipo_equipo_otro %}: {{ boleta.tipo_equipo_otro }}{% endif %}</strong></div><div><span>Marca / modelo</span><strong>{{ boleta.marca_modelo or '—' }}</strong></div><div><span>No. serie</span><strong>{{ boleta.numero_serie or '—' }}</strong></div><div><span>Inventario</span><strong>{{ boleta.inventario or '—' }}</strong></div><div><span>IP / nombre equipo</span><strong>{{ boleta.ip_nombre_equipo or '—' }}</strong></div></div></section>
+
+    <div class="soporte-textos-detalle"><section><h2>6. Solicitud / falla reportada</h2><p>{{ boleta.descripcion_solicitud }}</p></section><section><h2>7. Diagnóstico y trabajo realizado</h2><p>{{ boleta.diagnostico_trabajo or 'Pendiente de documentar.' }}</p></section></div>
+
+    <section class="soporte-detalle-seccion"><h2>8. Resultado y cierre</h2><div class="detalle-grid soporte-detalle-grid"><div><span>Estado final</span><strong>{{ boleta.estado_legible }}</strong></div><div><span>Seguimiento</span><strong>{{ 'Sí' if boleta.seguimiento else 'No' }}</strong></div><div><span>Fecha / hora cierre</span><strong>{{ boleta.fecha_hora_cierre.strftime('%d/%m/%Y %H:%M') if boleta.fecha_hora_cierre else '—' }}</strong></div><div><span>Tiempo empleado</span><strong>{{ boleta.tiempo_empleado or '—' }}</strong></div></div>{% if boleta.observaciones_cierre %}<div class="aviso"><strong>Observaciones:</strong> {{ boleta.observaciones_cierre }}</div>{% endif %}</section>
+
+    <section class="soporte-detalle-seccion soporte-firmas-vista"><h2>Datos para firmas</h2><div><p><strong>Usuario / solicitante:</strong> {{ boleta.nombre_firma_usuario or boleta.usuario_solicitante }}</p><p>Fecha: {{ boleta.fecha_firma_usuario.strftime('%d/%m/%Y') if boleta.fecha_firma_usuario else '—' }}</p></div><div><p><strong>Técnico de soporte:</strong> {{ boleta.nombre_firma_tecnico or boleta.tecnico_asignado }}</p><p>Fecha: {{ boleta.fecha_firma_tecnico.strftime('%d/%m/%Y') if boleta.fecha_firma_tecnico else '—' }}</p></div></section>
+</section>
+{% endblock %}
