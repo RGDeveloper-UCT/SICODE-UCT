@@ -101,6 +101,23 @@ def test_inicio_coordinacion_muestra_layout_y_exportacion(cliente_admin):
     assert "/coordinacion/exportar" in texto
     assert "BOLETA-EXPORT" not in texto
 
+    # Cada tipo operativo tiene identidad visual propia y el CSS de animación
+    # está cargado desde la plantilla base.
+    assert "coordinacion_tarjetas.css" in texto
+    for clase in (
+        "registro-animacion--pago",
+        "registro-animacion--instalacion",
+        "registro-animacion--desinstalacion",
+        "registro-animacion--anexo",
+        "registro-animacion--monitoreo",
+        "registro-animacion--documento_emitido",
+        "registro-animacion--actividad",
+        "registro-animacion--remision",
+    ):
+        assert clase in texto
+    assert "boton-tarjeta-registro-principal" in texto
+    assert "tarjeta-registro-etiqueta" in texto
+
 
 def test_exportacion_coordinacion_genera_excel_completo(app_coordinacion_export, cliente_admin):
     respuesta = cliente_admin.get("/coordinacion/exportar")
