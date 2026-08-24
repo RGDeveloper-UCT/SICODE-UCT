@@ -1,7 +1,7 @@
 """lote documental inteligente y aprendizaje agregado
 
 Revision ID: r8g3c6d1e952
-Revises: q7f2a5b0d841
+Revises: s9h4c7d2f063
 """
 
 from alembic import op
@@ -9,7 +9,7 @@ import sqlalchemy as sa
 
 
 revision = "r8g3c6d1e952"
-down_revision = "q7f2a5b0d841"
+down_revision = "s9h4c7d2f063"
 branch_labels = None
 depends_on = None
 
