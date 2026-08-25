@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Recepción de expediente completo — SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho formulario">
+    <div class="encabezado-modulo">
+        <div>
+            <h1>Recepción de expediente completo</h1>
+            <p>Seleccione el SP y la plantilla documental. SICODE adjuntará automáticamente el índice al expediente.</p>
+        </div>
+        <a class="boton-cancelar" href="{{ url_for('coordinacion.inicio') }}">Volver</a>
+    </div>
+
+    <div class="aviso">
+        <strong>Recepción automática:</strong> quién recibe y la fecha/hora se toman de la sesión. La documentación de la plantilla se incorpora directamente al índice documental del SP seleccionado.
+    </div>
+
+    <form method="post">
+        {{ form.hidden_tag() }}
+        <div class="grid-form">
+            <div class="campo">
+                {{ form.expediente_id.label }}
+                {{ form.expediente_id() }}
+                {% for error in form.expediente_id.errors %}<span class="error">{{ error }}</span>{% endfor %}
+            </div>
+            <div class="campo">
+                {{ form.plantilla.label }}
+                {{ form.plantilla() }}
+                {% for error in form.plantilla.errors %}<span class="error">{{ error }}</span>{% endfor %}
+            </div>
+            <div class="campo">
+                {{ form.rc.label }}
+                {{ form.rc(placeholder='Ej. 202624183') }}
+                {% for error in form.rc.errors %}<span class="error">{{ error }}</span>{% endfor %}
+            </div>
+            <div class="campo">
+                {{ form.persona_entrega.label }}
+                {{ form.persona_entrega(placeholder='Persona, unidad o institución que entrega') }}
+                {% for error in form.persona_entrega.errors %}<span class="error">{{ error }}</span>{% endfor %}
+            </div>
+        </div>
+
+        <h2>Índice de documentos a incorporar</h2>
+        <div class="tabla-contenedor">
+            <table>
+                <thead>
+                    <tr>
+                        <th>No.</th>
+                        <th>Documento</th>
+                        <th>Folios</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for numero, nombre, tipo_documento, folio_inicio, folio_fin in plantilla.documentos %}
+                    <tr>
+                        <td>{{ numero }}</td>
+                        <td>{{ nombre }}</td>
+                        <td>{{ folio_inicio }}{% if folio_fin != folio_inicio %}-{{ folio_fin }}{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="aviso">
+            <strong>Resultado:</strong> se crearán {{ plantilla.documentos|length }} entradas en el índice documental y quedarán vinculadas al SP seleccionado. Si ya existen folios que se traslapan, SICODE bloqueará el registro para evitar duplicidades.
+        </div>
+
+        <div class="acciones">
+            {{ form.submit(class_='boton') }}
+        </div>
+    </form>
+</section>
+{% endblock %}
