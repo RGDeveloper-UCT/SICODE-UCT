@@ -24,6 +24,7 @@ from app.routes.soporte_tecnico_pdf import soporte_tecnico_pdf_bp
 from app.routes.analisis_documental import analisis_documental_bp
 from app.routes.lote_documental import lote_documental_bp
 from app.routes.sicode_ia import sicode_ia_bp
+from app.routes.sicode_ia_jobs import sicode_ia_jobs_bp
 from app.routes.cerebro_sicode import cerebro_sicode_bp
 from app.routes.nexo_ia import nexo_ia_bp
 from app.routes import aprendizaje_documental as _aprendizaje_documental
