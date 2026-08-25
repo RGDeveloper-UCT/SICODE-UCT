@@ -3,7 +3,19 @@
 {% block body_class %}vista-coordinacion-inicio{% endblock %}
 
 {% macro icono_registro(clave) -%}
-{% if clave == 'pago' %}
+{% if clave == 'expediente-completo' %}
+<svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+    <g class="registro-svg-base" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M7 20h18l5 6h27v27H7z"/>
+        <path d="M7 20v-8h18l5 8"/>
+        <g class="registro-svg-movil registro-svg-expediente">
+            <path d="M20 17h23l7 7v24H20z" fill="var(--registro-acento-suave)"/>
+            <path d="M43 17v8h7M26 31h17M26 37h13"/>
+            <path class="registro-svg-check-expediente" d="M31 44l4 4 9-10"/>
+        </g>
+    </g>
+</svg>
+{% elif clave == 'pago' %}
 <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
     <g class="registro-svg-base" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
         <path d="M17 10h26v42l-5-3-6 3-6-3-5 3-4-2z"/>
@@ -203,7 +215,7 @@
                         {% for registro in recientes %}
                             <tr>
                                 <td>{{ registro.fecha_recepcion.strftime('%d/%m/%Y') if registro.fecha_recepcion else registro.creado_en.strftime('%d/%m/%Y') }}</td>
-                                <td><span class="tipo-reciente">{{ 'SOPORTE TI' if registro.soporte_tecnico else registro.tipo }}</span></td>
+                                <td><span class="tipo-reciente">{{ 'SOPORTE TI' if registro.soporte_tecnico else registro.tipo|replace('_', ' ') }}</span></td>
                                 <td>{{ registro.no_sp_referencia or '—' }}</td>
                                 <td>{{ registro.rc or '—' }}</td>
                                 <td>{{ registro.providencia or '—' }}</td>
