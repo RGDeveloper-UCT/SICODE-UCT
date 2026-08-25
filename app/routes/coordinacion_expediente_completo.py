@@ -1,6 +1,6 @@
 from datetime import date
 
-from flask import flash, redirect, render_template, url_for
+from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
 from wtforms import SelectField, StringField, SubmitField
@@ -14,38 +14,40 @@ from app.routes.coordinacion import TIPOS_REGISTRO, coordinacion_bp
 from app.services.bitacora_service import registrar_bitacora
 
 
-PLANTILLA_INSTALACION_TRASLADO = {
-    "codigo": "INSTALACION_TRASLADO_8_DOCS",
-    "nombre": "Instalación / traslado — 8 documentos, folios 1-34",
-    "documentos": [
-        (1, "Solicitud de Informe de Factibilidad", "SOLICITUD", 1, 4),
-        (2, "Providencias de traslados entre coordinaciones", "PROVIDENCIA", 5, 7),
-        (3, "Informe de Factibilidad", "INFORME", 8, 12),
-        (4, "Providencias de traslados entre coordinaciones", "PROVIDENCIA", 13, 14),
-        (5, "Orden de Instalación y pago", "ORDEN", 15, 21),
-        (6, "Boleta de Instalación", "BOLETA", 22, 22),
-        (7, "Actas de Instalación", "ACTA", 23, 26),
-        (8, "Providencias de traslados entre coordinaciones", "PROVIDENCIA", 27, 34),
-    ],
+DOCUMENTOS_BASE = [
+    (1, "Solicitud de Informe de Factibilidad", "SOLICITUD", 1, 4),
+    (2, "Providencias de traslados entre coordinaciones", "PROVIDENCIA", 5, 7),
+    (3, "Informe de Factibilidad", "INFORME", 8, 12),
+    (4, "Providencias de traslados entre coordinaciones", "PROVIDENCIA", 13, 14),
+    (5, "Orden de Instalación y pago", "ORDEN", 15, 21),
+    (6, "Boleta de Instalación", "BOLETA", 22, 22),
+    (7, "Actas de Instalación", "ACTA", 23, 26),
+    (8, "Providencias de traslados entre coordinaciones", "PROVIDENCIA", 27, 34),
+]
+
+FORMAS_REGISTRO = {
+    "BASE_EDITABLE": "Instalación / traslado — índice base editable",
+    "PERSONALIZADO": "Personalizado — editar documentos y folios antes de guardar",
 }
 
-PLANTILLAS = {
-    PLANTILLA_INSTALACION_TRASLADO["codigo"]: PLANTILLA_INSTALACION_TRASLADO,
-}
-
-# Extiende el catálogo ya usado por el panel de Registros. Así se incorpora la
-# tarjeta sin duplicar el dashboard ni crear un segundo panel de Coordinación.
+# Se integra como un tipo de registro del panel de Coordinación, sin duplicar
+# el módulo ni almacenar documentos: únicamente metadatos del índice.
 TIPOS_REGISTRO["expediente-completo"] = {
     "codigo": "EXPEDIENTE_COMPLETO",
     "titulo": "Expediente completo",
-    "descripcion": "Recepción de expediente completo y carga automática de su índice documental al SP seleccionado.",
+    "descripcion": "Recepción de expediente completo y carga de su índice documental editable al SP seleccionado.",
 }
 
 
 class RecepcionExpedienteCompletoForm(FlaskForm):
     expediente_id = SelectField("SP al que se adjuntará", coerce=int, validators=[DataRequired()])
-    plantilla = SelectField("Plantilla documental", validators=[DataRequired()])
-    rc = StringField("RC", validators=[DataRequired(), Length(max=80)])
+    forma_registro = SelectField("Forma de registro", validators=[DataRequired()])
+    tipo_referencia = SelectField(
+        "Tipo de referencia",
+        choices=[("RC", "RC"), ("RE", "RE")],
+        validators=[DataRequired()],
+    )
+    numero_referencia = StringField("Número RC / RE", validators=[DataRequired(), Length(max=76)])
     persona_entrega = StringField("Quién entrega / remite", validators=[DataRequired(), Length(max=180)])
     submit = SubmitField("Registrar y adjuntar documentación")
 
@@ -56,16 +58,78 @@ def _cargar_opciones(form):
         (exp.id, f"{exp.no_sp} — {exp.nombre_referencia or exp.codigo_interno or 'Expediente'}")
         for exp in expedientes
     ]
-    form.plantilla.choices = [
-        (codigo, plantilla["nombre"])
-        for codigo, plantilla in PLANTILLAS.items()
-    ]
+    form.forma_registro.choices = list(FORMAS_REGISTRO.items())
+
+
+def _documentos_desde_formulario():
+    """Obtiene las ocho filas editables y valida nombres/rangos de folios."""
+    documentos = []
+    errores = []
+
+    for numero, nombre_base, tipo_documento, inicio_base, fin_base in DOCUMENTOS_BASE:
+        nombre = (request.form.get(f"documento_{numero}") or nombre_base).strip()
+        inicio_texto = (request.form.get(f"folio_inicio_{numero}") or str(inicio_base)).strip()
+        fin_texto = (request.form.get(f"folio_fin_{numero}") or str(fin_base)).strip()
+
+        if not nombre:
+            errores.append(f"Fila {numero}: el nombre del documento es obligatorio.")
+            continue
+
+        try:
+            folio_inicio = int(inicio_texto)
+            folio_fin = int(fin_texto)
+        except (TypeError, ValueError):
+            errores.append(f"Fila {numero}: los folios deben ser números enteros.")
+            continue
+
+        if folio_inicio < 1 or folio_fin < 1:
+            errores.append(f"Fila {numero}: los folios deben ser mayores o iguales a 1.")
+            continue
+        if folio_fin < folio_inicio:
+            errores.append(f"Fila {numero}: el folio final no puede ser menor que el inicial.")
+            continue
+
+        documentos.append((numero, nombre, tipo_documento, folio_inicio, folio_fin))
+
+    # Evita que el propio cuadro cree rangos superpuestos entre sus filas.
+    ordenados = sorted(documentos, key=lambda item: (item[3], item[4]))
+    for anterior, actual in zip(ordenados, ordenados[1:]):
+        if actual[3] <= anterior[4]:
+            errores.append(
+                f"Los rangos de las filas {anterior[0]} y {actual[0]} se traslapan "
+                f"({anterior[3]}-{anterior[4]} y {actual[3]}-{actual[4]})."
+            )
+
+    return documentos, errores
+
+
+def _documentos_para_vista():
+    """Conserva lo escrito por el usuario si el POST necesita mostrarse de nuevo."""
+    if request.method != "POST":
+        return DOCUMENTOS_BASE
+
+    filas = []
+    for numero, nombre_base, tipo_documento, inicio_base, fin_base in DOCUMENTOS_BASE:
+        nombre = (request.form.get(f"documento_{numero}") or nombre_base).strip()
+        try:
+            inicio = int((request.form.get(f"folio_inicio_{numero}") or str(inicio_base)).strip())
+        except (TypeError, ValueError):
+            inicio = request.form.get(f"folio_inicio_{numero}") or inicio_base
+        try:
+            fin = int((request.form.get(f"folio_fin_{numero}") or str(fin_base)).strip())
+        except (TypeError, ValueError):
+            fin = request.form.get(f"folio_fin_{numero}") or fin_base
+        filas.append((numero, nombre, tipo_documento, inicio, fin))
+    return filas
 
 
 def _buscar_conflictos(expediente_id, documentos):
+    if not documentos:
+        return []
+
     inicio = min(item[3] for item in documentos)
     fin = max(item[4] for item in documentos)
-    return (
+    candidatos = (
         DocumentoExpediente.query
         .filter_by(expediente_id=expediente_id, activo=True)
         .filter(
@@ -76,15 +140,26 @@ def _buscar_conflictos(expediente_id, documentos):
         .all()
     )
 
+    return [
+        existente
+        for existente in candidatos
+        if any(
+            existente.folio_inicio <= nuevo_fin and existente.folio_fin >= nuevo_inicio
+            for _numero, _nombre, _tipo, nuevo_inicio, nuevo_fin in documentos
+        )
+    ]
 
-@coordinacion_bp.route("/registrar/expediente-completo", methods=["GET", "POST"], endpoint="registrar_expediente_completo")
+
+@coordinacion_bp.route(
+    "/registrar/expediente-completo",
+    methods=["GET", "POST"],
+    endpoint="registrar_expediente_completo",
+)
 @login_required
 def registrar_expediente_completo():
     form = RecepcionExpedienteCompletoForm()
     _cargar_opciones(form)
-
-    plantilla_codigo = form.plantilla.data or PLANTILLA_INSTALACION_TRASLADO["codigo"]
-    plantilla = PLANTILLAS.get(plantilla_codigo, PLANTILLA_INSTALACION_TRASLADO)
+    documentos_vista = _documentos_para_vista()
 
     if form.validate_on_submit():
         expediente = Expediente.query.filter_by(id=form.expediente_id.data, activo=True).first()
@@ -93,55 +168,67 @@ def registrar_expediente_completo():
             return render_template(
                 "coordinacion/expediente_completo.html",
                 form=form,
-                plantilla=plantilla,
+                documentos=documentos_vista,
             )
 
-        plantilla = PLANTILLAS.get(form.plantilla.data)
-        if not plantilla:
-            flash("La plantilla documental seleccionada no es válida.", "danger")
+        documentos, errores = _documentos_desde_formulario()
+        if errores:
+            for error in errores[:6]:
+                flash(error, "warning")
             return render_template(
                 "coordinacion/expediente_completo.html",
                 form=form,
-                plantilla=PLANTILLA_INSTALACION_TRASLADO,
+                documentos=documentos_vista,
             )
 
-        conflictos = _buscar_conflictos(expediente.id, plantilla["documentos"])
+        conflictos = _buscar_conflictos(expediente.id, documentos)
         if conflictos:
             rangos = ", ".join(
                 f"{doc.folio_inicio}-{doc.folio_fin}" if doc.folio_inicio != doc.folio_fin else str(doc.folio_inicio)
                 for doc in conflictos[:6]
             )
             flash(
-                f"No se adjuntó la plantilla porque el SP {expediente.no_sp} ya tiene documentos activos en los folios {rangos}. Revise primero su índice documental.",
+                f"No se adjuntó la documentación porque el SP {expediente.no_sp} ya tiene "
+                f"documentos activos en los folios {rangos}. Revise primero su índice documental.",
                 "warning",
             )
             return render_template(
                 "coordinacion/expediente_completo.html",
                 form=form,
-                plantilla=plantilla,
+                documentos=documentos_vista,
             )
+
+        referencia = f"{form.tipo_referencia.data} {form.numero_referencia.data.strip()}"
+        folio_min = min(item[3] for item in documentos)
+        folio_max = max(item[4] for item in documentos)
+        total_folios_documentados = sum(item[4] - item[3] + 1 for item in documentos)
+        forma_legible = FORMAS_REGISTRO.get(form.forma_registro.data, form.forma_registro.data)
 
         registro = RegistroCoordinacion(
             tipo="EXPEDIENTE_COMPLETO",
             expediente_id=expediente.id,
             no_sp_referencia=expediente.no_sp,
-            rc=form.rc.data.strip(),
+            # El campo histórico `rc` se reutiliza como referencia administrativa
+            # y conserva el prefijo para distinguir RC de RE sin migrar la BD.
+            rc=referencia,
             fecha_recepcion=date.today(),
             persona_entrega=form.persona_entrega.data.strip(),
-            folios_recepcion="1-34 (34 folios)",
+            folios_recepcion=(
+                f"{folio_min}-{folio_max} ({total_folios_documentados} folios documentados)"
+            ),
             usuario_id=current_user.id,
             usuario_origen=current_user.nombre,
             estado="Completo",
             observaciones=(
-                f"Recepción de expediente completo. Plantilla: {plantilla['nombre']}. "
-                f"Se incorporaron {len(plantilla['documentos'])} documentos al índice documental del SP."
+                f"Recepción de expediente completo. Forma de registro: {forma_legible}. "
+                f"Se incorporaron {len(documentos)} documentos editados/confirmados al índice documental del SP."
             ),
             origen_registro="MANUAL",
         )
         db.session.add(registro)
         db.session.flush()
 
-        for numero, nombre, tipo_documento, folio_inicio, folio_fin in plantilla["documentos"]:
+        for numero, nombre, tipo_documento, folio_inicio, folio_fin in documentos:
             db.session.add(
                 DocumentoExpediente(
                     expediente_id=expediente.id,
@@ -153,8 +240,8 @@ def registrar_expediente_completo():
                     estado_revision="Pendiente de revisión",
                     es_anexo=False,
                     observaciones=(
-                        f"Documento #{numero} incorporado automáticamente desde la recepción "
-                        f"de expediente completo No. {registro.id}."
+                        f"Documento #{numero} incorporado desde la recepción de expediente completo "
+                        f"No. {registro.id}; folios confirmados manualmente por el usuario."
                     ),
                 )
             )
@@ -163,8 +250,8 @@ def registrar_expediente_completo():
             accion="REGISTRAR_EXPEDIENTE_COMPLETO",
             modulo="Coordinación",
             descripcion=(
-                f"Se recibió expediente completo del SP {expediente.no_sp}; "
-                f"RC {registro.rc}; se incorporaron 8 documentos, folios 1-34, al índice documental."
+                f"Se recibió expediente completo del SP {expediente.no_sp}; referencia {referencia}; "
+                f"se incorporaron {len(documentos)} documentos al índice documental."
             ),
             usuario_id=current_user.id,
             expediente_id=expediente.id,
@@ -173,10 +260,12 @@ def registrar_expediente_completo():
             datos_posteriores={
                 "tipo": registro.tipo,
                 "sp": expediente.no_sp,
-                "rc": registro.rc,
-                "plantilla": plantilla["codigo"],
-                "documentos": len(plantilla["documentos"]),
-                "folios": "1-34",
+                "referencia": referencia,
+                "forma_registro": form.forma_registro.data,
+                "documentos": len(documentos),
+                "rango_general": f"{folio_min}-{folio_max}",
+                "folios_documentados": total_folios_documentados,
+                "rangos": [f"{item[3]}-{item[4]}" for item in documentos],
             },
             commit=False,
         )
@@ -188,7 +277,8 @@ def registrar_expediente_completo():
             raise
 
         flash(
-            f"Expediente completo recibido. Se adjuntaron 8 documentos (folios 1-34) al SP {expediente.no_sp}.",
+            f"Expediente completo recibido. Se adjuntaron {len(documentos)} documentos al SP "
+            f"{expediente.no_sp} con referencia {referencia}.",
             "success",
         )
         return redirect(url_for("indice_documental.listado", expediente_id=expediente.id))
@@ -196,5 +286,5 @@ def registrar_expediente_completo():
     return render_template(
         "coordinacion/expediente_completo.html",
         form=form,
-        plantilla=plantilla,
+        documentos=documentos_vista,
     )
