@@ -2,13 +2,46 @@ from datetime import date
 
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField, FileRequired
-from wtforms import BooleanField, DateField, DecimalField, HiddenField, StringField, SubmitField, TextAreaField
+from wtforms import BooleanField, DateField, DecimalField, HiddenField, SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Length, Optional
 
 
-class RegistroBaseForm(FlaskForm):
+REFERENCIAS_CHOICES = [("RC", "RC"), ("RE", "RE")]
+
+
+def _normalizar_referencia(tipo, numero):
+    """Guarda la referencia completa en la columna histórica `rc` sin cambiar el esquema de BD."""
+    numero = (numero or "").strip()
+    if not numero:
+        return None
+
+    # Evita valores duplicados como "RC RC 2026..." cuando alguien pega el prefijo.
+    partes = numero.split(maxsplit=1)
+    if partes and partes[0].upper() in {"RC", "RE"}:
+        numero = partes[1].strip() if len(partes) > 1 else ""
+    if not numero:
+        return None
+
+    tipo = (tipo or "RC").strip().upper()
+    if tipo not in {"RC", "RE"}:
+        tipo = "RC"
+    return f"{tipo} {numero}"
+
+
+class ReferenciaRCREMixin:
+    """Añade selector RC/RE y entrega a las rutas el valor ya normalizado."""
+    tipo_referencia = SelectField("Tipo de referencia", choices=REFERENCIAS_CHOICES, default="RC", validators=[DataRequired()])
+
+    def validate(self, extra_validators=None):
+        valido = super().validate(extra_validators=extra_validators)
+        if valido and hasattr(self, "rc"):
+            self.rc.data = _normalizar_referencia(self.tipo_referencia.data, self.rc.data)
+        return valido
+
+
+class RegistroBaseForm(ReferenciaRCREMixin, FlaskForm):
     no_sp = StringField("No. de SP", validators=[DataRequired(), Length(max=50)])
-    rc = StringField("RC", validators=[Optional(), Length(max=80)])
+    rc = StringField("Número RC / RE", validators=[Optional(), Length(max=80)])
     providencia = StringField("Providencia", validators=[Optional(), Length(max=120)])
     fecha_recepcion = DateField("Fecha recibido", validators=[Optional()], default=date.today, format="%Y-%m-%d")
     persona_entrega = StringField("Quién entrega / remite", validators=[Optional(), Length(max=180)])
@@ -16,7 +49,7 @@ class RegistroBaseForm(FlaskForm):
 
 
 class ExpedienteCompletoForm(RegistroBaseForm):
-    rc = StringField("RC", validators=[DataRequired(), Length(max=80)])
+    rc = StringField("Número RC / RE", validators=[DataRequired(), Length(max=80)])
     fecha_recepcion = DateField("Fecha de recepción", validators=[DataRequired()], default=date.today, format="%Y-%m-%d")
     persona_entrega = StringField("Quién entrega / remite", validators=[DataRequired(), Length(max=180)])
     folios = StringField("Folios del expediente", validators=[DataRequired(), Length(max=80)])
@@ -56,10 +89,10 @@ class MonitoreoForm(RegistroBaseForm):
     submit = SubmitField("Guardar reporte")
 
 
-class DocumentoEmitidoForm(FlaskForm):
+class DocumentoEmitidoForm(ReferenciaRCREMixin, FlaskForm):
     no_sp = StringField("No. de SP relacionado (opcional)", validators=[Optional(), Length(max=50)])
     numero_documento = StringField("No. de documento", validators=[DataRequired(), Length(max=120)])
-    rc = StringField("RC", validators=[Optional(), Length(max=80)])
+    rc = StringField("Número RC / RE", validators=[Optional(), Length(max=80)])
     destino = StringField("Destino", validators=[Optional(), Length(max=180)])
     fecha = DateField("Fecha", validators=[Optional()], default=date.today, format="%Y-%m-%d")
     descripcion = TextAreaField("Descripción", validators=[Optional()])
