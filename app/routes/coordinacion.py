@@ -14,6 +14,7 @@ from app.forms.coordinacion_form import (
     AnexoForm,
     ConfirmarImportacionForm,
     DocumentoEmitidoForm,
+    ExpedienteCompletoForm,
     ImportarCoordinacionForm,
     MonitoreoForm,
     MovimientoForm,
@@ -42,6 +43,7 @@ from app.services.importacion_coordinacion_service import ImportadorCoordinacion
 coordinacion_bp = Blueprint("coordinacion", __name__, url_prefix="/coordinacion")
 
 TIPOS_REGISTRO = {
+    "expediente-completo": {"codigo": "EXPEDIENTE_COMPLETO", "titulo": "Expediente completo", "descripcion": "Recepción de expedientes físicos completos y vinculación inmediata al SP correspondiente."},
     "pago": {"codigo": "PAGO", "titulo": "Pago", "descripcion": "Pagos recibidos y asociados al SP correspondiente."},
     "instalacion": {"codigo": "INSTALACION", "titulo": "Instalación", "descripcion": "Recepción y control administrativo de nuevas instalaciones."},
     "desinstalacion": {"codigo": "DESINSTALACION", "titulo": "Desinstalación", "descripcion": "Desinstalaciones recibidas y su control administrativo."},
@@ -60,7 +62,7 @@ CATALOGOS = {
     "areas_apoyo": ["Monitoreo", "Analista de Riesgo", "Dirección", "Subdirección", "Administración", "Otra coordinación"],
 }
 
-TIPOS_ENTRANTES = {"PAGO", "INSTALACION", "DESINSTALACION", "ANEXO", "MONITOREO"}
+TIPOS_ENTRANTES = {"EXPEDIENTE_COMPLETO", "PAGO", "INSTALACION", "DESINSTALACION", "ANEXO", "MONITOREO"}
 
 
 def _sp_opciones():
@@ -215,7 +217,32 @@ def registrar(tipo):
         abort(404)
 
     form = None
-    if tipo == "pago":
+    if tipo == "expediente-completo":
+        form = ExpedienteCompletoForm()
+        if form.validate_on_submit():
+            expediente, _ = resolver_expediente(form.no_sp.data)
+            if not expediente:
+                form.no_sp.errors.append("El SP debe existir y estar activo antes de recibir un expediente completo.")
+            else:
+                registro = _crear_base(
+                    "EXPEDIENTE_COMPLETO",
+                    form.no_sp.data,
+                    form.rc.data,
+                    form.providencia.data,
+                    form.fecha_recepcion.data,
+                    form.observaciones.data,
+                    [form.no_sp.data, form.rc.data, form.fecha_recepcion.data, form.persona_entrega.data, form.folios.data],
+                )
+                registro.estado = "Completo"
+                db.session.commit()
+                _registrar_bitacora_nuevo(registro, "la recepción de un expediente completo")
+                flash(
+                    f"Expediente completo del SP {registro.no_sp_referencia} recibido y vinculado correctamente. Hora registrada automáticamente.",
+                    "success",
+                )
+                return redirect(url_for("coordinacion.detalle", registro_id=registro.id))
+
+    elif tipo == "pago":
         form = PagoForm()
         if form.validate_on_submit():
             periodo = form.periodo_desde.data or form.periodo_texto.data
