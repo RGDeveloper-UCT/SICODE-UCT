@@ -30,12 +30,13 @@ FORMAS_REGISTRO = {
     "PERSONALIZADO": "Personalizado — editar documentos y folios antes de guardar",
 }
 
-# Se integra como un tipo de registro del panel de Coordinación, sin duplicar
-# el módulo ni almacenar documentos: únicamente metadatos del índice.
+# Se integra como un tipo de registro del panel de Coordinación. La recepción
+# es una sola operación administrativa, pero CADA FILA del índice se convierte
+# en un DocumentoExpediente independiente con su propio ID y rango de folios.
 TIPOS_REGISTRO["expediente-completo"] = {
     "codigo": "EXPEDIENTE_COMPLETO",
     "titulo": "Expediente completo",
-    "descripcion": "Recepción de expediente completo y carga de su índice documental editable al SP seleccionado.",
+    "descripcion": "Recepción de expediente completo y creación individual de cada documento del índice en el SP seleccionado.",
 }
 
 
@@ -150,6 +151,63 @@ def _buscar_conflictos(expediente_id, documentos):
     ]
 
 
+def _crear_documentos_individuales(expediente, registro, documentos):
+    """Crea una fila real e independiente en DocumentoExpediente por cada fila del índice.
+
+    Aunque todos nacen de la misma recepción, no se agrupan en un único documento:
+    cada entrada obtiene su propio ID, nombre, tipo, folio inicial/final y total.
+    """
+    creados = []
+
+    for numero, nombre, tipo_documento, folio_inicio, folio_fin in documentos:
+        documento = DocumentoExpediente(
+            expediente_id=expediente.id,
+            nombre_documento=nombre,
+            tipo_documento=tipo_documento,
+            folio_inicio=folio_inicio,
+            folio_fin=folio_fin,
+            total_folios=folio_fin - folio_inicio + 1,
+            estado_revision="Pendiente de revisión",
+            es_anexo=False,
+            observaciones=(
+                f"Documento individual #{numero} incorporado desde la recepción de expediente completo "
+                f"No. {registro.id}; folios confirmados manualmente por el usuario."
+            ),
+        )
+        db.session.add(documento)
+        # El flush asigna el ID propio del documento antes de continuar con la
+        # siguiente fila y permite auditar cada entrada de forma independiente.
+        db.session.flush()
+
+        creados.append(documento)
+        registrar_bitacora(
+            accion="REGISTRAR_DOCUMENTO_EXPEDIENTE",
+            modulo="Índice documental",
+            descripcion=(
+                f"Se incorporó como documento independiente '{documento.nombre_documento}' "
+                f"al SP {expediente.no_sp}, folios {documento.folio_inicio}-{documento.folio_fin}, "
+                f"desde la recepción de expediente completo No. {registro.id}."
+            ),
+            usuario_id=current_user.id,
+            expediente_id=expediente.id,
+            entidad="DocumentoExpediente",
+            entidad_id=documento.id,
+            datos_posteriores={
+                "documento_id": documento.id,
+                "registro_recepcion_id": registro.id,
+                "numero_indice": numero,
+                "nombre": documento.nombre_documento,
+                "tipo_documento": documento.tipo_documento,
+                "folio_inicio": documento.folio_inicio,
+                "folio_fin": documento.folio_fin,
+                "total_folios": documento.total_folios,
+            },
+            commit=False,
+        )
+
+    return creados
+
+
 @coordinacion_bp.route(
     "/registrar/expediente-completo",
     methods=["GET", "POST"],
@@ -214,44 +272,29 @@ def registrar_expediente_completo():
             fecha_recepcion=date.today(),
             persona_entrega=form.persona_entrega.data.strip(),
             folios_recepcion=(
-                f"{folio_min}-{folio_max} ({total_folios_documentados} folios documentados)"
+                f"{len(documentos)} documentos individuales; rango general {folio_min}-{folio_max}; "
+                f"{total_folios_documentados} folios documentados"
             ),
             usuario_id=current_user.id,
             usuario_origen=current_user.nombre,
             estado="Completo",
             observaciones=(
                 f"Recepción de expediente completo. Forma de registro: {forma_legible}. "
-                f"Se incorporaron {len(documentos)} documentos editados/confirmados al índice documental del SP."
+                f"Cada una de las {len(documentos)} filas del índice se creó como un documento independiente del SP."
             ),
             origen_registro="MANUAL",
         )
         db.session.add(registro)
         db.session.flush()
 
-        for numero, nombre, tipo_documento, folio_inicio, folio_fin in documentos:
-            db.session.add(
-                DocumentoExpediente(
-                    expediente_id=expediente.id,
-                    nombre_documento=nombre,
-                    tipo_documento=tipo_documento,
-                    folio_inicio=folio_inicio,
-                    folio_fin=folio_fin,
-                    total_folios=folio_fin - folio_inicio + 1,
-                    estado_revision="Pendiente de revisión",
-                    es_anexo=False,
-                    observaciones=(
-                        f"Documento #{numero} incorporado desde la recepción de expediente completo "
-                        f"No. {registro.id}; folios confirmados manualmente por el usuario."
-                    ),
-                )
-            )
+        documentos_creados = _crear_documentos_individuales(expediente, registro, documentos)
 
         registrar_bitacora(
             accion="REGISTRAR_EXPEDIENTE_COMPLETO",
             modulo="Coordinación",
             descripcion=(
                 f"Se recibió expediente completo del SP {expediente.no_sp}; referencia {referencia}; "
-                f"se incorporaron {len(documentos)} documentos al índice documental."
+                f"se crearon {len(documentos_creados)} documentos independientes en el índice documental."
             ),
             usuario_id=current_user.id,
             expediente_id=expediente.id,
@@ -262,10 +305,19 @@ def registrar_expediente_completo():
                 "sp": expediente.no_sp,
                 "referencia": referencia,
                 "forma_registro": form.forma_registro.data,
-                "documentos": len(documentos),
+                "documentos_independientes": len(documentos_creados),
+                "documentos_creados": [
+                    {
+                        "id": doc.id,
+                        "nombre": doc.nombre_documento,
+                        "tipo": doc.tipo_documento,
+                        "folio_inicio": doc.folio_inicio,
+                        "folio_fin": doc.folio_fin,
+                    }
+                    for doc in documentos_creados
+                ],
                 "rango_general": f"{folio_min}-{folio_max}",
                 "folios_documentados": total_folios_documentados,
-                "rangos": [f"{item[3]}-{item[4]}" for item in documentos],
             },
             commit=False,
         )
@@ -277,8 +329,8 @@ def registrar_expediente_completo():
             raise
 
         flash(
-            f"Expediente completo recibido. Se adjuntaron {len(documentos)} documentos al SP "
-            f"{expediente.no_sp} con referencia {referencia}.",
+            f"Expediente completo recibido. Se crearon {len(documentos_creados)} documentos independientes "
+            f"en el SP {expediente.no_sp} con referencia {referencia}.",
             "success",
         )
         return redirect(url_for("indice_documental.listado", expediente_id=expediente.id))
