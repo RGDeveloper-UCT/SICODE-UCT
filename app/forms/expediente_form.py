@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import SelectField, StringField, SubmitField, TextAreaField
+from wtforms import HiddenField, SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Length, Optional
 
 from app.services.sp_service import normalizar_sp
@@ -11,13 +11,10 @@ ESTADOS_ADMINISTRATIVOS = [
     ("Cerrado", "Cerrado"),
 ]
 
-ESTADOS_FISICOS = [
-    ("Pendiente de verificación", "Pendiente de verificación"),
-    ("Verificado", "Verificado"),
-    ("Con observaciones", "Con observaciones"),
-    ("Incompleto", "Incompleto"),
-    ("No localizado", "No localizado"),
-]
+# Se conserva el campo oculto para compatibilidad con rutas y registros
+# históricos. El estado documental vigente ya no se elige manualmente: se
+# deriva del árbol Expediente -> Índice -> Rectificación -> Verificación.
+ESTADO_DOCUMENTAL_LEGACY_DEFAULT = "Pendiente de verificación"
 
 
 class ExpedienteForm(FlaskForm):
@@ -32,11 +29,7 @@ class ExpedienteForm(FlaskForm):
     )
     nombre_referencia = StringField("Nombre de referencia", validators=[Optional(), Length(max=150)])
     estado_administrativo = SelectField("Estado administrativo", choices=ESTADOS_ADMINISTRATIVOS, default="Activo")
-    estado_fisico_documental = SelectField(
-        "Estado físico/documental",
-        choices=ESTADOS_FISICOS,
-        default="Pendiente de verificación",
-    )
+    estado_fisico_documental = HiddenField(default=ESTADO_DOCUMENTAL_LEGACY_DEFAULT)
     archivador = StringField("Archivador", validators=[Optional(), Length(max=80)])
     sicoin = StringField("SICOIN", validators=[Optional(), Length(max=80)])
     estante = StringField("Estante", validators=[Optional(), Length(max=80)])
@@ -49,11 +42,7 @@ class ExpedienteForm(FlaskForm):
 
 class RegistrarExpedienteFisicoForm(FlaskForm):
     estado_administrativo = SelectField("Estado administrativo", choices=ESTADOS_ADMINISTRATIVOS, default="Activo")
-    estado_fisico_documental = SelectField(
-        "Estado físico/documental",
-        choices=ESTADOS_FISICOS,
-        default="Pendiente de verificación",
-    )
+    estado_fisico_documental = HiddenField(default=ESTADO_DOCUMENTAL_LEGACY_DEFAULT)
     archivador = StringField("Archivador", validators=[Optional(), Length(max=80)])
     sicoin = StringField("SICOIN", validators=[Optional(), Length(max=80)])
     estante = StringField("Estante", validators=[Optional(), Length(max=80)])
