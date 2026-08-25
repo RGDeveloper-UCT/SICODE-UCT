@@ -1,9 +1,16 @@
 (()=>{
   const root=document.querySelector('[data-sia-float]');
   const page=document.querySelector('[data-sia-job-page]');
+  const form=document.querySelector('[data-sia-form]');
   const activeKey='sicodeIAActiveJob';
   let jobId=(page&&page.dataset.jobId)||localStorage.getItem(activeKey);
   let timer=null;
+
+  // Mantiene la plantilla compatible: sustituye el POST sin tocar el flujo visual
+  // existente y envía los PDF a Redis/RQ en vez de bloquear Gunicorn.
+  if(form){
+    form.action='/coordinacion/analisis-documental/ia/trabajos/crear';
+  }
 
   function statusUrl(id){return `/coordinacion/analisis-documental/ia/trabajos/${encodeURIComponent(id)}/estado`;}
   function setLight(el,color){if(!el)return;el.classList.remove('amarillo','verde','rojo');el.classList.add(color||'amarillo');}
