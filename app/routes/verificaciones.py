@@ -8,6 +8,7 @@ from app.models.expediente import Expediente
 from app.models.verificacion import VerificacionExpediente
 from app.services.alertas_service import crear_alerta_si_no_existe
 from app.services.bitacora_service import registrar_bitacora
+from app.services.estado_documental_service import calcular_estado_documental
 
 
 verificaciones_bp = Blueprint("verificaciones", __name__, url_prefix="/expedientes")
@@ -37,10 +38,20 @@ def expediente(expediente_id):
             origen="MANUAL",
         )
         db.session.add(verificacion)
+
+        # La columna anterior se conserva como espejo histórico por
+        # compatibilidad. El estado vigente lo calcula EstadoDocumentalService.
         expediente.estado_fisico_documental = resultado
         db.session.flush()
 
-        if resultado == "Verificado":
+        # La relación pudo haberse cargado al calcular estado_anterior. Se
+        # expira para que el cálculo canónico incluya la verificación recién
+        # registrada antes de decidir alertas o bitácora.
+        db.session.expire(expediente, ["verificaciones"])
+        resumen_nuevo = calcular_estado_documental(expediente)
+        estado_nuevo = resumen_nuevo["estado"]
+
+        if estado_nuevo == "Verificado":
             alertas_revision = Alerta.query.filter(
                 Alerta.expediente_id == expediente.id,
                 Alerta.tipo_alerta.in_(["REVISION_EXPEDIENTE", "REVISION_INDICE_DOCUMENTAL"]),
@@ -55,6 +66,7 @@ def expediente(expediente_id):
                 titulo=f"Expediente requiere revisión: {expediente.no_sp}",
                 descripcion=(
                     f"Verificación {form.tipo.data.lower()} con resultado '{resultado}'. "
+                    f"Estado documental derivado: '{estado_nuevo}'. "
                     f"Observaciones: {form.observaciones.data or 'Sin observaciones adicionales.'}"
                 ),
                 gravedad="Alta" if resultado == "No localizado" else "Media",
@@ -67,23 +79,29 @@ def expediente(expediente_id):
             modulo="Verificaciones",
             descripcion=(
                 f"Se registró verificación {verificacion.tipo} del SP {expediente.no_sp}; "
-                f"resultado: {resultado}."
+                f"resultado declarado: {resultado}; estado documental derivado: {estado_nuevo}."
             ),
             usuario_id=current_user.id,
             expediente_id=expediente.id,
             entidad="VerificacionExpediente",
             entidad_id=verificacion.id,
-            datos_anteriores={"estado_fisico_documental": estado_anterior},
+            datos_anteriores={"estado_documental_derivado": estado_anterior},
             datos_posteriores={
-                "estado_fisico_documental": resultado,
+                "estado_documental_derivado": estado_nuevo,
+                "resultado_verificacion": resultado,
                 "tipo": verificacion.tipo,
                 "folios_verificados": verificacion.folios_verificados,
+                "verificacion_vigente": resumen_nuevo["verificacion_vigente"],
+                "incidencias": resumen_nuevo["incidencias"],
             },
             commit=False,
         )
         db.session.commit()
 
-        flash("Verificación registrada y estado documental actualizado.", "success")
+        flash(
+            f"Verificación registrada. Estado documental actual: {estado_nuevo}.",
+            "success",
+        )
         return redirect(url_for("verificaciones.expediente", expediente_id=expediente.id))
 
     historial = (
