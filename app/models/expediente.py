@@ -73,24 +73,23 @@ class Expediente(db.Model):
 
     @hybrid_property
     def estado_fisico_documental(self):
-        """Estado documental vigente y derivado del árbol maestro del SP.
-
-        La escritura se mantiene por compatibilidad con rutas históricas, pero
-        ese valor ya no decide el estado mostrado por SICODE.
-        """
+        """Estado documental vigente y derivado del árbol maestro del SP."""
         from app.services.estado_documental_service import estado_documental_actual
 
         return estado_documental_actual(self)
 
     @estado_fisico_documental.setter
     def estado_fisico_documental(self, valor):
-        self._estado_fisico_documental_legacy = valor
+        # Las rutas históricas todavía asignan este atributo. Para no alterar
+        # registros anteriores, esas asignaciones solo inicializan expedientes
+        # nuevos; las verificaciones actualizan explícitamente el espejo legacy.
+        if self.id is None or self._estado_fisico_documental_legacy is None:
+            self._estado_fisico_documental_legacy = valor
 
     @estado_fisico_documental.expression
     def estado_fisico_documental(cls):
-        # Las consultas SQL históricas continúan siendo compatibles. Los
-        # paneles que requieren el estado vigente deben trabajar con objetos y
-        # usar el servicio documental central.
+        # Consultas SQL anteriores continúan funcionando sobre la columna
+        # histórica. La presentación vigente usa siempre el servicio central.
         return cls._estado_fisico_documental_legacy
 
     @property
@@ -105,8 +104,6 @@ class Expediente(db.Model):
 
     @validates("no_sp")
     def _normalizar_no_sp(self, _clave, valor):
-        # Se implementa aquí también para que cualquier escritura (no solo una
-        # ruta concreta) respete la representación canónica.
         import re
 
         if valor is None:
@@ -119,8 +116,6 @@ class Expediente(db.Model):
 
     @validates("estado_administrativo")
     def _estado_administrativo_sin_prestamo(self, _clave, valor):
-        # Compatibilidad con código/histórico anterior: disponibilidad de
-        # préstamo se deriva exclusivamente de PrestamoExpediente.
         if valor in {"En préstamo", "Devuelto"}:
             return "Activo"
         return valor
