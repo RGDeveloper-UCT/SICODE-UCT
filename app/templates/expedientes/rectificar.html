@@ -15,7 +15,7 @@
 
     <div class="aviso rectificacion-aviso">
         <strong>Rectificación obligatoria para préstamos.</strong>
-        Confirme el total físico de folios y anexos. Puede registrar únicamente ambos totales; describir cada anexo es opcional. SICODE no almacena documentos sensibles en este formulario.
+        Confirme el total físico de folios y anexos. Puede registrar únicamente ambos totales; describir cada anexo es opcional. Si el expediente aún no ha sido trasladado a la Coordinación, use la opción <strong>Sin expediente físico en Coordinación</strong> al final del formulario. SICODE no almacena documentos sensibles en este formulario.
     </div>
 
     <form method="post" id="form-rectificacion" autocomplete="off">
@@ -37,6 +37,8 @@
                 <strong>{{ expediente.estado_fisico_documental }}</strong>
                 {% if expediente.rectificacion_completa %}
                     <small>Última rectificación: {{ expediente.rectificado_en.strftime('%d/%m/%Y %H:%M') if expediente.rectificado_en else 'Sin fecha' }}</small>
+                {% elif not expediente.expediente_fisico_registrado %}
+                    <small class="texto-pendiente">Sin expediente físico en Coordinación</small>
                 {% else %}
                     <small class="texto-pendiente">Pendiente de rectificar</small>
                 {% endif %}
@@ -58,6 +60,19 @@
             <a class="boton-cancelar" href="{{ url_for('expedientes.listado', q=expediente.no_sp) }}">Cancelar</a>
         </div>
     </form>
+
+    <div class="aviso" style="margin-top: 18px; display: flex; gap: 18px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+        <div style="max-width: 900px;">
+            <strong>¿Todavía no se ha recibido el expediente físico?</strong>
+            <div style="margin-top: 4px;">
+                Marque el SP como <strong>Sin expediente físico en Coordinación</strong> cuando el registro exista en SICODE, pero el expediente aún no haya sido trasladado o entregado a la Coordinación. Esta acción limpia cualquier conteo de rectificación anterior y mantiene bloqueados los préstamos físicos y las constancias hasta que el expediente sea recibido y registrado.
+            </div>
+        </div>
+        <form method="post" action="{{ url_for('expediente_fisico.marcar_sin_expediente', expediente_id=expediente.id) }}" onsubmit="return confirm('¿Confirma que el expediente físico del SP {{ expediente.no_sp }} todavía no ha sido recibido en la Coordinación?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="boton-cancelar">Sin expediente físico en Coordinación</button>
+        </form>
+    </div>
 </section>
 {% endblock %}
 
