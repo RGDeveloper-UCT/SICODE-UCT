@@ -2,15 +2,18 @@
 {% block title %}Detalle de Coordinación — SICODE-UCT{% endblock %}
 {% block content %}
 <section class="panel panel-ancho">
-    <div class="encabezado-modulo"><div><h1>{{ 'SOPORTE TI' if registro.soporte_tecnico else registro.tipo }}</h1><p>Registro operativo No. {{ registro.id }}</p></div><div class="acciones-detalle">{% if registro.soporte_tecnico %}<a class="boton-secundario" href="{{ url_for('soporte_tecnico.detalle', boleta_id=registro.soporte_tecnico.id) }}">Abrir boleta {{ registro.soporte_tecnico.numero_boleta }}</a>{% endif %}<a class="boton-cancelar" href="{{ url_for('coordinacion.listado') }}">Volver</a></div></div>
+    <div class="encabezado-modulo"><div><h1>{{ 'SOPORTE TI' if registro.soporte_tecnico else registro.tipo|replace('_', ' ') }}</h1><p>Registro operativo No. {{ registro.id }}</p></div><div class="acciones-detalle">{% if registro.soporte_tecnico %}<a class="boton-secundario" href="{{ url_for('soporte_tecnico.detalle', boleta_id=registro.soporte_tecnico.id) }}">Abrir boleta {{ registro.soporte_tecnico.numero_boleta }}</a>{% endif %}<a class="boton-cancelar" href="{{ url_for('coordinacion.listado') }}">Volver</a></div></div>
 
     {% if registro.soporte_tecnico %}
     <div class="aviso"><strong>Boleta estructurada de soporte:</strong> este registro forma parte del control de Soporte técnico y servicios TI. Abra la boleta para consultar servicio, equipo, diagnóstico, cierre y constancia PDF.</div>
+    {% elif registro.tipo == 'EXPEDIENTE_COMPLETO' %}
+    <div class="aviso"><strong>Expediente completo recibido:</strong> este control confirma la recepción física y su vinculación al SP existente en SICODE. La fecha, hora y usuario quedan trazados automáticamente.</div>
     {% endif %}
 
     <h2>Recepción / control</h2>
     <div class="grid-form detalle-grid">
         <div class="tarjeta"><strong>Fecha</strong><p>{{ registro.fecha_recepcion.strftime('%d/%m/%Y') if registro.fecha_recepcion else 'Sin fecha' }}</p></div>
+        <div class="tarjeta"><strong>Hora de registro</strong><p>{{ registro.creado_en.strftime('%H:%M:%S') if registro.creado_en else 'Sin dato' }}</p></div>
         <div class="tarjeta"><strong>Estado</strong><p>{{ registro.estado }}</p></div>
         <div class="tarjeta"><strong>SP</strong><p>{% if registro.expediente %}<a href="{{ url_for('expedientes.detalle', expediente_id=registro.expediente.id) }}">{{ registro.no_sp_referencia }}</a>{% else %}{{ registro.no_sp_referencia or 'No aplica' }}{% endif %}</p></div>
         <div class="tarjeta"><strong>Quién recibe</strong><p>{{ registro.usuario_origen or registro.usuario.nombre }}</p></div>
@@ -23,7 +26,12 @@
 
     <h2>Información específica</h2>
     <div class="tabla-contenedor"><table><tbody>
-    {% if registro.tipo == 'PAGO' and registro.pago %}
+    {% if registro.tipo == 'EXPEDIENTE_COMPLETO' %}
+        <tr><th>Tipo de recepción</th><td>Expediente físico completo</td></tr>
+        <tr><th>SP de destino</th><td>{% if registro.expediente %}<a href="{{ url_for('expedientes.detalle', expediente_id=registro.expediente.id) }}">{{ registro.no_sp_referencia }}</a>{% else %}{{ registro.no_sp_referencia or 'Sin dato' }}{% endif %}</td></tr>
+        <tr><th>Vinculación</th><td>{{ 'Vinculado al expediente maestro' if registro.expediente_id else 'Pendiente de vincular' }}</td></tr>
+        <tr><th>Control de foliación recibido</th><td>{{ registro.folios_recepcion or 'Sin dato' }}</td></tr>
+    {% elif registro.tipo == 'PAGO' and registro.pago %}
         <tr><th>Período</th><td>{{ registro.pago.periodo_desde.strftime('%d/%m/%Y') if registro.pago.periodo_desde else '' }}{% if registro.pago.periodo_hasta %} al {{ registro.pago.periodo_hasta.strftime('%d/%m/%Y') }}{% endif %} {{ registro.pago.periodo_texto or '' }}</td></tr>
         <tr><th>Boleta</th><td>{{ registro.pago.boleta or 'Sin dato' }}</td></tr>
         <tr><th>Total</th><td>{{ ('Q %.2f'|format(registro.pago.total)) if registro.pago.total is not none else 'Sin dato' }}</td></tr>
