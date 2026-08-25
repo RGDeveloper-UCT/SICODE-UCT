@@ -71,7 +71,7 @@
             <a href="{{ url_for('busqueda.global_') }}">Buscar</a>
             <a href="{{ url_for('expedientes.listado') }}">SP / Expedientes</a>
             <a href="{{ url_for('coordinacion.inicio') }}">Coordinación</a>
-            {% if current_user.puede_modificar %}<a href="{{ url_for('analisis_documental.inicio') }}">Analizar PDF</a>{% endif %}
+            {% if current_user.puede_modificar %}<a href="{{ url_for('sicode_ia.inicio') }}">SICODE.IA</a>{% endif %}
             <a href="{{ url_for('prestamos.listado') }}">Préstamos</a>
             <a href="{{ url_for('alertas.listado') }}">Alertas</a>
             <a href="{{ url_for('bitacora.listado') }}">Bitácora</a>
@@ -90,10 +90,10 @@
         {% if current_user.is_authenticated and request.endpoint == 'coordinacion.inicio' and current_user.puede_modificar %}
         <div class="captura-asistida-coordinacion">
             <div>
-                <h3>Análisis documental asistido</h3>
-                <p>Suba temporalmente un PDF para proponer SP, folios, anexo y otros campos antes de registrarlos.</p>
+                <h3>SICODE.IA</h3>
+                <p>Describa qué documentación va a registrar, cargue varios PDF y complete la doble verificación humana antes de incorporar metadatos.</p>
             </div>
-            <a class="boton" href="{{ url_for('analisis_documental.inicio') }}">Analizar PDF</a>
+            <a class="boton" href="{{ url_for('sicode_ia.inicio') }}">Abrir SICODE.IA</a>
         </div>
         {% endif %}
         {% with mensajes = get_flashed_messages(with_categories=true) %}{% if mensajes %}<div class="mensajes">{% for categoria, mensaje in mensajes %}<div class="alerta alerta-{{ categoria }}">{{ mensaje }}</div>{% endfor %}</div>{% endif %}{% endwith %}
