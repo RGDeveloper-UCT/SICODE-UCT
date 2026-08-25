@@ -19,10 +19,20 @@ def inicio():
     total_sp = Expediente.query.count()
     expedientes_fisicos = Expediente.query.filter_by(expediente_fisico_registrado=True).count()
     sp_sin_expediente = Expediente.query.filter_by(expediente_fisico_registrado=False).count()
-    pendientes_verificacion = Expediente.query.filter_by(
-        expediente_fisico_registrado=True,
-        estado_fisico_documental="Pendiente de verificación",
-    ).count()
+
+    # El estado documental vigente ya no se cuenta desde la columna histórica.
+    # Se deriva del árbol de cada SP para evitar diferencias entre módulos.
+    expedientes_fisicos_obj = Expediente.query.filter_by(expediente_fisico_registrado=True).all()
+    estados_pendientes = {
+        "Pendiente de indexación",
+        "Pendiente de verificación",
+        "Verificación desactualizada",
+    }
+    pendientes_verificacion = sum(
+        1
+        for expediente in expedientes_fisicos_obj
+        if expediente.estado_fisico_documental in estados_pendientes
+    )
 
     coordinacion_pendiente = RegistroCoordinacion.query.filter(RegistroCoordinacion.estado != "Completo").count()
     anexos_pendientes = (
