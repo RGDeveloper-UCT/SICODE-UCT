@@ -54,7 +54,7 @@
                 <h2 style="margin-bottom:4px;">Índice de documentos a incorporar</h2>
                 <p style="margin:0; color:#64748b; font-size:12px;">Cada fila se guardará como un documento individual del SP, con su propio nombre, tipo, folio inicial, folio final e identificador en el sistema.</p>
             </div>
-            <span class="badge">{{ documentos|length }} documentos independientes</span>
+            <span class="badge" id="contador-documentos">{{ documentos|length }} documentos independientes</span>
         </div>
 
         <div class="tabla-contenedor" style="margin-top:10px;">
@@ -67,9 +67,9 @@
                         <th style="width:150px;">Folio final</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="documentos-body">
                     {% for numero, nombre, tipo_documento, folio_inicio, folio_fin in documentos %}
-                    <tr>
+                    <tr data-documento-fila="{{ numero }}">
                         <td><strong>{{ numero }}</strong></td>
                         <td>
                             <input
@@ -112,8 +112,19 @@
             </table>
         </div>
 
+        <div style="display:flex; justify-content:flex-end; margin-top:10px;">
+            <button
+                type="button"
+                class="boton-secundario"
+                id="agregar-documento"
+                style="min-width:220px;"
+            >
+                + Agregar otro documento
+            </button>
+        </div>
+
         <div class="aviso">
-            <strong>Resultado:</strong> se crearán {{ documentos|length }} documentos separados dentro del índice documental del SP seleccionado. No se guardará el cuadro completo como un solo documento. Cada fila quedará como una entrada independiente y SICODE bloqueará cualquier rango que se traslape con documentación ya existente.
+            <strong>Resultado:</strong> se crearán <span id="resultado-cantidad">{{ documentos|length }}</span> documentos separados dentro del índice documental del SP seleccionado. No se guardará el cuadro completo como un solo documento. Cada fila quedará como una entrada independiente y SICODE bloqueará cualquier rango que se traslape con documentación ya existente.
         </div>
 
         <div class="acciones">
@@ -121,4 +132,104 @@
         </div>
     </form>
 </section>
+
+<script>
+(function () {
+    const cuerpo = document.getElementById('documentos-body');
+    const boton = document.getElementById('agregar-documento');
+    const contador = document.getElementById('contador-documentos');
+    const resultadoCantidad = document.getElementById('resultado-cantidad');
+    const maximoFilas = 200;
+
+    if (!cuerpo || !boton) return;
+
+    function filasActuales() {
+        return Array.from(cuerpo.querySelectorAll('tr[data-documento-fila]'));
+    }
+
+    function actualizarContador() {
+        const total = filasActuales().length;
+        contador.textContent = total + (total === 1 ? ' documento independiente' : ' documentos independientes');
+        resultadoCantidad.textContent = total;
+        boton.disabled = total >= maximoFilas;
+        if (boton.disabled) {
+            boton.title = 'Se alcanzó el máximo de ' + maximoFilas + ' documentos por operación.';
+        } else {
+            boton.removeAttribute('title');
+        }
+    }
+
+    function siguienteNumero() {
+        const numeros = filasActuales().map(function (fila) {
+            return Number(fila.dataset.documentoFila || 0);
+        });
+        return numeros.length ? Math.max.apply(null, numeros) + 1 : 1;
+    }
+
+    function siguienteFolio() {
+        const filas = filasActuales();
+        if (!filas.length) return 1;
+        const ultima = filas[filas.length - 1];
+        const campoFin = ultima.querySelector('input[name^="folio_fin_"]');
+        const ultimoFin = campoFin ? Number(campoFin.value) : 0;
+        return Number.isFinite(ultimoFin) && ultimoFin >= 1 ? ultimoFin + 1 : 1;
+    }
+
+    boton.addEventListener('click', function () {
+        const total = filasActuales().length;
+        if (total >= maximoFilas) return;
+
+        const numero = siguienteNumero();
+        const folio = siguienteFolio();
+        const fila = document.createElement('tr');
+        fila.dataset.documentoFila = String(numero);
+        fila.innerHTML = `
+            <td><strong>${numero}</strong></td>
+            <td>
+                <input
+                    type="text"
+                    name="documento_${numero}"
+                    value=""
+                    maxlength="180"
+                    required
+                    placeholder="Nombre del documento"
+                    style="width:100%; min-width:320px;"
+                    aria-label="Documento ${numero}"
+                >
+            </td>
+            <td>
+                <input
+                    type="number"
+                    name="folio_inicio_${numero}"
+                    value="${folio}"
+                    min="1"
+                    step="1"
+                    required
+                    style="width:100%; min-width:95px;"
+                    aria-label="Folio inicial documento ${numero}"
+                >
+            </td>
+            <td>
+                <input
+                    type="number"
+                    name="folio_fin_${numero}"
+                    value="${folio}"
+                    min="1"
+                    step="1"
+                    required
+                    style="width:100%; min-width:95px;"
+                    aria-label="Folio final documento ${numero}"
+                >
+            </td>
+        `;
+        cuerpo.appendChild(fila);
+        actualizarContador();
+        const nuevoNombre = fila.querySelector(`input[name="documento_${numero}"]`);
+        if (nuevoNombre) nuevoNombre.focus();
+        fila.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+    });
+
+    actualizarContador();
+})();
+</script>
 {% endblock %}
