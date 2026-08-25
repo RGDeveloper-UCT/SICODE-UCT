@@ -1,4 +1,5 @@
-from datetime import date
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 import re
 
 from flask import flash, redirect, render_template, request, url_for
@@ -14,6 +15,8 @@ from app.models.expediente import Expediente
 from app.routes.coordinacion import TIPOS_REGISTRO, coordinacion_bp
 from app.services.bitacora_service import registrar_bitacora
 
+
+GUATEMALA_TZ = ZoneInfo("America/Guatemala")
 
 DOCUMENTOS_BASE = [
     (1, "Solicitud de Informe de Factibilidad", "SOLICITUD", 1, 4),
@@ -33,9 +36,6 @@ FORMAS_REGISTRO = {
     "PERSONALIZADO": "Personalizado — editar documentos y folios antes de guardar",
 }
 
-# Se integra como un tipo de registro del panel de Coordinación. La recepción
-# es una sola operación administrativa, pero CADA FILA del índice se convierte
-# en un DocumentoExpediente independiente con su propio ID y rango de folios.
 TIPOS_REGISTRO["expediente-completo"] = {
     "codigo": "EXPEDIENTE_COMPLETO",
     "titulo": "Expediente completo",
@@ -74,7 +74,6 @@ def _numeros_documentos_formulario():
             numero = int(coincidencia.group(1))
             if 1 <= numero <= MAX_DOCUMENTOS_EXPEDIENTE_COMPLETO:
                 numeros.add(numero)
-
     return sorted(numeros) if numeros else [item[0] for item in DOCUMENTOS_BASE]
 
 
@@ -103,21 +102,18 @@ def _documentos_desde_formulario():
         if not nombre:
             errores.append(f"Fila {numero}: el nombre del documento es obligatorio.")
             continue
-
         try:
             folio_inicio = int(inicio_texto)
             folio_fin = int(fin_texto)
         except (TypeError, ValueError):
             errores.append(f"Fila {numero}: los folios deben ser números enteros.")
             continue
-
         if folio_inicio < 1 or folio_fin < 1:
             errores.append(f"Fila {numero}: los folios deben ser mayores o iguales a 1.")
             continue
         if folio_fin < folio_inicio:
             errores.append(f"Fila {numero}: el folio final no puede ser menor que el inicial.")
             continue
-
         documentos.append((numero, nombre, tipo_documento, folio_inicio, folio_fin))
 
     ordenados = sorted(documentos, key=lambda item: (item[3], item[4]))
@@ -127,7 +123,6 @@ def _documentos_desde_formulario():
                 f"Los rangos de las filas {anterior[0]} y {actual[0]} se traslapan "
                 f"({anterior[3]}-{anterior[4]} y {actual[3]}-{actual[4]})."
             )
-
     return documentos, errores
 
 
@@ -166,7 +161,6 @@ def _documentos_para_vista():
 def _buscar_conflictos(expediente_id, documentos):
     if not documentos:
         return []
-
     inicio = min(item[3] for item in documentos)
     fin = max(item[4] for item in documentos)
     candidatos = (
@@ -179,7 +173,6 @@ def _buscar_conflictos(expediente_id, documentos):
         .order_by(DocumentoExpediente.folio_inicio.asc())
         .all()
     )
-
     return [
         existente
         for existente in candidatos
@@ -193,7 +186,6 @@ def _buscar_conflictos(expediente_id, documentos):
 def _crear_documentos_individuales(expediente, registro, documentos):
     """Crea una fila real e independiente en DocumentoExpediente por cada fila del índice."""
     creados = []
-
     for numero, nombre, tipo_documento, folio_inicio, folio_fin in documentos:
         documento = DocumentoExpediente(
             expediente_id=expediente.id,
@@ -212,7 +204,6 @@ def _crear_documentos_individuales(expediente, registro, documentos):
         )
         db.session.add(documento)
         db.session.flush()
-
         creados.append(documento)
         registrar_bitacora(
             accion="REGISTRAR_DOCUMENTO_EXPEDIENTE",
@@ -238,7 +229,6 @@ def _crear_documentos_individuales(expediente, registro, documentos):
             },
             commit=False,
         )
-
     return creados
 
 
@@ -257,21 +247,13 @@ def registrar_expediente_completo():
         expediente = Expediente.query.filter_by(id=form.expediente_id.data, activo=True).first()
         if not expediente:
             flash("El SP seleccionado no existe o se encuentra inactivo.", "danger")
-            return render_template(
-                "coordinacion/expediente_completo.html",
-                form=form,
-                documentos=documentos_vista,
-            )
+            return render_template("coordinacion/expediente_completo.html", form=form, documentos=documentos_vista)
 
         documentos, errores = _documentos_desde_formulario()
         if errores:
             for error in errores[:6]:
                 flash(error, "warning")
-            return render_template(
-                "coordinacion/expediente_completo.html",
-                form=form,
-                documentos=documentos_vista,
-            )
+            return render_template("coordinacion/expediente_completo.html", form=form, documentos=documentos_vista)
 
         conflictos = _buscar_conflictos(expediente.id, documentos)
         if conflictos:
@@ -284,11 +266,11 @@ def registrar_expediente_completo():
                 f"documentos activos en los folios {rangos}. Revise primero su índice documental.",
                 "warning",
             )
-            return render_template(
-                "coordinacion/expediente_completo.html",
-                form=form,
-                documentos=documentos_vista,
-            )
+            return render_template("coordinacion/expediente_completo.html", form=form, documentos=documentos_vista)
+
+        ahora_gt = datetime.now(GUATEMALA_TZ)
+        ahora_utc = ahora_gt.astimezone(timezone.utc).replace(tzinfo=None)
+        fecha_hora_legible = ahora_gt.strftime("%d/%m/%Y %H:%M:%S")
 
         referencia = f"{form.tipo_referencia.data} {form.numero_referencia.data.strip()}"
         folio_min = min(item[3] for item in documentos)
@@ -301,7 +283,7 @@ def registrar_expediente_completo():
             expediente_id=expediente.id,
             no_sp_referencia=expediente.no_sp,
             rc=referencia,
-            fecha_recepcion=date.today(),
+            fecha_recepcion=ahora_gt.date(),
             persona_entrega=form.persona_entrega.data.strip(),
             folios_recepcion=(
                 f"{len(documentos)} documentos individuales; rango general {folio_min}-{folio_max}; "
@@ -311,10 +293,13 @@ def registrar_expediente_completo():
             usuario_origen=current_user.nombre,
             estado="Completo",
             observaciones=(
-                f"Recepción de expediente completo. Forma de registro: {forma_legible}. "
+                f"Recepción de expediente completo. Fecha y hora automática: {fecha_hora_legible} "
+                f"(America/Guatemala). Forma de registro: {forma_legible}. "
                 f"Cada una de las {len(documentos)} filas del índice se creó como un documento independiente del SP."
             ),
             origen_registro="MANUAL",
+            creado_en=ahora_utc,
+            actualizado_en=ahora_utc,
         )
         db.session.add(registro)
         db.session.flush()
@@ -325,8 +310,9 @@ def registrar_expediente_completo():
             accion="REGISTRAR_EXPEDIENTE_COMPLETO",
             modulo="Coordinación",
             descripcion=(
-                f"Se recibió expediente completo del SP {expediente.no_sp}; referencia {referencia}; "
-                f"se crearon {len(documentos_creados)} documentos independientes en el índice documental."
+                f"Se recibió expediente completo del SP {expediente.no_sp} el {fecha_hora_legible} "
+                f"(Guatemala); referencia {referencia}; se crearon {len(documentos_creados)} documentos "
+                f"independientes en el índice documental."
             ),
             usuario_id=current_user.id,
             expediente_id=expediente.id,
@@ -336,6 +322,10 @@ def registrar_expediente_completo():
                 "tipo": registro.tipo,
                 "sp": expediente.no_sp,
                 "referencia": referencia,
+                "fecha_recepcion": ahora_gt.strftime("%Y-%m-%d"),
+                "hora_recepcion": ahora_gt.strftime("%H:%M:%S"),
+                "fecha_hora_recepcion": ahora_gt.isoformat(),
+                "zona_horaria": "America/Guatemala",
                 "forma_registro": form.forma_registro.data,
                 "documentos_independientes": len(documentos_creados),
                 "documentos_creados": [
@@ -361,14 +351,10 @@ def registrar_expediente_completo():
             raise
 
         flash(
-            f"Expediente completo recibido. Se crearon {len(documentos_creados)} documentos independientes "
-            f"en el SP {expediente.no_sp} con referencia {referencia}.",
+            f"Expediente completo recibido el {fecha_hora_legible}. Se crearon {len(documentos_creados)} "
+            f"documentos independientes en el SP {expediente.no_sp} con referencia {referencia}.",
             "success",
         )
         return redirect(url_for("indice_documental.listado", expediente_id=expediente.id))
 
-    return render_template(
-        "coordinacion/expediente_completo.html",
-        form=form,
-        documentos=documentos_vista,
-    )
+    return render_template("coordinacion/expediente_completo.html", form=form, documentos=documentos_vista)
