@@ -92,3 +92,67 @@ def registrar(expediente_id):
         return redirect(url_for("expedientes.detalle", expediente_id=expediente.id))
 
     return render_template("expedientes/registrar_fisico.html", expediente=expediente, form=form)
+
+
+@expediente_fisico_bp.route("/<int:expediente_id>/marcar-sin-expediente", methods=["POST"])
+@login_required
+def marcar_sin_expediente(expediente_id):
+    expediente = Expediente.query.get_or_404(expediente_id)
+
+    if not current_user.puede_modificar:
+        return redirect(url_for("expedientes.detalle", expediente_id=expediente.id))
+
+    if expediente.prestamo_activo:
+        flash(
+            "No se puede marcar como sin expediente físico mientras exista un préstamo activo.",
+            "danger",
+        )
+        return redirect(url_for("rectificaciones.rectificar", expediente_id=expediente.id))
+
+    anteriores = {
+        "expediente_fisico_registrado": expediente.expediente_fisico_registrado,
+        "folios_rectificados": expediente.folios_rectificados,
+        "anexos_rectificados": expediente.anexos_rectificados,
+        "estado_fisico_documental": expediente.estado_fisico_documental,
+        "anexos_descritos": len(expediente.anexos_rectificados_activos),
+    }
+
+    for anexo in expediente.anexos_rectificados_activos:
+        anexo.activo = False
+
+    expediente.expediente_fisico_registrado = False
+    expediente.folios_rectificados = None
+    expediente.anexos_rectificados = None
+    expediente.rectificado_en = None
+    expediente.rectificado_por_id = None
+    expediente.estado_fisico_documental = "Pendiente de verificación"
+
+    registrar_bitacora(
+        accion="MARCAR_SIN_EXPEDIENTE_FISICO",
+        modulo="Expedientes",
+        descripcion=(
+            f"Se marcó el SP {expediente.no_sp} como sin expediente físico recibido en Coordinación. "
+            "Se limpiaron los conteos de rectificación para evitar préstamos o constancias inconsistentes."
+        ),
+        usuario_id=current_user.id,
+        expediente_id=expediente.id,
+        entidad="Expediente",
+        entidad_id=expediente.id,
+        datos_anteriores=anteriores,
+        datos_posteriores={
+            "expediente_fisico_registrado": False,
+            "folios_rectificados": None,
+            "anexos_rectificados": None,
+            "estado_fisico_documental": expediente.estado_fisico_documental,
+            "anexos_descritos": 0,
+        },
+        commit=False,
+    )
+    db.session.commit()
+
+    flash(
+        f"SP {expediente.no_sp} marcado como sin expediente físico en Coordinación. "
+        "Cuando sea recibido podrá registrarlo desde Expedientes pendientes físicos.",
+        "success",
+    )
+    return redirect(url_for("expedientes.listado", q=expediente.no_sp))
