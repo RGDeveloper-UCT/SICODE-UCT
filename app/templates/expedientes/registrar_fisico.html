@@ -11,14 +11,14 @@
     </div>
 
     <div class="aviso">
-        El SP ya existe en SICODE por la manta de Portadores. Esta acción registra la existencia física del expediente sobre el mismo registro; no crea otro SP.
+        <strong>Existencia física:</strong> esta acción confirma que el expediente principal fue recibido/localizado sobre el mismo SP. El estado documental no se define aquí: SICODE lo deriva posteriormente del índice, rectificación y verificación.
     </div>
 
     <form method="POST" class="formulario">
         {{ form.hidden_tag() }}
+        {{ form.estado_fisico_documental() }}
         <div class="grid-form">
             <div class="campo">{{ form.estado_administrativo.label }}{{ form.estado_administrativo() }}</div>
-            <div class="campo">{{ form.estado_fisico_documental.label }}{{ form.estado_fisico_documental() }}</div>
             <div class="campo">{{ form.archivador.label }}{{ form.archivador() }}</div>
             <div class="campo">{{ form.sicoin.label }}{{ form.sicoin() }}</div>
             <div class="campo">{{ form.estante.label }}{{ form.estante() }}</div>
