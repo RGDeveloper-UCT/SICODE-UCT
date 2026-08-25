@@ -1,4 +1,4 @@
-from flask import Blueprint, flash, redirect, render_template, url_for
+from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app import db
@@ -118,9 +118,7 @@ def marcar_sin_expediente(expediente_id):
     }
 
     # Esta acción afecta únicamente la existencia del expediente principal.
-    # Los anexos pueden recibirse y registrarse independientemente, por lo que
-    # sus totales y detalles se conservan aunque el expediente físico todavía
-    # no haya sido trasladado a la Coordinación.
+    # Los anexos pueden recibirse y registrarse independientemente.
     expediente.expediente_fisico_registrado = False
     expediente.folios_rectificados = None
     expediente.rectificado_en = None
@@ -152,7 +150,108 @@ def marcar_sin_expediente(expediente_id):
 
     flash(
         f"SP {expediente.no_sp} marcado como sin expediente físico en Coordinación. "
-        "Los anexos registrados se conservaron y pueden seguir registrándose de forma independiente.",
+        "Puede seguir registrando anexos aunque el expediente principal todavía no haya sido recibido.",
         "success",
     )
-    return redirect(url_for("expedientes.listado", q=expediente.no_sp))
+    return redirect(url_for("rectificaciones.rectificar", expediente_id=expediente.id))
+
+
+@expediente_fisico_bp.route("/<int:expediente_id>/guardar-anexos-sin-expediente", methods=["POST"])
+@login_required
+def guardar_anexos_sin_expediente(expediente_id):
+    """Permite registrar anexos recibidos antes que el expediente físico principal."""
+    expediente = Expediente.query.get_or_404(expediente_id)
+
+    if not current_user.puede_modificar:
+        return redirect(url_for("expedientes.detalle", expediente_id=expediente.id))
+
+    if expediente.expediente_fisico_registrado:
+        return redirect(url_for("rectificaciones.rectificar", expediente_id=expediente.id))
+
+    from app.routes.rectificaciones import (
+        MAX_ANEXOS_RECTIFICADOS,
+        TIPOS_ANEXO,
+        _construir_anexo,
+    )
+
+    anexos_texto = str(request.form.get("anexos_rectificados", "") or "").strip()
+    errores = []
+
+    try:
+        total_anexos = int(anexos_texto) if anexos_texto else None
+    except ValueError:
+        total_anexos = None
+
+    if total_anexos is None or total_anexos < 0:
+        errores.append("Indique el total de anexos. Si no existen anexos, escriba 0.")
+    elif total_anexos > MAX_ANEXOS_RECTIFICADOS:
+        errores.append(f"El máximo permitido es {MAX_ANEXOS_RECTIFICADOS} anexos.")
+
+    anexos_nuevos = []
+    detalles_enviados = []
+    if total_anexos is not None and 0 <= total_anexos <= MAX_ANEXOS_RECTIFICADOS:
+        for indice in range(1, total_anexos + 1):
+            anexo, bruto = _construir_anexo(indice, expediente.id, errores)
+            detalles_enviados.append(bruto)
+            if anexo is not None:
+                anexos_nuevos.append(anexo)
+
+    if errores:
+        for mensaje in dict.fromkeys(errores):
+            flash(mensaje, "danger")
+        return render_template(
+            "expedientes/rectificar.html",
+            expediente=expediente,
+            folios_inicial="",
+            anexos_inicial=request.form.get("anexos_rectificados", ""),
+            detalles_iniciales=detalles_enviados,
+            tipos_anexo=TIPOS_ANEXO,
+            max_anexos=MAX_ANEXOS_RECTIFICADOS,
+        )
+
+    anteriores = {
+        "expediente_fisico_registrado": False,
+        "folios_rectificados": expediente.folios_rectificados,
+        "anexos_rectificados": expediente.anexos_rectificados,
+        "anexos_descritos": len(expediente.anexos_rectificados_activos),
+    }
+
+    for anexo_anterior in expediente.anexos_rectificados_activos:
+        anexo_anterior.activo = False
+
+    expediente.folios_rectificados = None
+    expediente.anexos_rectificados = total_anexos
+    expediente.rectificado_en = None
+    expediente.rectificado_por_id = None
+    expediente.estado_fisico_documental = "Pendiente de verificación"
+
+    for anexo in anexos_nuevos:
+        db.session.add(anexo)
+
+    registrar_bitacora(
+        accion="REGISTRAR_ANEXOS_SIN_EXPEDIENTE",
+        modulo="Expedientes",
+        descripcion=(
+            f"Se registraron {total_anexos} anexo(s) para el SP {expediente.no_sp} "
+            f"sin expediente físico recibido; {len(anexos_nuevos)} anexo(s) fueron descritos."
+        ),
+        usuario_id=current_user.id,
+        expediente_id=expediente.id,
+        entidad="Expediente",
+        entidad_id=expediente.id,
+        datos_anteriores=anteriores,
+        datos_posteriores={
+            "expediente_fisico_registrado": False,
+            "folios_rectificados": None,
+            "anexos_rectificados": total_anexos,
+            "anexos_descritos": len(anexos_nuevos),
+        },
+        commit=False,
+    )
+    db.session.commit()
+
+    flash(
+        f"Anexos del SP {expediente.no_sp} guardados. El expediente principal continúa pendiente de recepción.",
+        "success",
+    )
+    return redirect(url_for("rectificaciones.rectificar", expediente_id=expediente.id))
