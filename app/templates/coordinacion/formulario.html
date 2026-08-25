@@ -15,14 +15,16 @@
             {{ campo(form.no_sp,'sp-list','Escriba o seleccione No. SP') }}
             {{ campo(form.fecha_recepcion) }}
             {{ campo(form.persona_entrega,None,'Persona, unidad o institución que entrega/remite') }}
+            {{ campo(form.tipo_referencia) }}
             {{ campo(form.rc,None,'Ej. 202624183') }}
             {{ campo(form.providencia,None,'Ej. 5908-2026') }}
             {{ campo(form.folios,None,'Ej. 325 o 1-325') }}
         </div>
+        <div class="aviso"><strong>Referencia administrativa:</strong> seleccione si el número corresponde a <strong>RC</strong> o <strong>RE</strong>. SICODE guardará ambos datos como una sola referencia identificada, por ejemplo: <strong>RC 202624183</strong> o <strong>RE 202624183</strong>.</div>
         {% endif %}
         {% if tipo == 'expediente-completo' %}
             <h2>Confirmación de recepción</h2>
-            <div class="aviso">Verifique especialmente <strong>SP, RC y folios</strong> antes de guardar. La hora se toma automáticamente del servidor para conservar trazabilidad.</div>
+            <div class="aviso">Verifique especialmente <strong>SP, RC/RE y folios</strong> antes de guardar. La hora se toma automáticamente del servidor para conservar trazabilidad.</div>
             {{ campo(form.observaciones) }}
         {% elif tipo == 'pago' %}
             <h2>Datos del pago</h2><div class="grid-form">{{ campo(form.boleta) }}{{ campo(form.periodo_desde) }}{{ campo(form.periodo_hasta) }}{{ campo(form.periodo_texto,'periodos-list','Ej. MAYO o PENDIENTES') }}{{ campo(form.total) }}</div>{{ campo(form.observaciones) }}
@@ -33,7 +35,7 @@
         {% elif tipo == 'monitoreo' %}
             <h2>Datos del reporte</h2><div class="grid-form">{{ campo(form.tipo_documento,'tipo-documento-list') }}{{ campo(form.numero_reporte) }}{{ campo(form.tipo_evento,'tipos-evento-list') }}</div>{{ campo(form.observaciones) }}
         {% elif tipo == 'documento-emitido' %}
-            <div class="grid-form">{{ campo(form.numero_documento) }}{{ campo(form.fecha) }}{{ campo(form.rc) }}{{ campo(form.no_sp,'sp-list','Opcional') }}{{ campo(form.destino,'destinos-list') }}</div>{{ campo(form.descripcion) }}{{ campo(form.observaciones) }}
+            <div class="grid-form">{{ campo(form.numero_documento) }}{{ campo(form.fecha) }}{{ campo(form.tipo_referencia) }}{{ campo(form.rc,None,'Número de la referencia') }}{{ campo(form.no_sp,'sp-list','Opcional') }}{{ campo(form.destino,'destinos-list') }}</div><div class="aviso"><strong>RC / RE:</strong> si el documento emitido está relacionado con una referencia, seleccione el tipo y escriba únicamente su número.</div>{{ campo(form.descripcion) }}{{ campo(form.observaciones) }}
         {% elif tipo == 'actividad' %}
             <div class="grid-form">{{ campo(form.fecha) }}{{ campo(form.tipo_actividad,'tipos-actividad-list') }}{{ campo(form.area_apoyo,'areas-apoyo-list') }}</div>{{ campo(form.descripcion) }}{{ campo(form.observaciones) }}
         {% elif tipo == 'remision' %}
