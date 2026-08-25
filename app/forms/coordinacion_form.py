@@ -15,6 +15,14 @@ class RegistroBaseForm(FlaskForm):
     observaciones = TextAreaField("Observaciones", validators=[Optional()])
 
 
+class ExpedienteCompletoForm(RegistroBaseForm):
+    rc = StringField("RC", validators=[DataRequired(), Length(max=80)])
+    fecha_recepcion = DateField("Fecha de recepción", validators=[DataRequired()], default=date.today, format="%Y-%m-%d")
+    persona_entrega = StringField("Quién entrega / remite", validators=[DataRequired(), Length(max=180)])
+    folios = StringField("Folios del expediente", validators=[DataRequired(), Length(max=80)])
+    submit = SubmitField("Registrar expediente completo")
+
+
 class PagoForm(RegistroBaseForm):
     folios = StringField("Folios recibidos", validators=[Optional(), Length(max=80)])
     periodo_desde = DateField("Pago desde", validators=[Optional()], format="%Y-%m-%d")
