@@ -14,23 +14,33 @@
     </div>
 
     <div class="aviso rectificacion-aviso">
-        <strong>Rectificación obligatoria para préstamos.</strong>
-        Confirme el total físico de folios y anexos. Puede registrar únicamente ambos totales; describir cada anexo es opcional. Si el expediente aún no ha sido trasladado a la Coordinación, use la opción <strong>Sin expediente físico en Coordinación</strong> al final del formulario. SICODE no almacena documentos sensibles en este formulario.
+        {% if not expediente.expediente_fisico_registrado %}
+            <strong>Expediente físico pendiente de recepción.</strong>
+            El expediente principal todavía no está en Coordinación, pero los anexos sí pueden recibirse y registrarse de forma independiente. Los préstamos físicos y constancias continúan bloqueados hasta recibir y rectificar el expediente principal.
+        {% else %}
+            <strong>Rectificación obligatoria para préstamos.</strong>
+            Confirme el total físico de folios y anexos. Puede registrar únicamente ambos totales; describir cada anexo es opcional. Si el expediente aún no ha sido trasladado a la Coordinación, use la opción <strong>Sin expediente físico en Coordinación</strong> al final del formulario. SICODE no almacena documentos sensibles en este formulario.
+        {% endif %}
     </div>
 
-    <form method="post" id="form-rectificacion" autocomplete="off">
+    <form method="post" id="form-rectificacion" autocomplete="off" action="{{ url_for('expediente_fisico.guardar_anexos_sin_expediente', expediente_id=expediente.id) if not expediente.expediente_fisico_registrado else url_for('rectificaciones.rectificar', expediente_id=expediente.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
         <div class="rectificacion-resumen">
             <div class="rectificacion-campo-principal">
-                <label for="folios_rectificados">Total de folios rectificados <span aria-hidden="true">*</span></label>
-                <input id="folios_rectificados" name="folios_rectificados" type="number" min="1" step="1" required value="{{ folios_inicial }}" placeholder="Ej. 286">
-                <small>Conteo físico total confirmado del expediente.</small>
+                <label for="folios_rectificados">Total de folios rectificados{% if expediente.expediente_fisico_registrado %} <span aria-hidden="true">*</span>{% endif %}</label>
+                {% if not expediente.expediente_fisico_registrado %}
+                    <input id="folios_rectificados" type="text" value="Sin expediente físico en Coordinación" disabled aria-disabled="true">
+                    <small>El conteo de folios se habilitará cuando el expediente principal sea recibido.</small>
+                {% else %}
+                    <input id="folios_rectificados" name="folios_rectificados" type="number" min="1" step="1" required value="{{ folios_inicial }}" placeholder="Ej. 286">
+                    <small>Conteo físico total confirmado del expediente.</small>
+                {% endif %}
             </div>
             <div class="rectificacion-campo-principal">
                 <label for="anexos_rectificados">Total de anexos <span aria-hidden="true">*</span></label>
                 <input id="anexos_rectificados" name="anexos_rectificados" type="number" min="0" max="{{ max_anexos }}" step="1" required value="{{ anexos_inicial }}" placeholder="Ej. 19">
-                <small>Si no existen anexos, registre 0.</small>
+                <small>{% if not expediente.expediente_fisico_registrado %}Puede registrar anexos aunque aún no haya llegado el expediente principal.{% else %}Si no existen anexos, registre 0.{% endif %}</small>
             </div>
             <div class="rectificacion-estado">
                 <span>Estado documental actual</span>
@@ -56,23 +66,30 @@
         <div id="anexos-detalle-container" class="anexos-detalle-container" aria-live="polite"></div>
 
         <div class="rectificacion-acciones">
-            <button type="submit" class="boton">Guardar rectificación</button>
+            <button type="submit" class="boton">{% if not expediente.expediente_fisico_registrado %}Guardar anexos{% else %}Guardar rectificación{% endif %}</button>
             <a class="boton-cancelar" href="{{ url_for('expedientes.listado', q=expediente.no_sp) }}">Cancelar</a>
         </div>
     </form>
 
+    {% if expediente.expediente_fisico_registrado %}
     <div class="aviso" style="margin-top: 18px; display: flex; gap: 18px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
         <div style="max-width: 900px;">
             <strong>¿Todavía no se ha recibido el expediente físico?</strong>
             <div style="margin-top: 4px;">
-                Marque el SP como <strong>Sin expediente físico en Coordinación</strong> cuando el registro exista en SICODE, pero el expediente aún no haya sido trasladado o entregado a la Coordinación. Esta acción limpia cualquier conteo de rectificación anterior y mantiene bloqueados los préstamos físicos y las constancias hasta que el expediente sea recibido y registrado.
+                Marque el SP como <strong>Sin expediente físico en Coordinación</strong> cuando el registro exista en SICODE, pero el expediente aún no haya sido trasladado o entregado a la Coordinación. Esta acción afecta únicamente al expediente principal; los anexos existentes se conservan y pueden seguir registrándose de forma independiente.
             </div>
         </div>
-        <form method="post" action="{{ url_for('expediente_fisico.marcar_sin_expediente', expediente_id=expediente.id) }}" onsubmit="return confirm('¿Confirma que el expediente físico del SP {{ expediente.no_sp }} todavía no ha sido recibido en la Coordinación?');">
+        <form method="post" action="{{ url_for('expediente_fisico.marcar_sin_expediente', expediente_id=expediente.id) }}" onsubmit="return confirm('¿Confirma que el expediente físico del SP {{ expediente.no_sp }} todavía no ha sido recibido en la Coordinación? Los anexos registrados se conservarán.');">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="boton-cancelar">Sin expediente físico en Coordinación</button>
         </form>
     </div>
+    {% else %}
+    <div class="aviso" style="margin-top: 18px;">
+        <strong>Estado aplicado: Sin expediente físico en Coordinación.</strong>
+        Puede continuar agregando, corrigiendo o detallando anexos. Cuando llegue el expediente principal, regístrelo desde Expedientes pendientes físicos y luego complete la rectificación de folios.
+    </div>
+    {% endif %}
 </section>
 {% endblock %}
 
@@ -232,7 +249,7 @@
         if (total === 0) {
             const mensaje = document.createElement('div');
             mensaje.className = 'anexos-vacio';
-            mensaje.textContent = 'No hay anexos para describir. Puede guardar la rectificación con total 0.';
+            mensaje.textContent = 'No hay anexos para describir. Puede guardar el total en 0.';
             contenedor.appendChild(mensaje);
             return;
         }
