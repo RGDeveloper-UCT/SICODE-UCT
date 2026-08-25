@@ -33,6 +33,11 @@
     opacity: .88;
 }
 
+.tarjeta-registro-coordinacion--expediente_completo {
+    --registro-acento: #205b46;
+    --registro-acento-suave: #e7f5ef;
+}
+
 .tarjeta-registro-coordinacion--pago {
     --registro-acento: #176b50;
     --registro-acento-suave: #e9f7f1;
@@ -208,6 +213,17 @@
 }
 
 /* Animaciones particulares por tipo de registro. */
+.registro-animacion--expediente_completo .registro-svg-expediente {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: coordExpediente 2.55s ease-in-out infinite;
+}
+
+.registro-animacion--expediente_completo .registro-svg-check-expediente {
+    stroke-dasharray: 24;
+    animation: coordCheckExpediente 2.55s ease-in-out infinite;
+}
+
 .registro-animacion--pago .registro-svg-moneda {
     transform-box: fill-box;
     transform-origin: center;
@@ -256,6 +272,17 @@
 
 .registro-animacion--remision .registro-svg-envio {
     animation: coordEnvio 2.25s ease-in-out infinite;
+}
+
+@keyframes coordExpediente {
+    0%, 100% { transform: translateY(0) scale(1); }
+    42% { transform: translateY(-3px) scale(1.03); }
+    58% { transform: translateY(1px) scale(.99); }
+}
+
+@keyframes coordCheckExpediente {
+    0%, 28% { stroke-dashoffset: 24; opacity: .2; }
+    55%, 100% { stroke-dashoffset: 0; opacity: 1; }
 }
 
 @keyframes coordMoneda {
