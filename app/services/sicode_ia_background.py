@@ -10,7 +10,8 @@ from app.models.analisis_documental import AnalisisDocumental
 from app.models.lote_documental import PatronAprendizajeDocumental, SegmentoDocumental
 from app.services.bitacora_service import registrar_bitacora
 from app.services.coordinacion_service import resolver_expediente
-from app.services.lote_documental_service import analizar_lote_temporal
+from app.services import lote_documental_service as lote_service
+from app.services.pdf_fast_reader import leer_paginas_rapido
 
 
 def _orientacion_desde_contexto(contexto):
@@ -52,7 +53,7 @@ def _crear_analisis(resultado, nombre_archivo, lote_token, orientacion, usuario_
         estado="PENDIENTE_VALIDACION",
         paginas_pdf=resultado["paginas_pdf"],
         paginas_ocr=resultado["paginas_ocr"],
-        metodo_extraccion="SICODE_IA_ASYNC",
+        metodo_extraccion="SICODE_IA_ASYNC_FAST",
         datos_detectados={
             "modo": "SICODE_IA",
             "lote_token": lote_token,
@@ -62,6 +63,7 @@ def _crear_analisis(resultado, nombre_archivo, lote_token, orientacion, usuario_
             "documentos_total": resultado["documentos_total"],
             "tipos_detectados": dict(conteo),
             "procesamiento_fondo": True,
+            "lector_pdf": "PyMuPDF",
         },
         confianzas={},
         discrepancias=[],
@@ -118,14 +120,18 @@ def procesar_lote_sicode_ia(rutas_archivos, nombres_archivos, contexto, lote_tok
     """Trabajo RQ. Procesa PDF fuera de Gunicorn y devuelve el token de revisión."""
     app = create_app()
     directorio_lote = Path(rutas_archivos[0]).parent if rutas_archivos else None
+    lector_original = lote_service._leer_paginas
     try:
         with app.app_context():
+            # Solo el worker de fondo usa el lector acelerado. El resto del
+            # sistema conserva el lector histórico como fallback seguro.
+            lote_service._leer_paginas = leer_paginas_rapido
             orientacion = _orientacion_desde_contexto(contexto)
             pesos = _pesos_aprendidos()
             creados = []
             fallidos = []
             total = max(1, len(rutas_archivos))
-            _progreso("preparando", 2, "Preparando motor OCR e IA local", usuario_id=usuario_id, lote_token=lote_token)
+            _progreso("preparando", 2, "Preparando PyMuPDF, OCR paralelo e IA local", usuario_id=usuario_id, lote_token=lote_token)
 
             for indice, (ruta, nombre) in enumerate(zip(rutas_archivos, nombres_archivos), start=1):
                 base = int(((indice - 1) / total) * 92)
@@ -141,7 +147,7 @@ def procesar_lote_sicode_ia(rutas_archivos, nombres_archivos, contexto, lote_tok
                 )
                 try:
                     with open(ruta, "rb") as archivo:
-                        resultado = analizar_lote_temporal(
+                        resultado = lote_service.analizar_lote_temporal(
                             archivo,
                             temp_dir=app.config.get("DOCUMENT_ANALYSIS_TEMP_DIR"),
                             max_mb=app.config.get("DOCUMENT_ANALYSIS_MAX_MB", 40),
@@ -182,6 +188,8 @@ def procesar_lote_sicode_ia(rutas_archivos, nombres_archivos, contexto, lote_tok
                     "pdf_procesados": len(creados),
                     "fallidos": fallidos,
                     "procesamiento_fondo": True,
+                    "lector_pdf": "PyMuPDF",
+                    "ocr_paralelo": True,
                 },
                 commit=False,
             )
@@ -197,5 +205,6 @@ def procesar_lote_sicode_ia(rutas_archivos, nombres_archivos, contexto, lote_tok
             )
             return {"lote_token": lote_token, "procesados": len(creados), "fallidos": fallidos}
     finally:
+        lote_service._leer_paginas = lector_original
         if directorio_lote and directorio_lote.exists():
             shutil.rmtree(directorio_lote, ignore_errors=True)
