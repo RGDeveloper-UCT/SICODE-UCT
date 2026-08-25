@@ -73,6 +73,9 @@ def create_app():
     ):
         app.register_blueprint(blueprint)
 
+    from app.services.sicode_ia_revision_rc_re import revision_rc_re
+    app.view_functions["sicode_ia.revision"] = revision_rc_re
+
     @app.before_request
     def exigir_cambio_password_temporal():
         if not current_user.is_authenticated or not current_user.debe_cambiar_password: return None
