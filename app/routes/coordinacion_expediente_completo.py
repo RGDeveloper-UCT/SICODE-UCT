@@ -1,4 +1,5 @@
 from datetime import date
+import re
 
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -24,6 +25,8 @@ DOCUMENTOS_BASE = [
     (7, "Actas de Instalación", "ACTA", 23, 26),
     (8, "Providencias de traslados entre coordinaciones", "PROVIDENCIA", 27, 34),
 ]
+DOCUMENTOS_BASE_POR_NUMERO = {item[0]: item for item in DOCUMENTOS_BASE}
+MAX_DOCUMENTOS_EXPEDIENTE_COMPLETO = 200
 
 FORMAS_REGISTRO = {
     "BASE_EDITABLE": "Instalación / traslado — índice base editable",
@@ -62,12 +65,37 @@ def _cargar_opciones(form):
     form.forma_registro.choices = list(FORMAS_REGISTRO.items())
 
 
+def _numeros_documentos_formulario():
+    """Obtiene todas las filas enviadas por el navegador, incluidas las agregadas dinámicamente."""
+    numeros = set()
+    for clave in request.form.keys():
+        coincidencia = re.fullmatch(r"documento_(\d+)", clave)
+        if coincidencia:
+            numero = int(coincidencia.group(1))
+            if 1 <= numero <= MAX_DOCUMENTOS_EXPEDIENTE_COMPLETO:
+                numeros.add(numero)
+
+    return sorted(numeros) if numeros else [item[0] for item in DOCUMENTOS_BASE]
+
+
+def _datos_base_fila(numero):
+    base = DOCUMENTOS_BASE_POR_NUMERO.get(numero)
+    if base:
+        return base[1], base[2], base[3], base[4]
+    return "", "OTRO", "", ""
+
+
 def _documentos_desde_formulario():
-    """Obtiene las ocho filas editables y valida nombres/rangos de folios."""
+    """Obtiene todas las filas editables y valida nombres/rangos de folios."""
     documentos = []
     errores = []
+    numeros = _numeros_documentos_formulario()
 
-    for numero, nombre_base, tipo_documento, inicio_base, fin_base in DOCUMENTOS_BASE:
+    if len(numeros) > MAX_DOCUMENTOS_EXPEDIENTE_COMPLETO:
+        return [], [f"No se pueden registrar más de {MAX_DOCUMENTOS_EXPEDIENTE_COMPLETO} documentos por operación."]
+
+    for numero in numeros:
+        nombre_base, tipo_documento, inicio_base, fin_base = _datos_base_fila(numero)
         nombre = (request.form.get(f"documento_{numero}") or nombre_base).strip()
         inicio_texto = (request.form.get(f"folio_inicio_{numero}") or str(inicio_base)).strip()
         fin_texto = (request.form.get(f"folio_fin_{numero}") or str(fin_base)).strip()
@@ -109,16 +137,28 @@ def _documentos_para_vista():
         return DOCUMENTOS_BASE
 
     filas = []
-    for numero, nombre_base, tipo_documento, inicio_base, fin_base in DOCUMENTOS_BASE:
+    for numero in _numeros_documentos_formulario():
+        nombre_base, tipo_documento, inicio_base, fin_base = _datos_base_fila(numero)
         nombre = (request.form.get(f"documento_{numero}") or nombre_base).strip()
-        try:
-            inicio = int((request.form.get(f"folio_inicio_{numero}") or str(inicio_base)).strip())
-        except (TypeError, ValueError):
-            inicio = request.form.get(f"folio_inicio_{numero}") or inicio_base
-        try:
-            fin = int((request.form.get(f"folio_fin_{numero}") or str(fin_base)).strip())
-        except (TypeError, ValueError):
-            fin = request.form.get(f"folio_fin_{numero}") or fin_base
+        inicio_texto = request.form.get(f"folio_inicio_{numero}")
+        fin_texto = request.form.get(f"folio_fin_{numero}")
+
+        if inicio_texto is None:
+            inicio = inicio_base
+        else:
+            try:
+                inicio = int(inicio_texto.strip())
+            except (TypeError, ValueError):
+                inicio = inicio_texto
+
+        if fin_texto is None:
+            fin = fin_base
+        else:
+            try:
+                fin = int(fin_texto.strip())
+            except (TypeError, ValueError):
+                fin = fin_texto
+
         filas.append((numero, nombre, tipo_documento, inicio, fin))
     return filas
 
