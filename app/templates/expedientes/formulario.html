@@ -7,8 +7,13 @@
     <h1>{{ modo }} expediente</h1>
     <p>Registre únicamente metadatos administrativos y ubicación física. No cargue documentos sensibles.</p>
 
+    <div class="aviso">
+        <strong>Estado documental centralizado:</strong> ya no se selecciona manualmente desde este formulario. SICODE lo deriva del expediente físico, su índice documental, la última rectificación y la verificación vigente.
+    </div>
+
     <form method="POST" class="formulario">
         {{ form.hidden_tag() }}
+        {{ form.estado_fisico_documental() }}
 
         <h2>Datos principales</h2>
 
@@ -37,11 +42,6 @@
             <div class="campo">
                 {{ form.estado_administrativo.label }}
                 {{ form.estado_administrativo() }}
-            </div>
-
-            <div class="campo">
-                {{ form.estado_fisico_documental.label }}
-                {{ form.estado_fisico_documental() }}
             </div>
         </div>
 
