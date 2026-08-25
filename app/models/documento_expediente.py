@@ -9,6 +9,15 @@ class DocumentoExpediente(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     expediente_id = db.Column(db.Integer, db.ForeignKey("expedientes.id"), nullable=False, index=True)
 
+    # Origen administrativo opcional. Es nullable para conservar intactos los
+    # documentos históricos y los registros creados directamente desde Índice.
+    registro_coordinacion_id = db.Column(
+        db.Integer,
+        db.ForeignKey("registros_coordinacion.id"),
+        nullable=True,
+        index=True,
+    )
+
     nombre_documento = db.Column(db.String(180), nullable=False)
     tipo_documento = db.Column(db.String(80), nullable=False, default="Documento")
     folio_inicio = db.Column(db.Integer, nullable=False)
@@ -27,6 +36,10 @@ class DocumentoExpediente(db.Model):
     actualizado_en = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     expediente = db.relationship("Expediente", backref=db.backref("documentos_indice", lazy=True))
+    registro_coordinacion = db.relationship(
+        "RegistroCoordinacion",
+        backref=db.backref("documentos_generados", lazy=True),
+    )
 
     __table_args__ = (
         db.CheckConstraint("folio_inicio >= 1", name="ck_documento_folio_inicio_positivo"),
