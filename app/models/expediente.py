@@ -1,5 +1,6 @@
 from datetime import date, datetime
 
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import validates
 
 from app import db
@@ -14,7 +15,16 @@ class Expediente(db.Model):
 
     nombre_referencia = db.Column(db.String(150), nullable=True)
     estado_administrativo = db.Column(db.String(80), nullable=False, default="Activo")
-    estado_fisico_documental = db.Column(db.String(80), nullable=False, default="Pendiente de verificación")
+
+    # Compatibilidad histórica: se conserva exactamente la misma columna en BD
+    # para no tocar registros previos. Desde ahora el estado visible/vigente se
+    # deriva del árbol documental por medio de ``estado_fisico_documental``.
+    _estado_fisico_documental_legacy = db.Column(
+        "estado_fisico_documental",
+        db.String(80),
+        nullable=False,
+        default="Pendiente de verificación",
+    )
 
     # El registro maestro del SP y la existencia del expediente físico no son
     # sinónimos. Portadores puede conocer un SP antes de recibir su expediente.
@@ -60,6 +70,38 @@ class Expediente(db.Model):
 
     creado_en = db.Column(db.DateTime, default=datetime.utcnow)
     actualizado_en = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @hybrid_property
+    def estado_fisico_documental(self):
+        """Estado documental vigente y derivado del árbol maestro del SP.
+
+        La escritura se mantiene por compatibilidad con rutas históricas, pero
+        ese valor ya no decide el estado mostrado por SICODE.
+        """
+        from app.services.estado_documental_service import estado_documental_actual
+
+        return estado_documental_actual(self)
+
+    @estado_fisico_documental.setter
+    def estado_fisico_documental(self, valor):
+        self._estado_fisico_documental_legacy = valor
+
+    @estado_fisico_documental.expression
+    def estado_fisico_documental(cls):
+        # Las consultas SQL históricas continúan siendo compatibles. Los
+        # paneles que requieren el estado vigente deben trabajar con objetos y
+        # usar el servicio documental central.
+        return cls._estado_fisico_documental_legacy
+
+    @property
+    def estado_fisico_documental_legacy(self):
+        return self._estado_fisico_documental_legacy
+
+    @property
+    def estado_documental_resumen(self):
+        from app.services.estado_documental_service import calcular_estado_documental
+
+        return calcular_estado_documental(self)
 
     @validates("no_sp")
     def _normalizar_no_sp(self, _clave, valor):
