@@ -1,78 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Inteligencia documental — SICODE-UCT{% endblock %}
-{% block body_class %}vista-analisis-documental{% endblock %}
-
+{% block title %}SICODE.IA — SICODE-UCT{% endblock %}
 {% block content %}
-<style>
-.di-shell{max-width:1480px;margin:0 auto;padding:18px}.di-hero{position:relative;overflow:hidden;border:1px solid #dce5f0;border-radius:22px;background:linear-gradient(135deg,#071a33,#10294c 58%,#17486d);color:#fff;padding:28px;box-shadow:0 18px 45px rgba(7,26,51,.15)}.di-hero:after{content:"";position:absolute;width:360px;height:360px;border-radius:50%;right:-120px;top:-180px;background:rgba(92,210,255,.12);box-shadow:0 0 90px rgba(92,210,255,.16)}.di-eyebrow{font-size:.72rem;letter-spacing:.16em;font-weight:800;opacity:.75}.di-hero h1{font-size:2rem;margin:6px 0 8px}.di-hero p{max-width:850px;margin:0;color:#d9e9f7}.di-actions{display:flex;gap:10px;position:absolute;right:24px;bottom:24px;z-index:2}.di-back{background:#fff;color:#10294c;padding:10px 14px;border-radius:10px;text-decoration:none;font-weight:700}.di-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(330px,.55fr);gap:18px;margin-top:18px}.di-card{background:#fff;border:1px solid #dde6f1;border-radius:18px;padding:20px;box-shadow:0 10px 30px rgba(15,38,66,.06)}.di-flow{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:16px 0}.di-node{border:1px solid #d8e3ef;border-radius:14px;padding:13px 9px;text-align:center;background:#f8fbff;min-height:90px;display:flex;flex-direction:column;justify-content:center}.di-node b{font-size:.86rem}.di-node span{font-size:.68rem;color:#62748a;margin-top:4px}.di-node.ai{background:#eef8ff;border-color:#91ccea}.di-node.human{background:#effaf4;border-color:#96d8b1}.di-drop{display:block;border:2px dashed #a9bdd3;border-radius:18px;padding:30px;text-align:center;background:#f9fbfe;cursor:pointer;transition:.2s}.di-drop:hover{border-color:#276aa3;background:#f2f8fd}.di-drop input{display:none}.di-file{display:block;margin-top:10px;font-size:.83rem;color:#61768c}.di-upload{width:100%;border:0;border-radius:12px;padding:13px;background:#10294c;color:#fff;font-weight:800;font-size:1rem;cursor:pointer;margin-top:14px}.di-upload:hover{background:#173c69}.di-note{display:grid;grid-template-columns:34px 1fr;gap:10px;background:#effaf4;border:1px solid #a7ddbd;border-radius:14px;padding:13px;margin-bottom:16px;color:#17492c}.di-types{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.di-chip{font-size:.74rem;border:1px solid #d6e1ec;border-radius:999px;padding:6px 9px;background:#f8fbff}.brain-card{position:relative;overflow:hidden;background:linear-gradient(145deg,#111e37,#172c4d);color:#fff}.brain-wrap{display:flex;align-items:center;gap:16px}.brain-icon{width:78px;height:78px;border-radius:24px;display:grid;place-items:center;font-size:2.6rem;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12),0 0 0 0 rgba(72,190,255,.3);animation:brainPulse 2.4s infinite}.brain-meter{height:9px;background:rgba(255,255,255,.12);border-radius:999px;overflow:hidden;margin:12px 0 7px}.brain-meter>span{display:block;height:100%;width:0;background:linear-gradient(90deg,#59d5ff,#82f0bd);border-radius:inherit;transition:width 1.1s ease}.brain-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:13px}.brain-kpi{background:rgba(255,255,255,.07);padding:10px;border-radius:12px;text-align:center}.brain-kpi strong{display:block;font-size:1rem}.brain-kpi small{opacity:.65;font-size:.66rem}@keyframes brainPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(76,197,255,.18)}50%{transform:scale(1.05);box-shadow:0 0 0 14px rgba(76,197,255,0)}}.di-recent{margin-top:18px}.di-table{width:100%;border-collapse:collapse}.di-table th,.di-table td{padding:10px;border-bottom:1px solid #edf1f6;text-align:left;font-size:.84rem}.di-table th{color:#52677d;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em}.di-open{display:inline-block;padding:7px 10px;border-radius:9px;background:#edf4fb;color:#173b61;text-decoration:none;font-weight:700}.di-overlay{position:fixed;inset:0;background:rgba(5,16,31,.86);backdrop-filter:blur(7px);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px}.di-overlay.on{display:flex}.di-process{width:min(720px,96vw);background:#0b1d35;border:1px solid rgba(255,255,255,.13);color:#fff;border-radius:24px;padding:28px;box-shadow:0 30px 90px rgba(0,0,0,.35)}.di-spinner{width:52px;height:52px;border:4px solid rgba(255,255,255,.15);border-top-color:#69d8ff;border-radius:50%;animation:spin .9s linear infinite;margin-bottom:14px}@keyframes spin{to{transform:rotate(360deg)}}.di-progress{height:10px;background:rgba(255,255,255,.09);border-radius:999px;overflow:hidden;margin:18px 0}.di-progress i{display:block;height:100%;width:38%;background:linear-gradient(90deg,transparent,#6ad8ff,#8ff0bd,transparent);animation:sweep 2s linear infinite}@keyframes sweep{from{transform:translateX(-120%)}to{transform:translateX(320%)}}.di-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.di-step{font-size:.72rem;padding:9px;border-radius:10px;background:rgba(255,255,255,.06);opacity:.55}.di-step.active{opacity:1;background:rgba(86,210,255,.12);box-shadow:inset 0 0 0 1px rgba(86,210,255,.25)}@media(max-width:980px){.di-grid{grid-template-columns:1fr}.di-flow{grid-template-columns:repeat(3,1fr)}.di-actions{position:static;margin-top:18px}.brain-kpis{grid-template-columns:1fr 1fr 1fr}}@media(max-width:620px){.di-flow{grid-template-columns:repeat(2,1fr)}.di-hero{padding:20px}.di-shell{padding:8px}}
-</style>
-
-<div class="di-shell">
-  <section class="di-hero">
-    <div class="di-eyebrow">SICODE · DOCUMENT INTELLIGENCE</div>
-    <h1>Separación inteligente de expedientes</h1>
-    <p>Suba un PDF con uno o muchos documentos. SICODE analiza cada página, detecta los límites entre piezas documentales, clasifica cada documento, extrae sus metadatos con OCR + IA local y exige confirmación humana antes de registrar.</p>
-    <div class="di-actions"><a class="di-back" href="{{ url_for('coordinacion.inicio') }}">Volver a Coordinación</a></div>
-  </section>
-
-  <div class="di-grid">
-    <main>
-      <section class="di-card">
-        <div class="di-note"><b>✓</b><div><strong>Temporal, local y por documento.</strong><br><small>El PDF, las imágenes y el texto OCR completo se eliminan al terminar. Solo quedan clasificación, porcentajes y metadatos aprobados. La IA trabaja con Ollama local.</small></div></div>
-        <div class="di-eyebrow" style="color:#49677f">NUEVO MOTOR DE LOTES</div>
-        <h2 style="margin:5px 0 2px">Un expediente completo puede contener muchos documentos</h2>
-        <p style="color:#60758a;margin-top:6px">La separación se hace página por página antes de extraer datos.</p>
-        <div class="di-flow">
-          <div class="di-node"><b>1 · PDF</b><span>Lote temporal</span></div>
-          <div class="di-node"><b>2 · OCR</b><span>Página por página</span></div>
-          <div class="di-node"><b>3 · Separación</b><span>Detecta inicios y continuaciones</span></div>
-          <div class="di-node ai"><b>4 · IA local</b><span>Revisa tipo y límites</span></div>
-          <div class="di-node"><b>5 · Extracción</b><span>Metadatos por documento</span></div>
-          <div class="di-node human"><b>6 · Humano</b><span>Confirma uno por uno</span></div>
-        </div>
-        <form method="post" action="{{ url_for('lote_documental.analizar') }}" enctype="multipart/form-data" data-lote-form>
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <label class="di-drop" for="archivo_pdf">
-            <strong style="font-size:1.1rem">Seleccione el expediente o lote PDF</strong>
-            <span style="display:block;color:#637990;margin-top:5px">Puede contener pagos, providencias, anexos, IFT, actas, DPI y otros documentos mezclados.</span>
-            <input id="archivo_pdf" name="archivo_pdf" type="file" accept="application/pdf,.pdf" required data-pdf-input>
-            <span class="di-file" data-pdf-name>Ningún archivo seleccionado</span>
-          </label>
-          <button class="di-upload" type="submit">Separar, clasificar y analizar documentos</button>
-        </form>
-      </section>
-
-      <section class="di-card di-recent">
-        <h2 style="margin-top:0">Análisis recientes</h2>
-        {% if recientes %}
-        <div style="overflow:auto"><table class="di-table"><thead><tr><th>Fecha</th><th>Modo</th><th>Páginas</th><th>Calidad</th><th>Estado</th><th></th></tr></thead><tbody>
-        {% for item in recientes %}
-          <tr><td>{{ item.creado_en.strftime('%d/%m/%Y %H:%M') }}</td><td>{{ 'Lote documental' if item.tipo_detectado == 'LOTE_DOCUMENTAL' else item.tipo_detectado }}</td><td>{{ item.paginas_pdf }}</td><td>{{ item.calidad_global or 0 }}%</td><td>{{ item.estado|replace('_',' ')|title }}</td><td>{% if item.tipo_detectado == 'LOTE_DOCUMENTAL' %}<a class="di-open" href="{{ url_for('lote_documental.resultado', analisis_id=item.id) }}">Abrir lote</a>{% else %}<a class="di-open" href="{{ url_for('analisis_documental.resultado', analisis_id=item.id) }}">Abrir</a>{% endif %}</td></tr>
-        {% endfor %}
-        </tbody></table></div>
-        {% else %}<p style="color:#61768a">Aún no hay análisis documentales.</p>{% endif %}
-      </section>
-    </main>
-
-    <aside>
-      <section class="di-card brain-card" data-brain-card data-url="{{ url_for('lote_documental.aprendizaje') }}">
-        <div class="di-eyebrow">RETROALIMENTACIÓN SEGURA</div>
-        <div class="brain-wrap"><div class="brain-icon">🧠</div><div><h2 style="margin:0">Cerebro documental</h2><div style="font-size:.8rem;opacity:.7">Aprende de confirmaciones humanas, sin guardar PDFs.</div></div></div>
-        <div class="brain-meter"><span data-brain-meter></span></div>
-        <div><strong data-brain-level>0%</strong> <small style="opacity:.65">madurez del aprendizaje</small></div>
-        <div class="brain-kpis"><div class="brain-kpi"><strong data-brain-samples>0</strong><small>documentos validados</small></div><div class="brain-kpi"><strong data-brain-accuracy>0%</strong><small>clasificación confirmada</small></div><div class="brain-kpi"><strong data-brain-types>0</strong><small>tipos aprendidos</small></div></div>
-        <p style="font-size:.72rem;opacity:.66;margin:13px 0 0">El porcentaje representa madurez de retroalimentación, no una garantía automática de exactitud.</p>
-      </section>
-      <section class="di-card" style="margin-top:18px"><h3 style="margin-top:0">Tipos que puede separar</h3><div class="di-types">{% for t in ['Pago','Providencia','Anexo','IFT','Acta','DPI','Instalación','Desinstalación','Monitoreo','Oficio','Informe','Resolución','Formulario','Otro'] %}<span class="di-chip">{{ t }}</span>{% endfor %}</div><p style="font-size:.78rem;color:#63788d;margin-bottom:0">DPI se identifica como pieza documental, pero SICODE no persiste CUI, nombre, dirección ni datos personales obtenidos del documento.</p></section>
-    </aside>
-  </div>
+<div style="max-width:900px;margin:60px auto;padding:30px;background:#fff;border:1px solid #dce5ee;border-radius:20px;text-align:center">
+  <h1>SICODE.IA</h1>
+  <p>El análisis documental y la importación múltiple ahora están unificados en SICODE.IA.</p>
+  <a href="{{ url_for('sicode_ia.inicio') }}" style="display:inline-block;margin-top:12px;padding:12px 18px;border-radius:12px;background:#17395d;color:#fff;text-decoration:none;font-weight:800">Abrir SICODE.IA</a>
 </div>
-
-<div class="di-overlay" data-process-overlay aria-live="polite">
-  <div class="di-process"><div class="di-spinner"></div><div class="di-eyebrow">ANÁLISIS EN CURSO</div><h2 data-process-title>Preparando el lote documental…</h2><p style="color:#bdd0e2">No cierre esta ventana. Un expediente escaneado puede tardar varios minutos en CPU.</p><div class="di-progress"><i></i></div><div class="di-steps"><div class="di-step active">Leyendo páginas</div><div class="di-step">OCR</div><div class="di-step">Separando documentos</div><div class="di-step">IA + metadatos</div></div></div>
-</div>
-
-<script>
-(()=>{const input=document.querySelector('[data-pdf-input]'),name=document.querySelector('[data-pdf-name]'),form=document.querySelector('[data-lote-form]'),overlay=document.querySelector('[data-process-overlay]');if(input&&name)input.addEventListener('change',()=>name.textContent=input.files?.[0]?.name||'Ningún archivo seleccionado');if(form&&overlay)form.addEventListener('submit',()=>{overlay.classList.add('on');const steps=[...overlay.querySelectorAll('.di-step')],titles=['Leyendo estructura y páginas…','Ejecutando OCR en páginas escaneadas…','Detectando cuántos documentos existen…','Clasificando cada pieza con IA local…','Extrayendo metadatos por documento…','Preparando la bandeja de confirmación humana…'];let i=0;setInterval(()=>{i=(i+1)%titles.length;overlay.querySelector('[data-process-title]').textContent=titles[i];steps.forEach((s,n)=>s.classList.toggle('active',n===Math.min(i,3)));},4200)});const brain=document.querySelector('[data-brain-card]');if(brain){fetch(brain.dataset.url,{headers:{'Accept':'application/json'}}).then(r=>r.json()).then(d=>{const level=Math.max(0,Math.min(100,Number(d.nivel||0)));brain.querySelector('[data-brain-meter]').style.width=level+'%';brain.querySelector('[data-brain-level]').textContent=level+'%';brain.querySelector('[data-brain-samples]').textContent=d.muestras||0;brain.querySelector('[data-brain-accuracy]').textContent=(d.precision_clasificacion||0)+'%';brain.querySelector('[data-brain-types]').textContent=d.tipos_aprendidos||0;}).catch(()=>{});}})();
-</script>
+<script>window.location.replace("{{ url_for('sicode_ia.inicio') }}");</script>
 {% endblock %}
