@@ -117,12 +117,12 @@ def marcar_sin_expediente(expediente_id):
         "anexos_descritos": len(expediente.anexos_rectificados_activos),
     }
 
-    for anexo in expediente.anexos_rectificados_activos:
-        anexo.activo = False
-
+    # Esta acción afecta únicamente la existencia del expediente principal.
+    # Los anexos pueden recibirse y registrarse independientemente, por lo que
+    # sus totales y detalles se conservan aunque el expediente físico todavía
+    # no haya sido trasladado a la Coordinación.
     expediente.expediente_fisico_registrado = False
     expediente.folios_rectificados = None
-    expediente.anexos_rectificados = None
     expediente.rectificado_en = None
     expediente.rectificado_por_id = None
     expediente.estado_fisico_documental = "Pendiente de verificación"
@@ -132,7 +132,7 @@ def marcar_sin_expediente(expediente_id):
         modulo="Expedientes",
         descripcion=(
             f"Se marcó el SP {expediente.no_sp} como sin expediente físico recibido en Coordinación. "
-            "Se limpiaron los conteos de rectificación para evitar préstamos o constancias inconsistentes."
+            "Los anexos registrados se conservaron porque pueden recibirse de forma independiente."
         ),
         usuario_id=current_user.id,
         expediente_id=expediente.id,
@@ -142,9 +142,9 @@ def marcar_sin_expediente(expediente_id):
         datos_posteriores={
             "expediente_fisico_registrado": False,
             "folios_rectificados": None,
-            "anexos_rectificados": None,
+            "anexos_rectificados": expediente.anexos_rectificados,
             "estado_fisico_documental": expediente.estado_fisico_documental,
-            "anexos_descritos": 0,
+            "anexos_descritos": len(expediente.anexos_rectificados_activos),
         },
         commit=False,
     )
@@ -152,7 +152,7 @@ def marcar_sin_expediente(expediente_id):
 
     flash(
         f"SP {expediente.no_sp} marcado como sin expediente físico en Coordinación. "
-        "Cuando sea recibido podrá registrarlo desde Expedientes pendientes físicos.",
+        "Los anexos registrados se conservaron y pueden seguir registrándose de forma independiente.",
         "success",
     )
     return redirect(url_for("expedientes.listado", q=expediente.no_sp))
