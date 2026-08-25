@@ -1,11 +1,8 @@
 from flask import Blueprint, abort, jsonify
 from flask_login import current_user, login_required
 
-from app.services.cerebro_sicode_service import (
-    absorber_verificaciones_pendientes,
-    analizar_sicode,
-    guardar_hallazgos,
-)
+from app.services.cerebro_sicode_absorber import absorber_verificaciones_pendientes
+from app.services.cerebro_sicode_service import analizar_sicode, guardar_hallazgos
 
 
 cerebro_sicode_bp = Blueprint(
