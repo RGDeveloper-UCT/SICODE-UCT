@@ -11,7 +11,7 @@
     </div>
 
     <div class="aviso">
-        <strong>Recepción automática:</strong> quién recibe y la fecha/hora se toman de la sesión. El cuadro documental es una base editable: puede cambiar los nombres y todos los folios antes de registrar.
+        <strong>Recepción automática:</strong> quién recibe y la fecha/hora se toman de la sesión. Cada fila del índice representa un documento independiente del expediente. Puede cambiar nombres y folios antes de registrar.
     </div>
 
     <form method="post">
@@ -52,9 +52,9 @@
         <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-top:24px;">
             <div>
                 <h2 style="margin-bottom:4px;">Índice de documentos a incorporar</h2>
-                <p style="margin:0; color:#64748b; font-size:12px;">Revise y edite los rangos. El sistema validará que no haya traslapes ni rangos inválidos.</p>
+                <p style="margin:0; color:#64748b; font-size:12px;">Cada fila se guardará como un documento individual del SP, con su propio nombre, tipo, folio inicial, folio final e identificador en el sistema.</p>
             </div>
-            <span class="badge">{{ documentos|length }} documentos</span>
+            <span class="badge">{{ documentos|length }} documentos independientes</span>
         </div>
 
         <div class="tabla-contenedor" style="margin-top:10px;">
@@ -62,7 +62,7 @@
                 <thead>
                     <tr>
                         <th style="width:60px;">No.</th>
-                        <th>Documento</th>
+                        <th>Documento independiente</th>
                         <th style="width:150px;">Folio inicial</th>
                         <th style="width:150px;">Folio final</th>
                     </tr>
@@ -113,7 +113,7 @@
         </div>
 
         <div class="aviso">
-            <strong>Resultado:</strong> se crearán {{ documentos|length }} entradas con exactamente los nombres y folios que deje en este cuadro. Quedarán vinculadas al SP seleccionado. Si algún rango se traslapa con otro documento del expediente, SICODE bloqueará el registro para evitar duplicidades.
+            <strong>Resultado:</strong> se crearán {{ documentos|length }} documentos separados dentro del índice documental del SP seleccionado. No se guardará el cuadro completo como un solo documento. Cada fila quedará como una entrada independiente y SICODE bloqueará cualquier rango que se traslape con documentación ya existente.
         </div>
 
         <div class="acciones">
