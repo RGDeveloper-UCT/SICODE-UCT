@@ -72,7 +72,7 @@ def test_rectificacion_muestra_boton_sin_expediente(cliente_sin_expediente):
     assert "/expedientes/1/marcar-sin-expediente" in texto
 
 
-def test_marcar_sin_expediente_limpia_rectificacion_y_bloquea_prestamo(
+def test_marcar_sin_expediente_conserva_anexos_y_bloquea_prestamo(
     app_sin_expediente, cliente_sin_expediente
 ):
     respuesta = cliente_sin_expediente.post(
@@ -85,12 +85,12 @@ def test_marcar_sin_expediente_limpia_rectificacion_y_bloquea_prestamo(
         expediente = db.session.get(Expediente, 1)
         assert expediente.expediente_fisico_registrado is False
         assert expediente.folios_rectificados is None
-        assert expediente.anexos_rectificados is None
+        assert expediente.anexos_rectificados == 29
         assert expediente.rectificado_en is None
         assert expediente.rectificado_por_id is None
         assert expediente.rectificacion_completa is False
         assert expediente.estado_fisico_documental == "Pendiente de verificación"
-        assert AnexoRectificado.query.filter_by(expediente_id=1, activo=True).count() == 0
+        assert AnexoRectificado.query.filter_by(expediente_id=1, activo=True).count() == 1
 
     prestamo = cliente_sin_expediente.get(
         "/expedientes/1/prestamos/nuevo",
