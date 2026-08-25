@@ -5,56 +5,107 @@
     <div class="encabezado-modulo">
         <div>
             <h1>Recepción de expediente completo</h1>
-            <p>Seleccione el SP y la plantilla documental. SICODE adjuntará automáticamente el índice al expediente.</p>
+            <p>Seleccione el SP, la forma de registro y confirme o ajuste el índice documental antes de adjuntarlo.</p>
         </div>
         <a class="boton-cancelar" href="{{ url_for('coordinacion.inicio') }}">Volver</a>
     </div>
 
     <div class="aviso">
-        <strong>Recepción automática:</strong> quién recibe y la fecha/hora se toman de la sesión. La documentación de la plantilla se incorpora directamente al índice documental del SP seleccionado.
+        <strong>Recepción automática:</strong> quién recibe y la fecha/hora se toman de la sesión. El cuadro documental es una base editable: puede cambiar los nombres y todos los folios antes de registrar.
     </div>
 
     <form method="post">
         {{ form.hidden_tag() }}
+
         <div class="grid-form">
             <div class="campo">
                 {{ form.expediente_id.label }}
                 {{ form.expediente_id() }}
                 {% for error in form.expediente_id.errors %}<span class="error">{{ error }}</span>{% endfor %}
             </div>
+
             <div class="campo">
-                {{ form.plantilla.label }}
-                {{ form.plantilla() }}
-                {% for error in form.plantilla.errors %}<span class="error">{{ error }}</span>{% endfor %}
+                {{ form.forma_registro.label }}
+                {{ form.forma_registro() }}
+                {% for error in form.forma_registro.errors %}<span class="error">{{ error }}</span>{% endfor %}
             </div>
+
             <div class="campo">
-                {{ form.rc.label }}
-                {{ form.rc(placeholder='Ej. 202624183') }}
-                {% for error in form.rc.errors %}<span class="error">{{ error }}</span>{% endfor %}
+                {{ form.tipo_referencia.label }}
+                {{ form.tipo_referencia() }}
+                {% for error in form.tipo_referencia.errors %}<span class="error">{{ error }}</span>{% endfor %}
             </div>
+
             <div class="campo">
+                {{ form.numero_referencia.label }}
+                {{ form.numero_referencia(placeholder='Ej. 20262126') }}
+                {% for error in form.numero_referencia.errors %}<span class="error">{{ error }}</span>{% endfor %}
+            </div>
+
+            <div class="campo" style="grid-column: 1 / -1;">
                 {{ form.persona_entrega.label }}
                 {{ form.persona_entrega(placeholder='Persona, unidad o institución que entrega') }}
                 {% for error in form.persona_entrega.errors %}<span class="error">{{ error }}</span>{% endfor %}
             </div>
         </div>
 
-        <h2>Índice de documentos a incorporar</h2>
-        <div class="tabla-contenedor">
+        <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-top:24px;">
+            <div>
+                <h2 style="margin-bottom:4px;">Índice de documentos a incorporar</h2>
+                <p style="margin:0; color:#64748b; font-size:12px;">Revise y edite los rangos. El sistema validará que no haya traslapes ni rangos inválidos.</p>
+            </div>
+            <span class="badge">{{ documentos|length }} documentos</span>
+        </div>
+
+        <div class="tabla-contenedor" style="margin-top:10px;">
             <table>
                 <thead>
                     <tr>
-                        <th>No.</th>
+                        <th style="width:60px;">No.</th>
                         <th>Documento</th>
-                        <th>Folios</th>
+                        <th style="width:150px;">Folio inicial</th>
+                        <th style="width:150px;">Folio final</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for numero, nombre, tipo_documento, folio_inicio, folio_fin in plantilla.documentos %}
+                    {% for numero, nombre, tipo_documento, folio_inicio, folio_fin in documentos %}
                     <tr>
-                        <td>{{ numero }}</td>
-                        <td>{{ nombre }}</td>
-                        <td>{{ folio_inicio }}{% if folio_fin != folio_inicio %}-{{ folio_fin }}{% endif %}</td>
+                        <td><strong>{{ numero }}</strong></td>
+                        <td>
+                            <input
+                                type="text"
+                                name="documento_{{ numero }}"
+                                value="{{ nombre }}"
+                                maxlength="180"
+                                required
+                                style="width:100%; min-width:320px;"
+                                aria-label="Documento {{ numero }}"
+                            >
+                        </td>
+                        <td>
+                            <input
+                                type="number"
+                                name="folio_inicio_{{ numero }}"
+                                value="{{ folio_inicio }}"
+                                min="1"
+                                step="1"
+                                required
+                                style="width:100%; min-width:95px;"
+                                aria-label="Folio inicial documento {{ numero }}"
+                            >
+                        </td>
+                        <td>
+                            <input
+                                type="number"
+                                name="folio_fin_{{ numero }}"
+                                value="{{ folio_fin }}"
+                                min="1"
+                                step="1"
+                                required
+                                style="width:100%; min-width:95px;"
+                                aria-label="Folio final documento {{ numero }}"
+                            >
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -62,7 +113,7 @@
         </div>
 
         <div class="aviso">
-            <strong>Resultado:</strong> se crearán {{ plantilla.documentos|length }} entradas en el índice documental y quedarán vinculadas al SP seleccionado. Si ya existen folios que se traslapan, SICODE bloqueará el registro para evitar duplicidades.
+            <strong>Resultado:</strong> se crearán {{ documentos|length }} entradas con exactamente los nombres y folios que deje en este cuadro. Quedarán vinculadas al SP seleccionado. Si algún rango se traslapa con otro documento del expediente, SICODE bloqueará el registro para evitar duplicidades.
         </div>
 
         <div class="acciones">
