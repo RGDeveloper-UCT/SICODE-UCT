@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}SICODE.IA trabajando — SICODE-UCT{% endblock %}
+{% block body_class %}vista-sicode-ia-job{% endblock %}
+{% block content %}
+<section class="sia-job-page" data-sia-job-page data-job-id="{{ job_id }}">
+  <div class="sia-job-hero">
+    <div class="sia-job-orb" aria-hidden="true"><span>✦</span><span>✧</span><b>IA</b></div>
+    <div>
+      <div class="sia-job-eyebrow">SICODE.IA · PROCESAMIENTO EN SEGUNDO PLANO</div>
+      <h1>Puede seguir trabajando en SICODE</h1>
+      <p>El análisis continúa aunque cambie de módulo. Puede minimizar esta pantalla y observar el semáforo flotante del lado derecho.</p>
+    </div>
+  </div>
+
+  <div class="sia-job-card">
+    <div class="sia-job-status-row">
+      <span class="sia-job-light amarillo" data-job-light></span>
+      <div><strong data-job-title>Iniciando análisis…</strong><small data-job-detail>Preparando la cola de trabajo.</small></div>
+      <strong class="sia-job-percent" data-job-percent>0%</strong>
+    </div>
+    <div class="sia-job-progress"><span data-job-bar></span></div>
+    <div class="sia-job-phases">
+      <span>Validación</span><span>Lectura rápida</span><span>OCR</span><span>IA local</span><span>Metadatos</span><span>Verificación</span>
+    </div>
+    <div class="sia-job-actions">
+      <a class="sia-job-minimize" href="{{ url_for('dashboard.inicio') }}" data-job-minimize>Minimizar y seguir trabajando</a>
+      <a class="sia-job-review" href="#" data-job-review hidden>Abrir Verificación Humana</a>
+    </div>
+  </div>
+</section>
+<script>
+localStorage.setItem('sicodeIAActiveJob', '{{ job_id }}');
+</script>
+{% endblock %}
