@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}SICODE NEXO — SICODE-UCT{% endblock %}
+{% block body_class %}vista-nexo{% endblock %}
+{% block content %}
+<section class="nexo" data-nexo data-url="{{ url_for('nexo_ia.estado') }}">
+  <div class="nexo-hero">
+    <div class="nexo-copy">
+      <span class="nexo-eyebrow">SICODE-UCT · INTELIGENCIA Y MEJORA CONTINUA</span>
+      <h1>SICODE NEXO</h1>
+      <p class="nexo-sub">Núcleo de Evolución, eXamen y Optimización</p>
+      <p>Observa el funcionamiento de SICODE, aprende de verificaciones humanas, identifica patrones y convierte hallazgos en oportunidades de automatización y mejora técnica.</p>
+      <div class="nexo-status"><span class="nexo-dot"></span><strong data-nexo-status>Conectando con el sistema…</strong></div>
+    </div>
+
+    <div class="nexo-core" aria-label="Representación del núcleo conectado a los módulos de SICODE">
+      <span class="root r1"></span><span class="root r2"></span><span class="root r3"></span><span class="root r4"></span><span class="root r5"></span><span class="root r6"></span>
+      <div class="node n1">Expedientes</div><div class="node n2">Coordinación</div><div class="node n3">Préstamos</div><div class="node n4">Bitácora</div><div class="node n5">Alertas</div><div class="node n6">SICODE.IA</div>
+      <div class="core-orb"><span class="pulse p1"></span><span class="pulse p2"></span><span class="core-mark">N</span><small>NEXO</small></div>
+    </div>
+  </div>
+
+  <div class="nexo-kpis">
+    <article><span>Madurez de aprendizaje</span><strong data-kpi-level>0%</strong><i><b data-meter></b></i></article>
+    <article><span>Verificaciones aprendidas</span><strong data-kpi-samples>0</strong><small>retroalimentación humana segura</small></article>
+    <article><span>Hallazgos técnicos</span><strong data-kpi-findings>0</strong><small>oportunidades detectadas</small></article>
+    <article><span>Objetos estudiados</span><strong data-kpi-objects>0</strong><small>metadatos revisados</small></article>
+  </div>
+
+  <div class="nexo-grid">
+    <section class="nexo-card nexo-findings">
+      <div class="section-head"><div><span class="nexo-eyebrow dark">ANÁLISIS TRANSVERSAL</span><h2>Hallazgos y oportunidades</h2></div><button type="button" class="nexo-refresh" data-refresh>Volver a analizar</button></div>
+      <div class="finding-list" data-findings><div class="finding skeleton"><b>Analizando SICODE…</b><p>Comparando estructura, catálogos, correcciones humanas y comportamiento documental.</p></div></div>
+    </section>
+
+    <aside class="nexo-card">
+      <span class="nexo-eyebrow dark">MAPA DE CONEXIONES</span><h2>Raíces del sistema</h2>
+      <div class="connections" data-connections>
+        <div><span class="connection-dot active"></span><b>PostgreSQL</b><small>Núcleo de datos</small></div>
+        <div><span class="connection-dot"></span><b>Ollama</b><small>IA local</small></div>
+        <div><span class="connection-dot neutral"></span><b>GitHub</b><small>Código y evolución</small></div>
+        <div><span class="connection-dot active"></span><b>Verificación humana</b><small>Fuente de aprendizaje</small></div>
+      </div>
+      <div class="nexo-principle"><strong>NEXO recomienda; una persona decide.</strong><p>No modifica expedientes, no elimina información y no aplica cambios de código automáticamente. Los hallazgos quedan disponibles para revisión técnica.</p></div>
+    </aside>
+  </div>
+
+  <section class="nexo-card nexo-roadmap">
+    <span class="nexo-eyebrow dark">EVOLUCIÓN PROPUESTA</span><h2>De analizador a motor inteligente de mejora</h2>
+    <div class="roadmap-grid">
+      <div><b>1 · Observar</b><p>Inventario de esquema, métricas, catálogos, errores repetidos y trazabilidad.</p></div>
+      <div><b>2 · Aprender</b><p>Usar verificaciones humanas como señal segura, sin almacenar documentos sensibles.</p></div>
+      <div><b>3 · Relacionar</b><p>Encontrar patrones entre módulos y detectar pasos repetitivos que puedan automatizarse.</p></div>
+      <div><b>4 · Recomendar</b><p>Priorizar mejoras por impacto, frecuencia, riesgo y esfuerzo técnico estimado.</p></div>
+    </div>
+  </section>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/nexo.js') }}" defer></script>{% endblock %}
