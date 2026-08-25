@@ -5,7 +5,7 @@ from app.services.cerebro_sicode_service import retroalimentar_segmento
 
 
 def absorber_verificaciones_pendientes(usuario_id=None):
-    """Incorpora una sola vez cada verificación humana al aprendizaje agregado."""
+    """Incorpora una sola vez cada verificación humana realizada en SICODE.IA."""
     segmentos = (
         SegmentoDocumental.query
         .filter(SegmentoDocumental.estado.in_(["VERIFICADO_HUMANO", "CONFIRMADO"]))
@@ -16,6 +16,10 @@ def absorber_verificaciones_pendientes(usuario_id=None):
     )
     aprendidas = 0
     for segmento in segmentos:
+        meta_analisis = dict((segmento.analisis.datos_detectados if segmento.analisis else {}) or {})
+        if meta_analisis.get("modo") != "SICODE_IA":
+            continue
+
         marca = Bitacora.query.filter_by(
             accion="CEREBRO_SICODE_APRENDIZAJE",
             entidad="SegmentoDocumental",
