@@ -1,0 +1,19 @@
+[Unit]
+Description=SICODE.IA - Worker de analisis documental en segundo plano
+After=network.target redis-server.service
+Wants=redis-server.service
+
+[Service]
+Type=simple
+User=__SICODE_USER__
+WorkingDirectory=__SICODE_APPDIR__
+EnvironmentFile=__SICODE_APPDIR__/.env
+Environment="PYTHONUNBUFFERED=1"
+ExecStart=__SICODE_APPDIR__/.venv/bin/rq worker sicode_ia --url redis://127.0.0.1:6379/0 --name sicode-ia-worker
+Restart=always
+RestartSec=4
+TimeoutStopSec=40
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=multi-user.target
