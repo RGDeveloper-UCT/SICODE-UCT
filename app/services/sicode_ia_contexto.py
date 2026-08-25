@@ -49,7 +49,6 @@ def analizar_nombre_pdf(nombre):
         "confianza_nombre": 0.45,
     }
 
-    # Los archivos UCT suelen iniciar con folio o rango: 13-14 Acta..., 2-3 ITR..., 5 - Providencia.
     m_rango = re.match(r"^\s*(\d+)\s*[-–—]\s*(\d+)\s*[-_ ]*\s*(.*)$", limpio)
     m_unico = re.match(r"^\s*(\d+)\s*[-_. ]+\s*(.*)$", limpio)
     resto = limpio
@@ -74,12 +73,16 @@ def analizar_nombre_pdf(nombre):
         (r"\bprovidencia\b", "PROVIDENCIA", 0.99),
         (r"\boficio\b", "OFICIO", 0.98),
         (r"\bacta\b", "ACTA", 0.98),
-        (r"\bitr\b", "ITR", 0.99),
+        # El catálogo actual no tiene ITR separado: se conserva el nombre ITR
+        # pero se clasifica como INFORME para no romper validación/carga.
+        (r"\bitr\b", "INFORME", 0.99),
         (r"\bift\b", "IFT", 0.99),
         (r"\bformulario\b|\bformato\b", "FORMULARIO", 0.98),
         (r"\bresolucion\b", "RESOLUCION", 0.98),
         (r"\binforme\b", "INFORME", 0.96),
-        (r"\borden\s+de\s+instalacion\b", "ORDEN", 0.99),
+        # Una orden de instalación se conserva en el título pero usa el tipo
+        # operativo INSTALACION existente en SICODE.
+        (r"\borden\s+de\s+instalacion\b", "INSTALACION", 0.99),
         (r"\binstalacion\b", "INSTALACION", 0.93),
         (r"\bdesinstalacion\b", "DESINSTALACION", 0.93),
         (r"\bboleta\b|\bpago\b|\brecibo\b", "PAGO", 0.91),
@@ -92,9 +95,8 @@ def analizar_nombre_pdf(nombre):
             resultado["confianza_nombre"] = max(resultado["confianza_nombre"], conf)
             break
 
-    # Extrae números documentales evidentes del propio nombre.
     patrones_numero = (
-        ("ITR", r"\bitr\s*[-:#]?\s*([0-9][0-9./_-]*(?:-\d{2,4})?)"),
+        ("INFORME", r"\bitr\s*[-:#]?\s*([0-9][0-9./_-]*(?:-\d{2,4})?)"),
         ("IFT", r"\bift\s*[-:#]?\s*([0-9][0-9./_-]*(?:-\d{2,4})?)"),
         ("OFICIO", r"\boficio(?:\s+\w+){0,3}\s*[-:#]?\s*([0-9]+(?:-\d{2,4})?)"),
         ("FORMULARIO", r"\bformulario(?:\s+\w+){0,3}\s*[-:#]?\s*([0-9]+(?:-\d{2,4})?)"),
@@ -110,12 +112,7 @@ def analizar_nombre_pdf(nombre):
 
 
 def aplicar_contexto_y_nombre(resultado_analisis, nombre_archivo, contexto):
-    """Fusiona evidencia prioritaria sin inventar datos.
-
-    En SICODE.IA el usuario conoce el SP/anexo y la nomenclatura de archivo ya
-    expresa normalmente folios y tipo. OCR/IA queda como complemento para campos
-    que no pueden conocerse por esas dos fuentes.
-    """
+    """Fusiona contexto + nombre como evidencia prioritaria y OCR/IA como apoyo."""
     contexto_info = analizar_contexto_usuario(contexto)
     nombre_info = analizar_nombre_pdf(nombre_archivo)
     docs = list(resultado_analisis.get("documentos") or [])
@@ -127,11 +124,8 @@ def aplicar_contexto_y_nombre(resultado_analisis, nombre_archivo, contexto):
     folio_fin = nombre_info.get("folio_fin")
     fuerte = float(nombre_info.get("confianza_nombre") or 0) >= 0.90
 
-    # Si el propio archivo expresa un rango/tipo fuerte, se considera una pieza documental.
-    # Evita que un OCR imperfecto fragmente "13-14 Acta...pdf" en varios documentos falsos.
     if fuerte and (tipo_nombre or folio_ini):
         base = dict(docs[0])
-        datos = dict(base.get("datos") or {})
         discrepancias = []
         for d in docs:
             discrepancias.extend(d.get("discrepancias") or [])
