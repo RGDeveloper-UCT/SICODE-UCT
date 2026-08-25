@@ -20,6 +20,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/rectificaciones.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/reloj_guatemala.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/analisis_documental.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/sicode_ia_jobs.css') }}">
 </head>
 <body class="{% block body_class %}{% endblock %}{% if modo_solo_lectura %} modo-visor{% endif %}"
       {% if current_user.is_authenticated %}data-presencia-url="{{ url_for('uo.pulso') }}" data-sicode-user="{{ current_user.id }}"{% endif %}>
@@ -50,6 +51,21 @@
         </span>
         <span class="ticket-soporte-burbuja__reloj" data-ticket-soporte-burbuja-reloj>00:00:00</span>
     </a>
+
+    {% if current_user.puede_modificar %}
+    <aside class="sia-float" data-sia-float aria-live="polite">
+        <button class="sia-float-close" type="button" data-sia-float-close aria-label="Ocultar monitor SICODE.IA">×</button>
+        <div class="sia-float-inner">
+            <div class="sia-mini-orb" aria-hidden="true"><span class="sia-mini-spark s1">✦</span><span class="sia-mini-spark s2">✧</span><b>IA</b></div>
+            <div>
+                <div class="sia-float-title" data-sia-float-title>SICODE.IA trabajando</div>
+                <div class="sia-float-detail" data-sia-float-detail>Conectando con el worker…</div>
+                <div class="sia-float-meter"><span data-sia-float-bar></span></div>
+            </div>
+            <div><span class="sia-job-light amarillo" data-sia-float-light></span><br><a class="sia-float-open" href="#" data-sia-float-open>Abrir</a></div>
+        </div>
+    </aside>
+    {% endif %}
     {% endif %}
 
     <header class="topbar">
@@ -105,6 +121,7 @@
     <script src="{{ url_for('static', filename='js/reloj_guatemala.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/transiciones.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/ticket_soporte.js') }}" defer></script>
+    {% if current_user.puede_modificar %}<script src="{{ url_for('static', filename='js/sicode_ia_jobs.js') }}" defer></script>{% endif %}
     {% endif %}
     {% block scripts %}{% endblock %}
 </body>
