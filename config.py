@@ -35,13 +35,14 @@ class Config:
         "1", "true", "yes", "si"
     }
 
-    # Cola asíncrona SICODE.IA. El análisis pesado sale de Gunicorn para que el
-    # usuario pueda navegar por el sistema mientras OCR/IA continúan trabajando.
     SICODE_REDIS_URL = os.getenv("SICODE_REDIS_URL", "redis://127.0.0.1:6379/0")
     SICODE_IA_QUEUE = os.getenv("SICODE_IA_QUEUE", "sicode_ia")
     SICODE_IA_JOB_TIMEOUT = int(os.getenv("SICODE_IA_JOB_TIMEOUT", "3600"))
     SICODE_IA_RESULT_TTL = int(os.getenv("SICODE_IA_RESULT_TTL", "86400"))
     SICODE_IA_QUEUE_TEMP_DIR = os.getenv("SICODE_IA_QUEUE_TEMP_DIR") or DOCUMENT_ANALYSIS_TEMP_DIR
+    # Modelo pequeño dedicado al worker: reduce latencia en CPU. Puede volver a
+    # qwen3:1.7b desde .env si se prefiere precisión sobre velocidad.
+    SICODE_IA_FAST_MODEL = os.getenv("SICODE_IA_FAST_MODEL", "qwen3:0.6b")
 
     PG_DUMP_PATH = os.getenv("PG_DUMP_PATH")
 
