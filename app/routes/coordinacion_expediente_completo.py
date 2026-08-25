@@ -92,7 +92,6 @@ def _documentos_desde_formulario():
 
         documentos.append((numero, nombre, tipo_documento, folio_inicio, folio_fin))
 
-    # Evita que el propio cuadro cree rangos superpuestos entre sus filas.
     ordenados = sorted(documentos, key=lambda item: (item[3], item[4]))
     for anterior, actual in zip(ordenados, ordenados[1:]):
         if actual[3] <= anterior[4]:
@@ -152,16 +151,13 @@ def _buscar_conflictos(expediente_id, documentos):
 
 
 def _crear_documentos_individuales(expediente, registro, documentos):
-    """Crea una fila real e independiente en DocumentoExpediente por cada fila del índice.
-
-    Aunque todos nacen de la misma recepción, no se agrupan en un único documento:
-    cada entrada obtiene su propio ID, nombre, tipo, folio inicial/final y total.
-    """
+    """Crea una fila real e independiente en DocumentoExpediente por cada fila del índice."""
     creados = []
 
     for numero, nombre, tipo_documento, folio_inicio, folio_fin in documentos:
         documento = DocumentoExpediente(
             expediente_id=expediente.id,
+            registro_coordinacion_id=registro.id,
             nombre_documento=nombre,
             tipo_documento=tipo_documento,
             folio_inicio=folio_inicio,
@@ -175,8 +171,6 @@ def _crear_documentos_individuales(expediente, registro, documentos):
             ),
         )
         db.session.add(documento)
-        # El flush asigna el ID propio del documento antes de continuar con la
-        # siguiente fila y permite auditar cada entrada de forma independiente.
         db.session.flush()
 
         creados.append(documento)
@@ -266,8 +260,6 @@ def registrar_expediente_completo():
             tipo="EXPEDIENTE_COMPLETO",
             expediente_id=expediente.id,
             no_sp_referencia=expediente.no_sp,
-            # El campo histórico `rc` se reutiliza como referencia administrativa
-            # y conserva el prefijo para distinguir RC de RE sin migrar la BD.
             rc=referencia,
             fecha_recepcion=date.today(),
             persona_entrega=form.persona_entrega.data.strip(),
