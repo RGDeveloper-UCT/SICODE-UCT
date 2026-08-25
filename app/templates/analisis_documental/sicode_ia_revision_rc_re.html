@@ -1,0 +1,22 @@
+{% extends "analisis_documental/sicode_ia_revision.html" %}
+{% block content %}
+{{ super() }}
+<script>
+(() => {
+  const tipos = {
+    {% for s in segmentos %}
+      {% set d = s.datos_confirmados if s.estado in ['VERIFICADO_HUMANO','CONFIRMADO'] and s.datos_confirmados else s.datos_detectados or {} %}
+      "{{ s.id }}": "{{ d.get('tipo_referencia') or '' }}"{{ ',' if not loop.last else '' }}
+    {% endfor %}
+  };
+  Object.entries(tipos).forEach(([id, tipo]) => {
+    if (!tipo) return;
+    const input = document.querySelector(`#doc-${id} input[name="rc"]`);
+    if (!input) return;
+    const field = input.closest('.field');
+    const label = field ? field.querySelector('label') : null;
+    if (label) label.textContent = tipo;
+  });
+})();
+</script>
+{% endblock %}
