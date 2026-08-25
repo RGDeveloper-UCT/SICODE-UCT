@@ -39,14 +39,11 @@ def expediente(expediente_id):
         )
         db.session.add(verificacion)
 
-        # La columna anterior se conserva como espejo histórico por
-        # compatibilidad. El estado vigente lo calcula EstadoDocumentalService.
-        expediente.estado_fisico_documental = resultado
+        # Espejo histórico únicamente. La autoridad vigente es la verificación
+        # más el índice/rectificación evaluados por EstadoDocumentalService.
+        expediente._estado_fisico_documental_legacy = resultado
         db.session.flush()
 
-        # La relación pudo haberse cargado al calcular estado_anterior. Se
-        # expira para que el cálculo canónico incluya la verificación recién
-        # registrada antes de decidir alertas o bitácora.
         db.session.expire(expediente, ["verificaciones"])
         resumen_nuevo = calcular_estado_documental(expediente)
         estado_nuevo = resumen_nuevo["estado"]
