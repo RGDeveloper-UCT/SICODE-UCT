@@ -1,9 +1,17 @@
 from app.checks import HallazgoIntegridad
 from app.models.coordinacion import AnexoCoordinacion, RegistroCoordinacion, RemisionExpediente
+from app.models.documento_expediente import DocumentoExpediente
 from app.services.sp_service import normalizar_sp
 
 
-TIPOS_ENTRANTES = {"PAGO", "INSTALACION", "DESINSTALACION", "ANEXO", "MONITOREO"}
+TIPOS_ENTRANTES = {
+    "PAGO",
+    "INSTALACION",
+    "DESINSTALACION",
+    "ANEXO",
+    "MONITOREO",
+    "EXPEDIENTE_COMPLETO",
+}
 
 
 def ejecutar():
@@ -22,8 +30,6 @@ def ejecutar():
         ))
 
     for registro in RegistroCoordinacion.query.filter(RegistroCoordinacion.tipo.in_(TIPOS_ENTRANTES)).all():
-        # Los importados históricos no siempre contienen esta información; se
-        # advierte, pero no se inventa ni bloquea la conservación del histórico.
         faltantes = []
         if not registro.persona_entrega:
             faltantes.append("quién entrega/remite")
@@ -54,6 +60,35 @@ def ejecutar():
                 ),
                 recomendacion="Revisar el vínculo; no corregir automáticamente sin confirmar el documento origen.",
             ))
+
+    # Expediente completo crea documentos hijos reales en el índice. Para
+    # registros históricos anteriores a esta relación no se modifica nada; el
+    # auditor solamente informa que su trazabilidad estructurada aún no existe.
+    for registro in RegistroCoordinacion.query.filter_by(tipo="EXPEDIENTE_COMPLETO").all():
+        documentos = DocumentoExpediente.query.filter_by(
+            registro_coordinacion_id=registro.id
+        ).all()
+        if not documentos:
+            hallazgos.append(HallazgoIntegridad(
+                codigo="COORD-EXP-DOC-001",
+                severidad="advertencia",
+                modulo="Coordinación",
+                entidad="RegistroCoordinacion",
+                registro=f"Recepción expediente completo {registro.id}",
+                descripcion="La recepción no tiene documentos del índice enlazados mediante la relación de origen estructurada.",
+                recomendacion="Conservar el registro histórico. Solo vincularlo manualmente si la correspondencia documental puede confirmarse sin ambigüedad.",
+            ))
+        for documento in documentos:
+            if registro.expediente_id != documento.expediente_id:
+                hallazgos.append(HallazgoIntegridad(
+                    codigo="COORD-EXP-DOC-002",
+                    severidad="error",
+                    modulo="Coordinación",
+                    entidad="DocumentoExpediente",
+                    registro=f"Documento {documento.id}",
+                    descripcion="El documento generado por una recepción de expediente completo pertenece a un SP distinto al registro de origen.",
+                    recomendacion="Revisar el vínculo de origen y el expediente antes de modificar cualquier registro.",
+                ))
 
     anexos = AnexoCoordinacion.query.all()
     for anexo in anexos:
