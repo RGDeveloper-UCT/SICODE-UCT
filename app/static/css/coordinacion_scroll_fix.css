@@ -1,0 +1,84 @@
+/* Ajuste de viewport para el inicio de Coordinación.
+   El banner de SICODE.IA ocupa espacio antes del panel; por ello la vista no debe
+   bloquear el documento a 100vh. Este archivo se carga al final para corregir
+   únicamente la pantalla de Coordinación sin afectar los demás módulos. */
+
+body.vista-coordinacion-inicio {
+    height: auto !important;
+    min-height: 100vh;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
+.vista-coordinacion-inicio .contenedor {
+    min-height: 0 !important;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.vista-coordinacion-inicio .panel-coordinacion-inicio {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+}
+
+.vista-coordinacion-inicio .layout-coordinacion-inicio {
+    flex: 0 0 auto !important;
+    min-height: 0 !important;
+    align-items: start;
+}
+
+.vista-coordinacion-inicio .columna-coordinacion-registros {
+    overflow: visible !important;
+}
+
+/* El carrete ya es de una sola fila. Se limita su altura para que los botones
+   de registro permanezcan siempre dentro del viewport en monitores de oficina. */
+.vista-coordinacion-inicio .grid-registros-coordinacion.coord-carrete-track {
+    flex: 0 0 auto !important;
+    height: clamp(270px, 29vh, 310px) !important;
+    min-height: 270px !important;
+    max-height: 310px !important;
+    overflow-y: hidden !important;
+}
+
+.vista-coordinacion-inicio .coord-carrete-track > .tarjeta-registro-coordinacion {
+    height: 100% !important;
+    min-height: 0 !important;
+}
+
+.vista-coordinacion-inicio .tarjeta-registro-coordinacion > p {
+    margin-bottom: 10px;
+}
+
+.vista-coordinacion-inicio .acciones-tarjeta-registro {
+    margin-top: auto;
+}
+
+/* La actividad reciente conserva una altura útil, pero ya no obliga a que la
+   columna de registros crezca hasta el fondo de la ventana. */
+.vista-coordinacion-inicio .panel-recientes-coordinacion {
+    height: clamp(390px, 48vh, 540px);
+    min-height: 390px;
+}
+
+@media (max-width: 1200px) {
+    .vista-coordinacion-inicio .grid-registros-coordinacion.coord-carrete-track {
+        height: 280px !important;
+        min-height: 280px !important;
+        max-height: none !important;
+    }
+
+    .vista-coordinacion-inicio .panel-recientes-coordinacion {
+        height: auto;
+        min-height: 440px;
+    }
+}
+
+@media (max-width: 760px) {
+    .vista-coordinacion-inicio .grid-registros-coordinacion.coord-carrete-track {
+        height: 265px !important;
+        min-height: 265px !important;
+    }
+}
