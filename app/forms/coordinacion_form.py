@@ -2,8 +2,8 @@ from datetime import date
 
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField, FileRequired
-from wtforms import BooleanField, DateField, DecimalField, HiddenField, SelectField, StringField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Length, Optional
+from wtforms import BooleanField, DateField, DecimalField, HiddenField, IntegerField, SelectField, StringField, SubmitField, TextAreaField
+from wtforms.validators import DataRequired, Length, NumberRange, Optional
 
 
 REFERENCIAS_CHOICES = [("RC", "RC"), ("RE", "RE")]
@@ -83,6 +83,14 @@ class AnexoForm(RegistroBaseForm):
 
 class MonitoreoForm(RegistroBaseForm):
     folios = StringField("Folios recibidos", validators=[Optional(), Length(max=80)])
+    numero_anexo_monitoreo = IntegerField(
+        "Anexo que corresponde",
+        validators=[DataRequired(), NumberRange(min=1, max=200)],
+    )
+    confirmacion_file_server = BooleanField(
+        "Confirmé en File Server el número de anexo",
+        validators=[DataRequired(message="Debe confirmar el número de anexo contra File Server.")],
+    )
     tipo_documento = StringField("Tipo de documento", validators=[Optional(), Length(max=80)], default="PROVIDENCIA")
     numero_reporte = StringField("Reporte No.", validators=[Optional(), Length(max=120)])
     tipo_evento = StringField("Tipo de reporte / evento", validators=[Optional(), Length(max=180)])
