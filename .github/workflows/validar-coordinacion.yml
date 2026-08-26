@@ -95,5 +95,5 @@ jobs:
           print('Validacion de Coordinacion completada correctamente.')
           PY
 
-      - name: Probar extractores documentales
-        run: pytest -q tests/test_analisis_documental_service.py tests/test_lote_documental_service.py
+      - name: Probar Coordinacion y extractores documentales
+        run: pytest -q tests/test_coordinacion_carrusel_ui.py tests/test_analisis_documental_service.py tests/test_lote_documental_service.py
