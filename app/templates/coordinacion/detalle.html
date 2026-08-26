@@ -8,6 +8,8 @@
     <div class="aviso"><strong>Boleta estructurada de soporte:</strong> este registro forma parte del control de Soporte técnico y servicios TI. Abra la boleta para consultar servicio, equipo, diagnóstico, cierre y constancia PDF.</div>
     {% elif registro.tipo == 'EXPEDIENTE_COMPLETO' %}
     <div class="aviso"><strong>Expediente completo recibido:</strong> este control confirma la recepción física y su vinculación al SP existente en SICODE. La fecha, hora y usuario quedan trazados automáticamente.</div>
+    {% elif registro.tipo == 'MONITOREO' and registro.anexo_coordinacion %}
+    <div class="aviso"><strong>Reporte incorporado al expediente:</strong> este reporte de monitoreo quedó registrado como <strong>Anexo {{ registro.anexo_coordinacion.numero_anexo }}</strong> y actualizó el total de anexos del SP.</div>
     {% endif %}
 
     <h2>Recepción / control</h2>
@@ -46,6 +48,8 @@
         <tr><th>Fecha escaneado</th><td>{{ registro.anexo_coordinacion.fecha_escaneado.strftime('%d/%m/%Y') if registro.anexo_coordinacion.fecha_escaneado else 'Sin dato' }}</td></tr>
         <tr><th>Índice documental</th><td>{% if registro.anexo_coordinacion.documento_expediente %}<a href="{{ url_for('indice_documental.listado', expediente_id=registro.expediente_id) }}">Incorporado: {{ registro.anexo_coordinacion.documento_expediente.nombre_documento }}</a>{% elif registro.expediente_id %}<a href="{{ url_for('indice_documental.listado', expediente_id=registro.expediente_id, anexo_id=registro.anexo_coordinacion.id) }}">Pendiente de incorporar</a>{% else %}Pendiente de vincular SP{% endif %}</td></tr>
     {% elif registro.tipo == 'MONITOREO' and registro.reporte_monitoreo %}
+        <tr><th>Anexo del expediente</th><td>{% if registro.anexo_coordinacion %}<strong>Anexo {{ registro.anexo_coordinacion.numero_anexo }}</strong>{% else %}Registro histórico sin número de anexo{% endif %}</td></tr>
+        {% if registro.anexo_coordinacion and registro.anexo_coordinacion.titulo %}<tr><th>Título del anexo</th><td>{{ registro.anexo_coordinacion.titulo }}</td></tr>{% endif %}
         <tr><th>Tipo documento</th><td>{{ registro.reporte_monitoreo.tipo_documento or 'Sin dato' }}</td></tr>
         <tr><th>Reporte No.</th><td>{{ registro.reporte_monitoreo.numero_reporte or 'Sin dato' }}</td></tr>
         <tr><th>Evento</th><td>{{ registro.reporte_monitoreo.tipo_evento or 'Sin dato' }}</td></tr>
