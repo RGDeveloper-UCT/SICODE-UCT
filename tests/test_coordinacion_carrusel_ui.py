@@ -36,6 +36,30 @@ def test_inicio_coordinacion_no_bloquea_scroll_vertical_y_limita_altura_de_tarje
     assert ".acciones-tarjeta-registro" in css
 
 
+def test_botones_registro_quedan_activos_centrados_y_con_area_clicable_amplia():
+    css = SCROLL_FIX_CSS.read_text(encoding="utf-8")
+    javascript = SCROLL_FIX_JS.read_text(encoding="utf-8")
+
+    assert "justify-content: center;" in css
+    assert "pointer-events: auto !important;" in css
+    assert "min-height: 42px;" in css
+    assert "flex: 0 1 84%;" in css
+    assert 'querySelectorAll("a, button, input, select, textarea, label")' in javascript
+    assert 'control.addEventListener("pointerdown"' in javascript
+    assert "evento.stopPropagation();" in javascript
+
+
+def test_carrete_usa_animacion_quintica_para_flechas_teclado_y_gestos():
+    javascript = SCROLL_FIX_JS.read_text(encoding="utf-8")
+
+    assert "easeInOutQuint" in javascript
+    assert "moverSuaveA" in javascript
+    assert "requestAnimationFrame" in javascript
+    assert ".coord-carrete-boton" in javascript
+    assert "evento.stopImmediatePropagation();" in javascript
+    assert "destinoGestual" in javascript
+
+
 def test_rueda_vertical_se_reserva_para_la_pagina():
     javascript = SCROLL_FIX_JS.read_text(encoding="utf-8")
 

@@ -52,8 +52,72 @@ body.vista-coordinacion-inicio {
     margin-bottom: 10px;
 }
 
+/* Acciones: el arrastre del carrete no debe sentirse sobre los controles.
+   Se refuerza el área clicable y se centra el botón principal. */
 .vista-coordinacion-inicio .acciones-tarjeta-registro {
+    width: 100%;
     margin-top: auto;
+    padding: 2px 0 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    position: relative;
+    z-index: 6;
+}
+
+.vista-coordinacion-inicio .tarjeta-registro-coordinacion .boton-tarjeta-registro {
+    position: relative;
+    z-index: 7;
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+.vista-coordinacion-inicio .tarjeta-registro-coordinacion .boton-tarjeta-registro-principal {
+    flex: 0 1 84%;
+    min-width: min(84%, 250px);
+    min-height: 42px;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 13.2px;
+    line-height: 1.15;
+    text-align: center;
+    box-shadow: 0 4px 10px color-mix(in srgb, var(--registro-acento) 22%, transparent);
+}
+
+.vista-coordinacion-inicio .tarjeta-registro-coordinacion .boton-tarjeta-registro-principal:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 7px 16px color-mix(in srgb, var(--registro-acento) 28%, transparent);
+}
+
+.vista-coordinacion-inicio .tarjeta-registro-coordinacion .boton-tarjeta-registro-principal:active {
+    transform: translateY(0) scale(.985);
+}
+
+.vista-coordinacion-inicio .tarjeta-registro-coordinacion .boton-tarjeta-registro:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--registro-acento) 34%, #ffffff);
+    outline-offset: 2px;
+}
+
+/* Soporte TI contiene dos acciones; se mantienen centradas sin perder jerarquía. */
+.vista-coordinacion-inicio .tarjeta-registro-soporte .acciones-tarjeta-registro {
+    flex-wrap: nowrap;
+}
+
+.vista-coordinacion-inicio .tarjeta-registro-soporte .boton-tarjeta-registro-principal {
+    flex: 1 1 58%;
+    min-width: 0;
+}
+
+.vista-coordinacion-inicio .tarjeta-registro-soporte .boton-tarjeta-registro-secundario {
+    flex: 1 1 38%;
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
 }
 
 /* La actividad reciente conserva una altura útil, pero ya no obliga a que la
@@ -80,5 +144,22 @@ body.vista-coordinacion-inicio {
     .vista-coordinacion-inicio .grid-registros-coordinacion.coord-carrete-track {
         height: 265px !important;
         min-height: 265px !important;
+    }
+
+    .vista-coordinacion-inicio .tarjeta-registro-coordinacion .boton-tarjeta-registro-principal {
+        flex-basis: 92%;
+        min-width: 92%;
+        min-height: 44px;
+        font-size: 13.5px;
+    }
+
+    .vista-coordinacion-inicio .tarjeta-registro-soporte .acciones-tarjeta-registro {
+        flex-wrap: wrap;
+    }
+
+    .vista-coordinacion-inicio .tarjeta-registro-soporte .boton-tarjeta-registro-principal,
+    .vista-coordinacion-inicio .tarjeta-registro-soporte .boton-tarjeta-registro-secundario {
+        flex: 1 1 100%;
+        min-width: 100%;
     }
 }
