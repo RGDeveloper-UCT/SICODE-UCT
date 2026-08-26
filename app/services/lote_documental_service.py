@@ -167,8 +167,13 @@ def _sanitizar_campo(campo,valor):
 def _fusionar_datos_segmento(segmento,indice,ia_segmentos):
     texto="\n".join(p["texto"] for p in segmento["paginas"]);tipo=segmento["tipo"];datos,confianzas,advertencias=extraer_metadatos(texto,len(segmento["paginas"]),tipo_objetivo=tipo if tipo in TIPOS_OPERATIVOS else "AUTO")
     datos.update({"tipo_documento_lote":tipo,"pagina_inicio_pdf":segmento["paginas"][0]["pagina"],"pagina_fin_pdf":segmento["paginas"][-1]["pagina"],"numero_documento":_numero_documento_generico(texto,tipo)})
+    es_dpi=tipo=="DPI"
+    if es_dpi:
+        for campo in ("no_sp","rc","providencia","numero_documento"):
+            datos[campo]=None;confianzas.pop(campo,None)
     if tipo not in TIPOS_OPERATIVOS:datos["tipo_registro"]=None;datos["tipo_documento"]=tipo
     conf_tipo=sum(p["confianza_tipo"] for p in segmento["paginas"])/len(segmento["paginas"]);confianzas["tipo_documento_lote"]=conf_tipo;fuentes={"tipo_documento_lote":list(dict.fromkeys(p["fuente_tipo"] for p in segmento["paginas"]))};discrepancias=list(advertencias);ia=ia_segmentos.get(indice);ia_utilizada=bool(ia)
+    if es_dpi:discrepancias.append("DPI detectado: los datos personales no se persisten en los metadatos del lote.")
     if ia and tipo!="DPI":
         for campo,entrada in (ia.get("campos") or {}).items():
             if campo not in {"no_sp","rc","providencia","fecha_recepcion","folio_inicio","folio_fin","numero_anexo","titulo_anexo","tipo_anexo","boleta","total","numero_documento"} or not isinstance(entrada,dict):continue
