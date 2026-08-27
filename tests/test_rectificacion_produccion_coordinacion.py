@@ -3,6 +3,7 @@ from werkzeug.security import generate_password_hash
 
 from app import create_app, db
 from app.models.bitacora import Bitacora
+from app.models.coordinacion import RegistroCoordinacion
 from app.models.expediente import Expediente
 from app.models.usuario import Usuario
 
@@ -151,3 +152,47 @@ def test_rectificacion_produccion_exige_confirmacion_y_totales_validos(
         },
     )
     assert anexos_invalidos.status_code == 400
+
+
+def test_guard_de_produccion_bloquea_registro_hasta_rectificar(
+    app_rectificacion_produccion,
+    cliente_rectificacion_produccion,
+):
+    # Activa explícitamente el guard de producción para esta prueba sin tocar
+    # la base aislada de pytest ni el resto de la suite histórica.
+    app_rectificacion_produccion.config["TESTING"] = False
+    try:
+        bloqueado = cliente_rectificacion_produccion.post(
+            "/coordinacion/registrar/anexo",
+            data={"no_sp": "358", "tipo_referencia": "RC"},
+            follow_redirects=False,
+        )
+        assert bloqueado.status_code == 302
+        assert "/coordinacion/registrar/anexo" in bloqueado.headers["Location"]
+
+        with app_rectificacion_produccion.app_context():
+            assert RegistroCoordinacion.query.count() == 0
+
+        rectificacion = cliente_rectificacion_produccion.post(
+            "/coordinacion/rectificacion-produccion/guardar",
+            json={
+                "no_sp": "358",
+                "total_folios": 180,
+                "total_anexos": 3,
+                "confirmado": True,
+                "origen": "anexo",
+            },
+        )
+        assert rectificacion.status_code == 200
+
+        permitido = cliente_rectificacion_produccion.post(
+            "/coordinacion/registrar/anexo",
+            data={"no_sp": "358", "tipo_referencia": "RC"},
+            follow_redirects=False,
+        )
+        assert permitido.status_code == 302
+
+        with app_rectificacion_produccion.app_context():
+            assert RegistroCoordinacion.query.filter_by(tipo="ANEXO").count() == 1
+    finally:
+        app_rectificacion_produccion.config["TESTING"] = True
