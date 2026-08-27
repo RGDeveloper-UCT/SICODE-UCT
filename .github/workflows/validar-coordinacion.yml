@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - main
       - feature/coordinacion-operativa
       - feature/analisis-documental-pdf
       - feature/lote-documental-inteligente
@@ -69,6 +70,8 @@ jobs:
           assert '/coordinacion/registrar/<tipo>' in rutas
           assert '/coordinacion/importar' in rutas
           assert '/coordinacion/exportar' in rutas
+          assert '/coordinacion/rectificacion-produccion/estado' in rutas
+          assert '/coordinacion/rectificacion-produccion/guardar' in rutas
           assert '/coordinacion/analisis-documental/' in rutas
           assert '/coordinacion/analisis-documental/<int:analisis_id>' in rutas
           assert '/coordinacion/analisis-documental/<int:analisis_id>/confirmar' in rutas
@@ -96,4 +99,4 @@ jobs:
           PY
 
       - name: Probar Coordinacion y extractores documentales
-        run: pytest -q tests/test_coordinacion_carrusel_ui.py tests/test_analisis_documental_service.py tests/test_lote_documental_service.py
+        run: pytest -q tests/test_rectificacion_produccion_coordinacion.py tests/test_coordinacion_carrusel_ui.py tests/test_analisis_documental_service.py tests/test_lote_documental_service.py
