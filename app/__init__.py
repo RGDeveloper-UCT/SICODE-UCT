@@ -58,7 +58,7 @@ def create_app():
         auth_bp, dashboard_bp, expedientes_bp, expedientes_admin_bp, expediente_fisico_bp, verificaciones_bp,
         bitacora_bp, indice_documental_bp, alertas_bp, prestamos_bp, prestamos_grupales_bp, admin_bp,
         integridad_bp, busqueda_bp, cuenta_bp, coordinacion_bp, coordinacion_export_bp, portadores_bp, uo_bp,
-        codigos_barras_bp, rectificaciones_bp, soporte_tecnico_bp, soporte_tecnico_pdf_bp,
+        codigos_barras_bp, rectificaciones_bp, rectificacion_produccion_bp, soporte_tecnico_bp, soporte_tecnico_pdf_bp,
         analisis_documental_bp, lote_documental_bp, sicode_ia_bp, sicode_ia_jobs_bp, cerebro_sicode_bp, nexo_ia_bp,
         monitoreo_anexos_bp, instalar_registro_monitoreo,
     )
@@ -69,7 +69,7 @@ def create_app():
         auth_bp, dashboard_bp, expedientes_bp, expedientes_admin_bp, expediente_fisico_bp, verificaciones_bp,
         bitacora_bp, indice_documental_bp, alertas_bp, prestamos_bp, prestamos_grupales_bp, admin_bp,
         integridad_bp, busqueda_bp, cuenta_bp, coordinacion_bp, coordinacion_export_bp, portadores_bp, uo_bp,
-        codigos_barras_bp, rectificaciones_bp, soporte_tecnico_bp, soporte_tecnico_pdf_bp,
+        codigos_barras_bp, rectificaciones_bp, rectificacion_produccion_bp, soporte_tecnico_bp, soporte_tecnico_pdf_bp,
         analisis_documental_bp, lote_documental_bp, sicode_ia_bp, sicode_ia_jobs_bp, cerebro_sicode_bp, nexo_ia_bp,
         monitoreo_anexos_bp,
     ):
