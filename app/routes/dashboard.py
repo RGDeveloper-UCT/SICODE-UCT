@@ -13,7 +13,7 @@ from app.models.prestamo import PrestamoExpediente
 dashboard_bp = Blueprint("dashboard", __name__)
 
 
-@dashboard_bp.route("/dashboard")
+@dashboard_bp.route("/dashboard", strict_slashes=False)
 @login_required
 def inicio():
     total_sp = Expediente.query.count()

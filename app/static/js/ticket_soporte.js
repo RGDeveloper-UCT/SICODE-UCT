@@ -12,7 +12,7 @@
   const overlayText = document.querySelector('[data-ticket-soporte-inicio-texto]');
   const overlayClock = document.querySelector('[data-ticket-soporte-inicio-reloj]');
   const newTicketPath = '/coordinacion/soporte-tecnico/nuevo';
-  const dashboardPath = '/dashboard/';
+  const dashboardPath = '/dashboard';
 
   function readTicket() {
     try {
