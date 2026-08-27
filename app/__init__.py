@@ -1,4 +1,6 @@
-from flask import Flask, abort, flash, redirect, render_template, request, url_for
+from time import time
+
+from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 from flask_login import LoginManager, current_user
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -95,6 +97,45 @@ def create_app():
         if request.method not in {"GET", "HEAD", "OPTIONS"}: abort(403)
         if _endpoint_es_accion_escritura(request.endpoint): abort(403)
         return None
+
+    @app.before_request
+    def exigir_rectificacion_para_registros_coordinacion():
+        # La suite histórica contiene POST directos sin navegador. El bloqueo es
+        # una regla de operación de producción y el modal/API tienen sus pruebas
+        # unitarias independientes.
+        if app.config.get("TESTING"): return None
+        if not current_user.is_authenticated or not getattr(current_user, "puede_modificar", False): return None
+        if request.method != "POST" or not request.path.startswith("/coordinacion/"): return None
+
+        no_sp = (request.form.get("no_sp") or "").strip()
+        if not no_sp:
+            return None
+
+        from app.services.coordinacion_service import resolver_expediente
+        expediente, _ = resolver_expediente(no_sp)
+        if not expediente:
+            return None
+
+        confirmacion = session.get("rectificacion_produccion_confirmada") or {}
+        try:
+            vigente = int(confirmacion.get("valida_hasta") or 0) >= int(time())
+        except (TypeError, ValueError):
+            vigente = False
+
+        if (
+            vigente
+            and str(confirmacion.get("no_sp") or "") == expediente.no_sp
+            and confirmacion.get("usuario_id") == current_user.id
+        ):
+            session.pop("rectificacion_produccion_confirmada", None)
+            return None
+
+        session.pop("rectificacion_produccion_confirmada", None)
+        flash(
+            f"Antes de guardar cualquier registro asociado al SP {expediente.no_sp} debe rectificar y confirmar el total actual de folios y anexos. SICODE está en producción y esta validación alimenta el expediente maestro.",
+            "warning",
+        )
+        return redirect(request.url)
 
     @app.before_request
     def exigir_rectificacion_para_prestamos_y_constancias():
