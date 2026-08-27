@@ -1,6 +1,7 @@
 from datetime import datetime
+from time import time
 
-from flask import Blueprint, abort, jsonify, request
+from flask import Blueprint, abort, jsonify, request, session
 from flask_login import current_user, login_required
 
 from app import db
@@ -16,6 +17,8 @@ rectificacion_produccion_bp = Blueprint(
 )
 
 MAX_ANEXOS = 200
+VIGENCIA_CONFIRMACION_SEGUNDOS = 300
+CLAVE_CONFIRMACION_SESION = "rectificacion_produccion_confirmada"
 
 
 def _estado(expediente):
@@ -123,6 +126,14 @@ def guardar():
         commit=False,
     )
     db.session.commit()
+
+    # Habilita únicamente el siguiente POST de Coordinación para este mismo SP.
+    # El guard de aplicación consume esta confirmación una sola vez.
+    session[CLAVE_CONFIRMACION_SESION] = {
+        "no_sp": expediente.no_sp,
+        "usuario_id": current_user.id,
+        "valida_hasta": int(time()) + VIGENCIA_CONFIRMACION_SEGUNDOS,
+    }
 
     return jsonify({
         "ok": True,
