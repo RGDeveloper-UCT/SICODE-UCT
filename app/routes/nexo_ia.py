@@ -1,8 +1,9 @@
+import json
 from datetime import datetime
 from urllib import request as urlrequest
 from urllib.error import URLError
 
-from flask import Blueprint, abort, current_app, jsonify, render_template
+from flask import Blueprint, Response, abort, current_app, jsonify, render_template
 from flask_login import current_user, login_required
 from sqlalchemy import text
 
@@ -10,6 +11,7 @@ from app import db
 from app.services.cerebro_sicode_absorber import absorber_verificaciones_pendientes
 from app.services.cerebro_sicode_schema import inventariar_esquema_sicode
 from app.services.cerebro_sicode_service import analizar_sicode, guardar_hallazgos
+from app.services.nexo_export_service import construir_exportacion_nexo
 
 
 nexo_ia_bp = Blueprint("nexo_ia", __name__, url_prefix="/nexo")
@@ -26,6 +28,12 @@ ESQUEMA_VACIO = {
 
 def _exigir_acceso():
     if not current_user.puede_modificar:
+        abort(403)
+
+
+def _exigir_administrador():
+    _exigir_acceso()
+    if current_user.rol != "administrador":
         abort(403)
 
 
@@ -137,6 +145,29 @@ def _identidad():
 def inicio():
     _exigir_acceso()
     return render_template("nexo/inicio.html")
+
+
+@nexo_ia_bp.route("/exportar-aprendizaje")
+@login_required
+def exportar_aprendizaje():
+    """Descarga la memoria técnica portable de NEXO para revisión externa segura."""
+    _exigir_administrador()
+    try:
+        paquete = construir_exportacion_nexo(usuario_id=current_user.id)
+        contenido = json.dumps(paquete, ensure_ascii=False, indent=2).encode("utf-8")
+    except Exception as exc:  # pragma: no cover - depende de disponibilidad real de DB
+        _registrar_error_etapa("exportar_aprendizaje", exc)
+        abort(500)
+
+    marca = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    respuesta = Response(contenido, status=200, mimetype="application/json")
+    respuesta.headers["Content-Disposition"] = (
+        f'attachment; filename="SICODE_NEXO_APRENDIZAJE_{marca}.json"'
+    )
+    respuesta.headers["Cache-Control"] = "no-store, max-age=0"
+    respuesta.headers["Pragma"] = "no-cache"
+    respuesta.headers["X-Content-Type-Options"] = "nosniff"
+    return respuesta
 
 
 @nexo_ia_bp.route("/estado")
