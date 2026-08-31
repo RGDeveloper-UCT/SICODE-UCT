@@ -8,20 +8,23 @@
     </div>
 
     <div class="aviso"><strong>Regla institucional:</strong> registre únicamente metadatos, rangos de folios y observaciones. No cargue documentos sensibles ni copias completas.</div>
+    <div class="aviso">
+        <strong>Regla de foliación:</strong> la foliación general pertenece al cuerpo principal del expediente. <strong>Cada anexo tiene su propia foliación independiente</strong>, por lo que puede iniciar nuevamente en folio 1 y puede repetir números que ya existan en el expediente principal o en otro anexo.
+    </div>
 
     {% if anexos_pendientes %}
     <h2>Anexos recibidos pendientes de incorporar</h2>
-    <p>Estos registros ya existen en Coordinación. Use <strong>Incorporar</strong> para reutilizar la recepción y evitar volver a escribir el mismo anexo.</p>
+    <p>Estos registros ya existen en Coordinación. Use <strong>Incorporar</strong> para reutilizar la recepción y registrar la foliación propia de cada anexo.</p>
     <div class="tabla-contenedor">
         <table>
-            <thead><tr><th>Fecha</th><th>Anexo</th><th>Tipo</th><th>Folios recibidos</th><th>RC</th><th>Acción</th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Anexo</th><th>Tipo</th><th>Folios del anexo recibidos</th><th>RC</th><th>Acción</th></tr></thead>
             <tbody>
             {% for anexo in anexos_pendientes %}
                 <tr>
                     <td>{{ anexo.registro.fecha_recepcion.strftime('%d/%m/%Y') if anexo.registro.fecha_recepcion else 'Sin fecha' }}</td>
                     <td>{{ anexo.numero_anexo or 'Sin número' }}</td>
                     <td>{{ anexo.tipo_anexo or 'Sin tipo' }}</td>
-                    <td>{{ anexo.folios or 'Sin dato' }}</td>
+                    <td>{{ anexo.folios or anexo.registro.folios_recepcion or 'Sin dato' }}</td>
                     <td>{{ anexo.registro.rc or '—' }}</td>
                     <td><a class="boton-tabla" href="{{ url_for('indice_documental.listado', expediente_id=expediente.id, anexo_id=anexo.id) }}">Incorporar</a></td>
                 </tr>
@@ -32,7 +35,9 @@
     {% endif %}
 
     <h2>{% if form.anexo_coordinacion_id.data %}Incorporar anexo recibido{% else %}Agregar documento o anexo{% endif %}</h2>
-    {% if form.anexo_coordinacion_id.data %}<div class="aviso">El formulario está vinculado a una recepción de Coordinación. Al guardar, ambos registros quedarán relacionados.</div>{% endif %}
+    {% if form.anexo_coordinacion_id.data %}
+    <div class="aviso"><strong>Anexo seleccionado:</strong> los folios que registre a continuación pertenecen únicamente a este anexo. No se compararán contra la foliación general del expediente ni contra otros anexos.</div>
+    {% endif %}
     <form method="POST" class="formulario">
         {{ form.hidden_tag() }}
         <div class="grid-form">
@@ -42,30 +47,87 @@
             <div class="campo">{{ form.folio_fin.label }}{{ form.folio_fin(placeholder='Ej. 10') }}{% for e in form.folio_fin.errors %}<small class="error">{{ e }}</small>{% endfor %}</div>
             <div class="campo">{{ form.estado_revision.label }}{{ form.estado_revision() }}</div>
         </div>
+        <div id="ayuda-foliacion-contextual" class="aviso" style="margin-top: 10px;"></div>
         <div class="campo">{{ form.observaciones.label }}{{ form.observaciones(rows='3') }}</div>
         <div class="acciones">{{ form.submit(class_='boton') }}{% if form.anexo_coordinacion_id.data %}<a class="boton-cancelar" href="{{ url_for('indice_documental.listado', expediente_id=expediente.id) }}">Cancelar vínculo</a>{% endif %}</div>
     </form>
 
-    <h2>Documentos activos</h2>
-    <p class="contador-resultados">Registros: <strong>{{ documentos|length }}</strong> · Folios registrados: <strong>{{ total_folios }}</strong></p>
+    <h2>Expediente principal — foliación general</h2>
+    <p class="contador-resultados">Documentos: <strong>{{ documentos_principales|length }}</strong> · Folios registrados en el expediente principal: <strong>{{ total_folios }}</strong></p>
     <div class="tabla-contenedor">
         <table>
-            <thead><tr><th>Orden</th><th>Documento</th><th>Tipo</th><th>Folios</th><th>Total</th><th>Revisión</th><th>Origen</th><th>Acción</th></tr></thead>
+            <thead><tr><th>Orden</th><th>Documento</th><th>Tipo</th><th>Folios generales</th><th>Total</th><th>Revisión</th><th>Origen</th><th>Acción</th></tr></thead>
             <tbody>
-            {% for documento in documentos %}
+            {% for documento in documentos_principales %}
                 <tr>
-                    <td>{{ loop.index }}</td><td>{{ documento.nombre_documento }}</td><td>{{ documento.tipo_documento }}</td><td>{{ documento.folio_inicio }}–{{ documento.folio_fin }}</td><td>{{ documento.total_folios }}</td><td>{{ documento.estado_revision }}</td>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ documento.nombre_documento }}</td>
+                    <td>{{ documento.tipo_documento }}</td>
+                    <td>{{ documento.folio_inicio }}–{{ documento.folio_fin }}</td>
+                    <td>{{ documento.total_folios }}</td>
+                    <td>{{ documento.estado_revision }}</td>
                     <td>{% if documento.anexo_recepcion %}<a href="{{ url_for('coordinacion.detalle', registro_id=documento.anexo_recepcion.registro.id) }}">Coordinación</a>{% else %}Manual{% endif %}</td>
                     <td><form method="POST" action="{{ url_for('indice_documental.anular', expediente_id=expediente.id, documento_id=documento.id) }}" class="form-inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="boton-peligro" onclick="return confirm('¿Anular este registro? Se conservará para trazabilidad.');">Anular</button></form></td>
                 </tr>
-            {% else %}<tr><td colspan="8">No hay documentos registrados.</td></tr>{% endfor %}
+            {% else %}<tr><td colspan="8">No hay documentos registrados en la foliación general del expediente.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h2>Anexos — foliación independiente por anexo</h2>
+    <p class="contador-resultados">Anexos registrados: <strong>{{ anexos_documentales|length }}</strong>. Los rangos mostrados pertenecen a cada anexo y no forman un rango único entre sí.</p>
+    <div class="tabla-contenedor">
+        <table>
+            <thead><tr><th>Orden</th><th>Anexo</th><th>Documento / título</th><th>Folios del anexo</th><th>Total</th><th>Revisión</th><th>Origen</th><th>Acción</th></tr></thead>
+            <tbody>
+            {% for documento in anexos_documentales %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{% if documento.anexo_recepcion %}Anexo {{ documento.anexo_recepcion.numero_anexo or 's/n' }}{% else %}Anexo manual{% endif %}</td>
+                    <td>{{ documento.nombre_documento }}</td>
+                    <td>{{ documento.folio_inicio }}–{{ documento.folio_fin }}</td>
+                    <td>{{ documento.total_folios }}</td>
+                    <td>{{ documento.estado_revision }}</td>
+                    <td>{% if documento.anexo_recepcion %}<a href="{{ url_for('coordinacion.detalle', registro_id=documento.anexo_recepcion.registro.id) }}">Coordinación</a>{% else %}Manual{% endif %}</td>
+                    <td><form method="POST" action="{{ url_for('indice_documental.anular', expediente_id=expediente.id, documento_id=documento.id) }}" class="form-inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="boton-peligro" onclick="return confirm('¿Anular este anexo del índice? Se conservará para trazabilidad.');">Anular</button></form></td>
+                </tr>
+            {% else %}<tr><td colspan="8">No hay anexos incorporados al índice documental.</td></tr>{% endfor %}
             </tbody>
         </table>
     </div>
 
     {% if documentos_inactivos %}
     <h2>Registros anulados</h2>
-    <div class="tabla-contenedor"><table><thead><tr><th>Documento</th><th>Tipo</th><th>Folios</th><th>Estado</th></tr></thead><tbody>{% for documento in documentos_inactivos %}<tr><td>{{ documento.nombre_documento }}</td><td>{{ documento.tipo_documento }}</td><td>{{ documento.folio_inicio }}–{{ documento.folio_fin }}</td><td>{{ documento.estado_revision }}</td></tr>{% endfor %}</tbody></table></div>
+    <div class="tabla-contenedor"><table><thead><tr><th>Documento</th><th>Ámbito</th><th>Tipo</th><th>Folios</th><th>Estado</th></tr></thead><tbody>{% for documento in documentos_inactivos %}<tr><td>{{ documento.nombre_documento }}</td><td>{{ 'Anexo independiente' if documento.es_anexo else 'Expediente principal' }}</td><td>{{ documento.tipo_documento }}</td><td>{{ documento.folio_inicio }}–{{ documento.folio_fin }}</td><td>{{ documento.estado_revision }}</td></tr>{% endfor %}</tbody></table></div>
     {% endif %}
 </section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const tipo = document.getElementById('tipo_documento');
+    const folioInicio = document.getElementById('folio_inicio');
+    const folioFin = document.getElementById('folio_fin');
+    const ayuda = document.getElementById('ayuda-foliacion-contextual');
+
+    if (!tipo || !folioInicio || !folioFin || !ayuda) return;
+
+    const etiquetaInicio = document.querySelector('label[for="folio_inicio"]');
+    const etiquetaFin = document.querySelector('label[for="folio_fin"]');
+
+    function actualizarAmbitoFoliacion() {
+        const esAnexo = tipo.value === 'Anexo';
+        if (etiquetaInicio) etiquetaInicio.textContent = esAnexo ? 'Folio inicial del anexo' : 'Folio inicial del expediente';
+        if (etiquetaFin) etiquetaFin.textContent = esAnexo ? 'Folio final del anexo' : 'Folio final del expediente';
+
+        if (esAnexo) {
+            ayuda.innerHTML = '<strong>Foliación independiente:</strong> este rango pertenece solo a este anexo. Puede comenzar en 1 aunque el expediente principal u otro anexo ya tengan esos mismos números.';
+        } else {
+            ayuda.innerHTML = '<strong>Foliación general:</strong> este rango pertenece al cuerpo principal del expediente y no puede traslaparse con otro documento del expediente principal.';
+        }
+    }
+
+    tipo.addEventListener('change', actualizarAmbitoFoliacion);
+    actualizarAmbitoFoliacion();
+});
+</script>
 {% endblock %}
