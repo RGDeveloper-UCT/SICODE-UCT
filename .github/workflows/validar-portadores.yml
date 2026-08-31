@@ -38,6 +38,9 @@ jobs:
       - name: Aplicar migraciones en base temporal
         run: python -m flask --app run.py db upgrade
 
+      - name: Probar clasificación visual de estados
+        run: python -m pytest -q tests/test_expedientes_estados.py
+
       - name: Validar modelos, rutas y normalización de SP
         run: |
           python - <<'PY'
