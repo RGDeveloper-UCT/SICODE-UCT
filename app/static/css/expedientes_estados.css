@@ -1,14 +1,131 @@
+/* Vista panorámica exclusiva del maestro SP / Expedientes. */
+.vista-expedientes .contenedor {
+    max-width: none;
+    width: 100%;
+    margin: 18px auto;
+    padding: 0 20px;
+}
+
+.vista-expedientes .pie-sicode {
+    max-width: none;
+    margin: 8px 20px 18px;
+    padding: 0;
+}
+
+.panel-expedientes-maestro {
+    width: 100%;
+    max-width: none;
+    padding: 22px 24px 18px;
+}
+
+.panel-expedientes-maestro .encabezado-modulo {
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.panel-expedientes-maestro .encabezado-modulo p {
+    max-width: 760px;
+    margin-bottom: 0;
+}
+
+.vista-expedientes .filtros-expedientes {
+    grid-template-columns: minmax(300px, 2.1fr) minmax(145px, .8fr) minmax(165px, 1fr) minmax(180px, 1fr) auto;
+    gap: 12px;
+    padding: 14px;
+}
+
 .tabla-expedientes-estados-contenedor {
-    overflow-x: auto;
+    width: 100%;
+    max-height: calc(100vh - 330px);
+    overflow: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
 }
 
 .tabla-expedientes-estados {
-    min-width: 1180px;
+    width: 100%;
+    min-width: 1380px;
+    table-layout: auto;
+    font-size: 13px;
 }
 
 .tabla-expedientes-estados th,
 .tabla-expedientes-estados td {
+    padding: 9px 10px;
     vertical-align: middle;
+    line-height: 1.2;
+}
+
+.tabla-expedientes-estados thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #f8fafc;
+    white-space: nowrap;
+}
+
+.tabla-expedientes-estados th:nth-child(1),
+.tabla-expedientes-estados td:nth-child(1) {
+    min-width: 68px;
+    white-space: nowrap;
+}
+
+.tabla-expedientes-estados th:nth-child(2),
+.tabla-expedientes-estados td:nth-child(2) {
+    min-width: 185px;
+    max-width: 250px;
+}
+
+.tabla-expedientes-estados th:nth-child(3),
+.tabla-expedientes-estados td:nth-child(3) {
+    min-width: 105px;
+}
+
+.tabla-expedientes-estados th:nth-child(4),
+.tabla-expedientes-estados td:nth-child(4) {
+    min-width: 68px;
+}
+
+.tabla-expedientes-estados th:nth-child(5),
+.tabla-expedientes-estados td:nth-child(5) {
+    min-width: 105px;
+}
+
+.tabla-expedientes-estados th:nth-child(6),
+.tabla-expedientes-estados td:nth-child(6) {
+    min-width: 112px;
+    white-space: nowrap;
+}
+
+.tabla-expedientes-estados th:nth-child(7),
+.tabla-expedientes-estados td:nth-child(7) {
+    min-width: 150px;
+}
+
+.tabla-expedientes-estados th:nth-child(8),
+.tabla-expedientes-estados td:nth-child(8),
+.tabla-expedientes-estados th:nth-child(9),
+.tabla-expedientes-estados td:nth-child(9) {
+    min-width: 92px;
+    text-align: center;
+}
+
+.tabla-expedientes-estados th:nth-child(10),
+.tabla-expedientes-estados td:nth-child(10) {
+    min-width: 132px;
+    white-space: nowrap;
+}
+
+.tabla-expedientes-estados th:nth-child(11),
+.tabla-expedientes-estados td:nth-child(11) {
+    min-width: 185px;
+}
+
+.tabla-expedientes-estados td:nth-child(11) a,
+.tabla-expedientes-estados td:nth-child(11) form {
+    white-space: nowrap;
 }
 
 .celda-estado-compacta {
@@ -63,8 +180,44 @@
     color: #475569;
 }
 
-@media (max-width: 1000px) {
+@media (max-width: 1400px) {
+    .vista-expedientes .filtros-expedientes {
+        grid-template-columns: minmax(260px, 1.7fr) repeat(3, minmax(145px, 1fr));
+    }
+
+    .vista-expedientes .acciones-filtro {
+        grid-column: 1 / -1;
+        justify-content: flex-end;
+    }
+
     .tabla-expedientes-estados {
-        min-width: 1100px;
+        min-width: 1320px;
+    }
+}
+
+@media (max-width: 1000px) {
+    .vista-expedientes .contenedor {
+        padding: 0 12px;
+    }
+
+    .panel-expedientes-maestro {
+        padding: 18px 14px 14px;
+    }
+
+    .vista-expedientes .filtros-expedientes {
+        grid-template-columns: 1fr;
+    }
+
+    .vista-expedientes .acciones-filtro {
+        grid-column: auto;
+        justify-content: stretch;
+    }
+
+    .tabla-expedientes-estados-contenedor {
+        max-height: none;
+    }
+
+    .tabla-expedientes-estados {
+        min-width: 1260px;
     }
 }
