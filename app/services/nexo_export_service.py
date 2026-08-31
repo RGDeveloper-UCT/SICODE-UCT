@@ -1,6 +1,7 @@
 from collections import Counter
 from datetime import datetime
 
+from app import db
 from app.models.bitacora import Bitacora
 from app.models.lote_documental import AprendizajeDocumental, PatronAprendizajeDocumental
 from app.services.analisis_documental_service import TIPOS_ANEXO, TIPOS_EVENTO
@@ -15,11 +16,47 @@ from app.services.lote_documental_service import TIPOS_DOCUMENTO_LOTE
 
 
 FORMATO_EXPORTACION_NEXO = "SICODE-NEXO-APRENDIZAJE"
-VERSION_EXPORTACION_NEXO = 1
+VERSION_EXPORTACION_NEXO = 2
 
 
 def _iso(valor):
     return valor.isoformat(timespec="seconds") + "Z" if valor else None
+
+
+def _analisis_vacio():
+    return {
+        "aprendizaje": {
+            "nivel": 0,
+            "muestras": 0,
+            "precision": 0,
+            "tipos_aprendidos": 0,
+        },
+        "totales": {
+            "expedientes": 0,
+            "documentos_indice": 0,
+            "registros_coordinacion": 0,
+            "muestras_ia": 0,
+            "objetos_estudiados": 0,
+        },
+        "hallazgos": [],
+        "hallazgos_total": 0,
+        "estado": "degradado",
+        "analizado_en": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+    }
+
+
+def _ejecutar_seccion(nombre, funcion, fallback, errores):
+    """Aísla fallos para que una sección no invalide toda la exportación."""
+    try:
+        return funcion(), None
+    except Exception as exc:  # pragma: no cover - depende del motor/driver en producción
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        error = {"etapa": nombre, "tipo": exc.__class__.__name__}
+        errores.append(error)
+        return fallback, error
 
 
 def _perfiles_aprendidos():
@@ -123,27 +160,70 @@ def _historial_esquema():
 
 
 def construir_exportacion_nexo(usuario_id=None):
-    """Construye una memoria técnica portable de lo aprendido por NEXO.
+    """Construye una memoria técnica portable y resiliente de NEXO.
 
-    El paquete contiene métricas agregadas, patrones internos seguros, hallazgos e
-    inventarios técnicos. No exporta segmentos individuales, valores confirmados,
-    OCR, PDF, imágenes, datos personales, credenciales, IP ni user-agent.
+    Cada sección se exporta de forma independiente. Si una consulta falla, NEXO
+    conserva las demás secciones, hace rollback de la sesión y deja únicamente el
+    nombre de la etapa y el tipo de excepción en el diagnóstico. Nunca incluye el
+    mensaje SQL, rutas, credenciales ni datos documentales individuales.
     """
-    retroalimentaciones_nuevas = absorber_verificaciones_pendientes(usuario_id=usuario_id)
-    esquema_actual = inventariar_esquema_sicode(usuario_id=usuario_id)
-    analisis_actual = analizar_sicode()
-    hallazgos_guardados_nuevos = guardar_hallazgos(analisis_actual, usuario_id=usuario_id)
+    errores = []
 
-    perfiles = _perfiles_aprendidos()
-    patrones = _patrones_aprendidos()
-    hallazgos_historicos = _hallazgos_historicos()
-    historial_esquema = _historial_esquema()
-    eventos_aprendizaje = _resumen_eventos_aprendizaje()
+    retroalimentaciones_nuevas, _ = _ejecutar_seccion(
+        "aprendizaje_pendiente",
+        lambda: absorber_verificaciones_pendientes(usuario_id=usuario_id),
+        0,
+        errores,
+    )
+    esquema_actual, _ = _ejecutar_seccion(
+        "inventario_esquema",
+        lambda: inventariar_esquema_sicode(usuario_id=usuario_id),
+        {
+            "firma": None,
+            "tablas_total": 0,
+            "columnas_total": 0,
+            "cambio_detectado": False,
+            "primera_lectura": False,
+        },
+        errores,
+    )
+    analisis_actual, error_analisis = _ejecutar_seccion(
+        "analisis_sicode",
+        analizar_sicode,
+        _analisis_vacio(),
+        errores,
+    )
+
+    hallazgos_guardados_nuevos = 0
+    if error_analisis is None:
+        hallazgos_guardados_nuevos, _ = _ejecutar_seccion(
+            "guardar_hallazgos",
+            lambda: guardar_hallazgos(analisis_actual, usuario_id=usuario_id),
+            0,
+            errores,
+        )
+
+    perfiles, _ = _ejecutar_seccion("perfiles_aprendidos", _perfiles_aprendidos, [], errores)
+    patrones, _ = _ejecutar_seccion("patrones_aprendidos", _patrones_aprendidos, [], errores)
+    hallazgos_historicos, _ = _ejecutar_seccion(
+        "hallazgos_historicos", _hallazgos_historicos, [], errores
+    )
+    historial_esquema, _ = _ejecutar_seccion("historial_esquema", _historial_esquema, [], errores)
+    eventos_aprendizaje, _ = _ejecutar_seccion(
+        "eventos_aprendizaje",
+        _resumen_eventos_aprendizaje,
+        {"total": 0, "por_tipo_documental": {}},
+        errores,
+    )
+
+    degradado = bool(errores)
+    etapas_con_error = [item["etapa"] for item in errores]
 
     return {
         "formato": FORMATO_EXPORTACION_NEXO,
         "version_formato": VERSION_EXPORTACION_NEXO,
         "generado_en": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        "estado_exportacion": "parcial" if degradado else "completa",
         "proposito": (
             "Memoria técnica portable de SICODE NEXO para revisión humana, QA y planificación de mejoras."
         ),
@@ -152,12 +232,22 @@ def construir_exportacion_nexo(usuario_id=None):
             "contenido_excluido": [
                 "PDF e imágenes",
                 "texto OCR completo",
-                "datos_detectados o confirmados de segmentos individuales",
+                "datos detectados o confirmados de segmentos individuales",
                 "nombres, CUI, direcciones y otros datos personales de DPI",
                 "contenido individual de expedientes",
                 "credenciales, tokens o secretos",
                 "direcciones IP y user-agent",
             ],
+        },
+        "diagnostico_exportacion": {
+            "degradado": degradado,
+            "etapas_con_error": etapas_con_error,
+            "errores": errores,
+            "mensaje": (
+                "La exportación contiene información parcial; las etapas indicadas no estuvieron disponibles."
+                if degradado
+                else "Todas las secciones de la memoria NEXO se exportaron correctamente."
+            ),
         },
         "refresco_previo": {
             "retroalimentaciones_nuevas": int(retroalimentaciones_nuevas or 0),
@@ -183,6 +273,7 @@ def construir_exportacion_nexo(usuario_id=None):
             "patrones_clasificacion": len(patrones),
             "hallazgos_historicos": len(hallazgos_historicos),
             "inventarios_esquema": len(historial_esquema),
-            "eventos_aprendizaje": eventos_aprendizaje["total"],
+            "eventos_aprendizaje": int(eventos_aprendizaje.get("total") or 0),
+            "secciones_con_error": len(errores),
         },
     }
