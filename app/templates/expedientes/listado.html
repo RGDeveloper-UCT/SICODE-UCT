@@ -26,15 +26,37 @@
     {% endif %}
 
     <p class="contador-resultados">SP encontrados: <strong>{{ expedientes|length }}</strong></p>
-    <div class="tabla-contenedor">
-        <table>
-            <thead><tr><th>No. SP</th><th>Nombre</th><th>Expediente físico</th><th>Disponibilidad</th><th>Estado documental</th><th>Folios</th><th>Anexos</th><th>Código interno</th><th>Acción</th></tr></thead>
+    <div class="tabla-contenedor tabla-expedientes-estados-contenedor">
+        <table class="tabla-expedientes-estados">
+            <thead><tr><th>No. SP</th><th>Nombre</th><th>Estado SP</th><th>Pago</th><th>Expediente físico</th><th>Disponibilidad</th><th>Estado documental</th><th>Folios</th><th>Anexos</th><th>Código interno</th><th>Acción</th></tr></thead>
             <tbody>
             {% for expediente in expedientes %}
                 <tr>
                     <td><strong>{{ expediente.no_sp }}</strong></td>
                     <td>{{ expediente.nombre_referencia or 'Sin dato' }}</td>
-                    <td>{% if expediente.expediente_fisico_registrado %}<span class="badge badge-activo">Registrado</span>{% else %}<span class="badge badge-advertencia">Pendiente</span>{% endif %}</td>
+                    <td class="celda-estado-compacta">
+                        {% if expediente.estado_sp_clasificado == 'Activo' %}
+                            <span class="estado-indicador estado-indicador-verde" title="Estado del SP: Activo" aria-label="Estado del SP: Activo"><span aria-hidden="true">●</span> Activo</span>
+                        {% else %}
+                            <span class="estado-indicador estado-indicador-rojo" title="Estado del SP: Inactivo" aria-label="Estado del SP: Inactivo"><span aria-hidden="true">●</span> Inactivo</span>
+                        {% endif %}
+                    </td>
+                    <td class="celda-estado-compacta">
+                        {% if expediente.es_exonerado is sameas true %}
+                            <span class="estado-icono estado-icono-verde" title="Exonerado{% if expediente.financiamiento %}: {{ expediente.financiamiento }}{% endif %}" aria-label="Exonerado">$</span>
+                        {% elif expediente.es_exonerado is sameas false %}
+                            <span class="estado-icono estado-icono-rojo" title="No exonerado; el SP paga el dispositivo{% if expediente.financiamiento %}: {{ expediente.financiamiento }}{% endif %}" aria-label="No exonerado; pago del dispositivo por el SP">$</span>
+                        {% else %}
+                            <span class="estado-icono estado-icono-neutral" title="Financiamiento sin clasificar{% if expediente.financiamiento %}: {{ expediente.financiamiento }}{% endif %}" aria-label="Financiamiento sin clasificar">$</span>
+                        {% endif %}
+                    </td>
+                    <td class="celda-estado-compacta">
+                        {% if expediente.expediente_fisico_registrado %}
+                            <span class="estado-icono estado-icono-verde" title="Expediente físico registrado" aria-label="Expediente físico registrado"><span aria-hidden="true">📁</span></span>
+                        {% else %}
+                            <span class="estado-icono estado-icono-rojo" title="Sin expediente físico" aria-label="Sin expediente físico"><span aria-hidden="true">📁</span></span>
+                        {% endif %}
+                    </td>
                     <td>{{ expediente.disponibilidad }}</td>
                     <td>{{ expediente.estado_fisico_documental }}</td>
                     <td>{% if expediente.folios_rectificados is not none %}<strong>{{ expediente.folios_rectificados }}</strong>{% else %}<span class="badge badge-advertencia">Pendiente</span>{% endif %}</td>
@@ -58,7 +80,7 @@
                         {% endif %}
                     </td>
                 </tr>
-            {% else %}<tr><td colspan="9">No hay registros con los filtros seleccionados.</td></tr>{% endfor %}
+            {% else %}<tr><td colspan="11">No hay registros con los filtros seleccionados.</td></tr>{% endfor %}
             </tbody>
         </table>
     </div>
