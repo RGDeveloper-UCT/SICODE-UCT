@@ -174,7 +174,9 @@ def test_admin_descarga_memoria_nexo_json_segura(app_nexo_export, monkeypatch):
     assert "attachment; filename=\"SICODE_NEXO_APRENDIZAJE_" in respuesta.headers["Content-Disposition"]
     assert respuesta.headers["Cache-Control"].startswith("no-store")
     assert data["formato"] == "SICODE-NEXO-APRENDIZAJE"
-    assert data["version_formato"] == 1
+    assert data["version_formato"] == 2
+    assert data["estado_exportacion"] == "completa"
+    assert data["diagnostico_exportacion"]["degradado"] is False
     assert data["aprendizaje"]["perfiles_documentales"][0]["tipo_documento"] == "PROVIDENCIA"
     assert data["aprendizaje"]["patrones_clasificacion"][0]["caracteristica"] == "kw_providencia"
     assert data["aprendizaje"]["eventos_aprendizaje"]["total"] == 1
@@ -187,6 +189,46 @@ def test_admin_descarga_memoria_nexo_json_segura(app_nexo_export, monkeypatch):
     assert "ip_origen" not in claves
     assert "user_agent" not in claves
     assert "password_hash" not in claves
+
+
+def test_exportacion_nexo_parcial_no_devuelve_500_si_falla_analisis(app_nexo_export, monkeypatch):
+    _parches_exportacion(monkeypatch)
+
+    def fallar_analisis():
+        raise RuntimeError("fallo simulado que no debe salir al JSON")
+
+    monkeypatch.setattr("app.services.nexo_export_service.analizar_sicode", fallar_analisis)
+    cliente = app_nexo_export.test_client()
+    _login(cliente, "admin-export")
+
+    respuesta = cliente.get("/nexo/exportar-aprendizaje")
+    data = json.loads(respuesta.get_data(as_text=True))
+
+    assert respuesta.status_code == 200
+    assert data["estado_exportacion"] == "parcial"
+    assert data["diagnostico_exportacion"]["degradado"] is True
+    assert "analisis_sicode" in data["diagnostico_exportacion"]["etapas_con_error"]
+    assert data["hallazgos_historicos"][0]["firma"] == "hallazgo-test"
+    assert "fallo simulado" not in respuesta.get_data(as_text=True)
+
+
+def test_exportacion_nexo_genera_diagnostico_aun_si_falla_constructor(app_nexo_export, monkeypatch):
+    cliente = app_nexo_export.test_client()
+    _login(cliente, "admin-export")
+
+    def fallar_constructor(usuario_id=None):
+        raise RuntimeError("detalle interno reservado")
+
+    monkeypatch.setattr("app.routes.nexo_ia.construir_exportacion_nexo", fallar_constructor)
+
+    respuesta = cliente.get("/nexo/exportar-aprendizaje")
+    data = json.loads(respuesta.get_data(as_text=True))
+
+    assert respuesta.status_code == 200
+    assert data["estado_exportacion"] == "parcial"
+    assert data["diagnostico_exportacion"]["etapas_con_error"] == ["exportar_aprendizaje"]
+    assert data["diagnostico_exportacion"]["errores"][0]["tipo"] == "RuntimeError"
+    assert "detalle interno reservado" not in respuesta.get_data(as_text=True)
 
 
 def test_exportacion_nexo_restringida_a_administrador(app_nexo_export, monkeypatch):
