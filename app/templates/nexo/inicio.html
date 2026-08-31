@@ -28,7 +28,15 @@
 
   <div class="nexo-grid">
     <section class="nexo-card nexo-findings">
-      <div class="section-head"><div><span class="nexo-eyebrow dark">ANÁLISIS TRANSVERSAL</span><h2>Hallazgos y oportunidades</h2></div><button type="button" class="nexo-refresh" data-refresh>Volver a analizar</button></div>
+      <div class="section-head">
+        <div><span class="nexo-eyebrow dark">ANÁLISIS TRANSVERSAL</span><h2>Hallazgos y oportunidades</h2></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+          {% if current_user.rol == "administrador" %}
+          <a class="nexo-refresh" href="{{ url_for('nexo_ia.exportar_aprendizaje') }}" style="text-decoration:none" title="Genera un JSON técnico seguro para revisión externa">Exportar aprendizaje</a>
+          {% endif %}
+          <button type="button" class="nexo-refresh" data-refresh>Volver a analizar</button>
+        </div>
+      </div>
       <div class="finding-list" data-findings><div class="finding skeleton"><b>Analizando SICODE…</b><p>Comparando estructura, catálogos, correcciones humanas y comportamiento documental.</p></div></div>
     </section>
 
