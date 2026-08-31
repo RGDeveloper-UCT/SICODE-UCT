@@ -1,0 +1,70 @@
+.tabla-expedientes-estados-contenedor {
+    overflow-x: auto;
+}
+
+.tabla-expedientes-estados {
+    min-width: 1180px;
+}
+
+.tabla-expedientes-estados th,
+.tabla-expedientes-estados td {
+    vertical-align: middle;
+}
+
+.celda-estado-compacta {
+    text-align: center;
+    white-space: nowrap;
+}
+
+.estado-indicador {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 86px;
+    padding: 5px 9px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.estado-icono {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 30px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.estado-indicador-verde,
+.estado-icono-verde {
+    background: #dcfce7;
+    border-color: #86efac;
+    color: #166534;
+}
+
+.estado-indicador-rojo,
+.estado-icono-rojo {
+    background: #fee2e2;
+    border-color: #fca5a5;
+    color: #991b1b;
+}
+
+.estado-icono-neutral {
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+    color: #475569;
+}
+
+@media (max-width: 1000px) {
+    .tabla-expedientes-estados {
+        min-width: 1100px;
+    }
+}

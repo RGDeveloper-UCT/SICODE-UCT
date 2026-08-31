@@ -102,6 +102,50 @@ class Expediente(db.Model):
 
         return calcular_estado_documental(self)
 
+    @property
+    def estado_sp_clasificado(self):
+        """Reduce el estado operativo del Portador a Activo/Inactivo para la vista maestra."""
+        valor = " ".join(str(self.estado_portador or "").strip().casefold().split())
+
+        if any(marca in valor for marca in ("inactiv", "desinstal", "finaliz", "baja")):
+            return "Inactivo"
+        if "activ" in valor:
+            return "Activo"
+        if self.fecha_desinstalacion:
+            return "Inactivo"
+        return "Activo" if self.activo is not False else "Inactivo"
+
+    @property
+    def estado_exoneracion(self):
+        """Clasifica Financiamiento sin duplicar el dato que ya llega desde la manta de Portadores."""
+        valor = " ".join(str(self.financiamiento or "").strip().casefold().split())
+        if not valor:
+            return "Sin clasificar"
+
+        marcas_no_exonerado = (
+            "no exoner",
+            "sin exoner",
+            "pago propio",
+            "cuenta propia",
+            "autofinanc",
+            "pagado por el portador",
+            "paga el portador",
+        )
+        if any(marca in valor for marca in marcas_no_exonerado):
+            return "No exonerado"
+        if "exoner" in valor:
+            return "Exonerado"
+        return "Sin clasificar"
+
+    @property
+    def es_exonerado(self):
+        clasificacion = self.estado_exoneracion
+        if clasificacion == "Exonerado":
+            return True
+        if clasificacion == "No exonerado":
+            return False
+        return None
+
     @validates("no_sp")
     def _normalizar_no_sp(self, _clave, valor):
         import re
@@ -172,8 +216,7 @@ class Expediente(db.Model):
     def prestamos_vencidos(self):
         hoy = date.today()
         return [
-            prestamo
-            for prestamo in self.prestamos_activos
+            prestamo for prestamo in self.prestamos_activos
             if prestamo.fecha_estimada_devolucion and prestamo.fecha_estimada_devolucion < hoy
         ]
 
