@@ -1,5 +1,8 @@
+import re
+
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from sqlalchemy import or_
 
 from app import db
 from app.forms.indice_documental_form import IndiceDocumentalForm
@@ -33,6 +36,39 @@ def _anexo_pendiente(expediente_id, anexo_id):
     )
 
 
+def _rango_folios_recepcion(valor):
+    """Convierte el dato de recepción en una sugerencia para la foliación del anexo.
+
+    Si Coordinación registró un total simple (por ejemplo ``3``), el anexo se
+    propone como 1-3. Si registró un rango (por ejemplo ``325-330``), se
+    conserva ese rango. Valores libres o ambiguos no se fuerzan.
+    """
+    if valor is None:
+        return None, None
+
+    texto = str(valor).strip()
+    if not texto:
+        return None, None
+
+    if re.fullmatch(r"\d+", texto):
+        total = int(texto)
+        return (1, total) if total >= 1 else (None, None)
+
+    coincidencia = re.fullmatch(r"\s*(\d+)\s*[-–—]\s*(\d+)\s*", texto)
+    if coincidencia:
+        inicio = int(coincidencia.group(1))
+        fin = int(coincidencia.group(2))
+        if inicio >= 1 and fin >= inicio:
+            return inicio, fin
+
+    return None, None
+
+
+def _es_foliacion_principal(documento):
+    """Los registros históricos con es_anexo NULL pertenecen al cuerpo principal."""
+    return not bool(documento.es_anexo)
+
+
 @indice_documental_bp.route("/expedientes/<int:expediente_id>/indice-documental", methods=["GET", "POST"])
 @login_required
 def listado(expediente_id):
@@ -55,30 +91,46 @@ def listado(expediente_id):
             if anexo_preseleccionado.registro.observaciones:
                 form.observaciones.data = anexo_preseleccionado.registro.observaciones
 
+            folios_recepcion = anexo_preseleccionado.folios or anexo_preseleccionado.registro.folios_recepcion
+            folio_inicio_sugerido, folio_fin_sugerido = _rango_folios_recepcion(folios_recepcion)
+            if folio_inicio_sugerido is not None:
+                form.folio_inicio.data = folio_inicio_sugerido
+                form.folio_fin.data = folio_fin_sugerido
+
     if form.validate_on_submit():
         folio_inicio = form.folio_inicio.data
         folio_fin = form.folio_fin.data
+        es_anexo = form.tipo_documento.data == "Anexo"
 
         if folio_inicio > folio_fin:
             flash("El folio inicial no puede ser mayor que el folio final.", "danger")
             return redirect(url_for("indice_documental.listado", expediente_id=expediente.id))
 
-        traslape = (
-            DocumentoExpediente.query
-            .filter(
-                DocumentoExpediente.expediente_id == expediente.id,
-                DocumentoExpediente.activo.is_(True),
-                DocumentoExpediente.folio_inicio <= folio_fin,
-                DocumentoExpediente.folio_fin >= folio_inicio,
+        # Regla institucional de foliación:
+        # - el cuerpo principal del expediente comparte una foliación general;
+        # - cada anexo posee una foliación independiente.
+        # Por ello solo se buscan traslapes entre documentos del cuerpo principal.
+        if not es_anexo:
+            traslape = (
+                DocumentoExpediente.query
+                .filter(
+                    DocumentoExpediente.expediente_id == expediente.id,
+                    DocumentoExpediente.activo.is_(True),
+                    or_(
+                        DocumentoExpediente.es_anexo.is_(False),
+                        DocumentoExpediente.es_anexo.is_(None),
+                    ),
+                    DocumentoExpediente.folio_inicio <= folio_fin,
+                    DocumentoExpediente.folio_fin >= folio_inicio,
+                )
+                .first()
             )
-            .first()
-        )
-        if traslape:
-            flash(
-                f"El rango se traslapa con '{traslape.nombre_documento}', folios {traslape.folio_inicio}-{traslape.folio_fin}.",
-                "danger",
-            )
-            return redirect(url_for("indice_documental.listado", expediente_id=expediente.id))
+            if traslape:
+                flash(
+                    f"El rango se traslapa con '{traslape.nombre_documento}', folios {traslape.folio_inicio}-{traslape.folio_fin}, dentro de la foliación general del expediente.",
+                    "danger",
+                )
+                return redirect(url_for("indice_documental.listado", expediente_id=expediente.id))
 
         anexo = None
         if form.anexo_coordinacion_id.data:
@@ -86,7 +138,7 @@ def listado(expediente_id):
             if not anexo:
                 flash("El anexo de Coordinación ya fue incorporado o no pertenece a este expediente.", "danger")
                 return redirect(url_for("indice_documental.listado", expediente_id=expediente.id))
-            if form.tipo_documento.data != "Anexo":
+            if not es_anexo:
                 flash("Un registro proveniente de Anexos debe incorporarse al índice con tipo Anexo.", "danger")
                 return redirect(url_for("indice_documental.listado", expediente_id=expediente.id))
 
@@ -98,7 +150,7 @@ def listado(expediente_id):
             folio_fin=folio_fin,
             total_folios=folio_fin - folio_inicio + 1,
             estado_revision=form.estado_revision.data,
-            es_anexo=form.tipo_documento.data == "Anexo",
+            es_anexo=es_anexo,
             observaciones=form.observaciones.data,
             activo=True,
         )
@@ -108,12 +160,13 @@ def listado(expediente_id):
         if anexo:
             anexo.documento_expediente_id = documento.id
 
+        ambito_foliacion = "anexo independiente" if documento.es_anexo else "expediente principal"
         registrar_bitacora(
             accion="AGREGAR_INDICE_DOCUMENTAL",
             modulo="Índice documental",
             descripcion=(
                 f"Se agregó '{documento.nombre_documento}' al índice del SP {expediente.no_sp}, "
-                f"folios {documento.folio_inicio}-{documento.folio_fin}."
+                f"folios {documento.folio_inicio}-{documento.folio_fin} ({ambito_foliacion})."
             ),
             usuario_id=current_user.id,
             expediente_id=expediente.id,
@@ -124,6 +177,7 @@ def listado(expediente_id):
                 "tipo": documento.tipo_documento,
                 "folio_inicio": documento.folio_inicio,
                 "folio_fin": documento.folio_fin,
+                "ambito_foliacion": ambito_foliacion,
                 "anexo_coordinacion_id": anexo.id if anexo else None,
             },
             commit=False,
@@ -144,19 +198,22 @@ def listado(expediente_id):
                 usuario_id=current_user.id,
             )
 
-        flash("Documento agregado al índice correctamente.", "success")
+        if documento.es_anexo:
+            flash("Anexo agregado correctamente con foliación independiente.", "success")
+        else:
+            flash("Documento agregado a la foliación general del expediente correctamente.", "success")
         return redirect(url_for("indice_documental.listado", expediente_id=expediente.id))
 
     documentos = (
         DocumentoExpediente.query
         .filter_by(expediente_id=expediente.id, activo=True)
-        .order_by(DocumentoExpediente.folio_inicio.asc())
+        .order_by(DocumentoExpediente.folio_inicio.asc(), DocumentoExpediente.id.asc())
         .all()
     )
     documentos_inactivos = (
         DocumentoExpediente.query
         .filter_by(expediente_id=expediente.id, activo=False)
-        .order_by(DocumentoExpediente.folio_inicio.asc())
+        .order_by(DocumentoExpediente.folio_inicio.asc(), DocumentoExpediente.id.asc())
         .all()
     )
     anexos_pendientes = (
@@ -170,14 +227,19 @@ def listado(expediente_id):
         .all()
     )
 
+    documentos_principales = [documento for documento in documentos if _es_foliacion_principal(documento)]
+    anexos_documentales = [documento for documento in documentos if documento.es_anexo]
+
     return render_template(
         "indice_documental/listado.html",
         expediente=expediente,
         form=form,
         documentos=documentos,
+        documentos_principales=documentos_principales,
+        anexos_documentales=anexos_documentales,
         documentos_inactivos=documentos_inactivos,
         anexos_pendientes=anexos_pendientes,
-        total_folios=sum(documento.total_folios or 0 for documento in documentos),
+        total_folios=sum(documento.total_folios or 0 for documento in documentos_principales),
     )
 
 
