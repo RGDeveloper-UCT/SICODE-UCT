@@ -154,10 +154,39 @@ def exportar_aprendizaje():
     _exigir_administrador()
     try:
         paquete = construir_exportacion_nexo(usuario_id=current_user.id)
-        contenido = json.dumps(paquete, ensure_ascii=False, indent=2).encode("utf-8")
-    except Exception as exc:  # pragma: no cover - depende de disponibilidad real de DB
-        _registrar_error_etapa("exportar_aprendizaje", exc)
-        abort(500)
+    except Exception as exc:  # defensa final: nunca convertir la descarga en una pantalla 500
+        error = _registrar_error_etapa("exportar_aprendizaje", exc)
+        paquete = {
+            "formato": "SICODE-NEXO-APRENDIZAJE",
+            "version_formato": 2,
+            "generado_en": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            "estado_exportacion": "parcial",
+            "diagnostico_exportacion": {
+                "degradado": True,
+                "etapas_con_error": ["exportar_aprendizaje"],
+                "errores": [error],
+                "mensaje": (
+                    "NEXO no pudo construir la memoria completa, pero generó este diagnóstico seguro para revisión técnica."
+                ),
+            },
+            "privacidad": {
+                "solo_metadatos_tecnicos_y_agregados": True,
+                "contenido_excluido": [
+                    "PDF e imágenes",
+                    "texto OCR completo",
+                    "datos personales",
+                    "credenciales, tokens o secretos",
+                    "direcciones IP y user-agent",
+                ],
+            },
+        }
+
+    contenido = json.dumps(
+        paquete,
+        ensure_ascii=False,
+        indent=2,
+        default=str,
+    ).encode("utf-8")
 
     marca = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     respuesta = Response(contenido, status=200, mimetype="application/json")
