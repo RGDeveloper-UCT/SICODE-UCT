@@ -34,6 +34,9 @@ jobs:
       - name: Compilar Python
         run: python -m compileall -q app migrations
 
+      - name: Validar cadena de migraciones
+        run: python -m flask --app run.py db heads
+
       - name: Validar scripts de despliegue
         run: bash -n scripts/configurar_runtime_analisis_documental.sh
 
