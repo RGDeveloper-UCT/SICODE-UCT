@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Registrar pago — SICODE-UCT{% endblock %}
+{% block body_class %}vista-pagos{% endblock %}
+{% block content %}
+<section class="panel panel-ancho pagos-modulo">
+    <div class="encabezado-modulo pagos-encabezado">
+        <div>
+            <h1>Registrar pago de SP</h1>
+            <p>El registro queda vinculado al expediente maestro y su fecha, hora y usuario se toman automáticamente de SICODE.</p>
+        </div>
+        <a class="boton-cancelar" href="{{ url_for('pagos.inicio') }}">Volver</a>
+    </div>
+
+    {% include "pagos/_nav.html" %}
+
+    <div class="pagos-registro-layout">
+        <section class="pagos-formulario-panel">
+            <div class="pagos-sello-tiempo" aria-label="Fecha y hora automática del registro">
+                <span>Fecha y hora del sistema</span>
+                <strong>{{ ahora_gt.strftime('%d/%m/%Y · %H:%M:%S') }}</strong>
+                <small>Se guardará automáticamente al confirmar. Este dato no puede editarse.</small>
+            </div>
+
+            <form method="POST" class="pagos-formulario" novalidate>
+                {{ form.hidden_tag() }}
+
+                <div class="pagos-form-grid">
+                    <div class="campo campo-ancho-medio">
+                        {{ form.no_sp.label }}
+                        {{ form.no_sp(list='registro-pago-sps', autocomplete='off', placeholder='Ej. 459') }}
+                        {% for error in form.no_sp.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                    </div>
+                    <div class="campo campo-ancho-medio">
+                        {{ form.providencia.label }}
+                        {{ form.providencia(autocomplete='off', placeholder='Número de providencia') }}
+                        {% for error in form.providencia.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                    </div>
+
+                    <div class="campo campo-referencia-tipo">
+                        {{ form.tipo_referencia.label }}
+                        {{ form.tipo_referencia() }}
+                        {% for error in form.tipo_referencia.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                    </div>
+                    <div class="campo campo-referencia-numero">
+                        {{ form.numero_referencia.label }}
+                        {{ form.numero_referencia(autocomplete='off', placeholder='Número sin prefijo') }}
+                        {% for error in form.numero_referencia.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                    </div>
+
+                    <div class="campo">
+                        {{ form.monto.label }}
+                        {{ form.monto(step='0.01', min='0.01', inputmode='decimal', placeholder='0.00') }}
+                        {% for error in form.monto.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                    </div>
+                    <div class="campo">
+                        {{ form.boleta.label }}
+                        {{ form.boleta(autocomplete='off', placeholder='Número de boleta') }}
+                        {% for error in form.boleta.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                    </div>
+                    <div class="campo campo-ancho-medio">
+                        {{ form.banco.label }}
+                        {{ form.banco(list='registro-pago-bancos', autocomplete='off', placeholder='Seleccione o escriba el banco') }}
+                        {% for error in form.banco.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                    </div>
+
+                    <div class="campo">
+                        {{ form.periodo_desde.label }}
+                        {{ form.periodo_desde() }}
+                        {% for error in form.periodo_desde.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                    </div>
+                    <div class="campo">
+                        {{ form.periodo_hasta.label }}
+                        {{ form.periodo_hasta() }}
+                        {% for error in form.periodo_hasta.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                    </div>
+                    <div class="campo campo-ancho-completo">
+                        {{ form.observaciones.label }}
+                        {{ form.observaciones(rows='3', placeholder='Observaciones opcionales del pago') }}
+                        {% for error in form.observaciones.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                    </div>
+                </div>
+
+                <datalist id="registro-pago-sps">{% for expediente in sps %}<option value="{{ expediente.no_sp }}">{{ expediente.nombre_referencia or '' }}</option>{% endfor %}</datalist>
+                <datalist id="registro-pago-bancos">{% for banco in bancos %}<option value="{{ banco }}"></option>{% endfor %}</datalist>
+
+                <div class="pagos-confirmacion">
+                    <p><strong>Control de integridad:</strong> la fecha, hora y usuario que registra no se solicitan al operador; SICODE los incorpora directamente en el momento de guardar.</p>
+                    {{ form.submit(class_='boton-exito') }}
+                </div>
+            </form>
+        </section>
+
+        <aside class="pagos-ayuda-registro">
+            <h2>Qué quedará vinculado al SP</h2>
+            <ul>
+                <li>Providencia y referencia RC o RE.</li>
+                <li>Monto, banco y número de boleta.</li>
+                <li>Período exacto cubierto por el pago.</li>
+                <li>Fecha y hora automática de registro.</li>
+                <li>Usuario responsable dentro de la bitácora institucional.</li>
+            </ul>
+            <div class="pagos-ayuda-solvencia">
+                <strong>Solvencia automática</strong>
+                <p>El indicador cambia a verde cuando el período pagado cubre la fecha actual. Los SP exonerados se consideran solventes sin exigir pago.</p>
+            </div>
+        </aside>
+    </div>
+</section>
+{% endblock %}
