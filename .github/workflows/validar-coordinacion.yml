@@ -63,6 +63,7 @@ jobs:
                   'segmentos_documentales',
                   'aprendizaje_documental',
                   'patrones_aprendizaje_documental',
+                  'accesos_cct',
               }
               faltantes = esperadas - tablas
               assert not faltantes, f'Tablas faltantes: {sorted(faltantes)}'
@@ -88,6 +89,8 @@ jobs:
           assert '/pagos/registrar' in rutas
           assert '/pagos/historico' in rutas
           assert '/pagos/sp/<int:expediente_id>' in rutas
+          assert '/ca-cct/' in rutas
+          assert '/ca-cct/<int:acceso_id>/pdf' in rutas
 
           plantillas = [
               'coordinacion/inicio.html',
@@ -102,12 +105,13 @@ jobs:
               'pagos/dashboard.html',
               'pagos/registrar.html',
               'pagos/historico.html',
+              'control_accesos/inicio.html',
           ]
           for nombre in plantillas:
               app.jinja_env.get_template(nombre)
 
-          print('Validacion de Coordinacion y Pagos completada correctamente.')
+          print('Validacion de Coordinacion, Pagos y C.A CCT completada correctamente.')
           PY
 
-      - name: Probar Coordinacion, Pagos y extractores documentales
-        run: pytest -q tests/test_rectificacion_produccion_coordinacion.py tests/test_coordinacion_carrusel_ui.py tests/test_pagos_service.py tests/test_analisis_documental_service.py tests/test_lote_documental_service.py
+      - name: Probar Coordinacion, Pagos, C.A CCT y extractores documentales
+        run: pytest -q tests/test_rectificacion_produccion_coordinacion.py tests/test_coordinacion_carrusel_ui.py tests/test_pagos_service.py tests/test_control_accesos_cct.py tests/test_analisis_documental_service.py tests/test_lote_documental_service.py
