@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}C.A CCT — SICODE-UCT{% endblock %}
+{% block body_class %}vista-ca-cct{% endblock %}
+{% block content %}
+<section class="panel panel-ancho ca-cct-modulo">
+    <div class="ca-cct-encabezado">
+        <div>
+            <span class="ca-cct-sigla">C.A CCT</span>
+            <h1>Control de Accesos al Centro de Control Telemático</h1>
+            <p>Registro de entradas, correlativo único y generación inmediata de boleta tamaño carta para firma física de entrada y salida.</p>
+        </div>
+        <div class="ca-cct-kpis" aria-label="Indicadores de accesos">
+            <article><span>Entradas hoy</span><strong>{{ total_hoy }}</strong></article>
+            <article><span>Histórico</span><strong>{{ total }}</strong></article>
+        </div>
+    </div>
+
+    <div class="ca-cct-layout">
+        <section class="ca-cct-formulario">
+            <div class="ca-cct-seccion-titulo">
+                <div><span>Nuevo registro</span><h2>Generar boleta de entrada</h2></div>
+                <span class="ca-cct-paso">PDF automático</span>
+            </div>
+
+            {% if errores %}
+            <div class="ca-cct-errores" role="alert">
+                <strong>Revise los datos:</strong>
+                <ul>{% for error in errores %}<li>{{ error }}</li>{% endfor %}</ul>
+            </div>
+            {% endif %}
+
+            {% if current_user.puede_modificar %}
+            <form method="POST" action="{{ url_for('control_accesos.inicio') }}" class="ca-cct-form" autocomplete="off">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <label for="ca-nombre">Nombre completo</label>
+                <input id="ca-nombre" name="nombre" maxlength="180" required value="{{ form_data.get('nombre', '') }}" placeholder="Nombre y apellidos de la persona">
+
+                <label for="ca-cui">CUI</label>
+                <input id="ca-cui" name="cui" inputmode="numeric" maxlength="17" required value="{{ form_data.get('cui', '') }}" placeholder="13 dígitos" aria-describedby="ca-cui-ayuda">
+                <small id="ca-cui-ayuda">Puede escribirlo con espacios; SICODE guardará únicamente los 13 dígitos.</small>
+
+                <label for="ca-motivo">Motivo de ingreso</label>
+                <select id="ca-motivo" name="motivo" required data-ca-motivo>
+                    <option value="">Seleccione un motivo</option>
+                    {% for codigo, etiqueta in motivos %}<option value="{{ codigo }}" {% if form_data.get('motivo') == codigo %}selected{% endif %}>{{ etiqueta }}</option>{% endfor %}
+                </select>
+
+                <div class="ca-cct-otro" data-ca-otro {% if form_data.get('motivo') != 'OTRO' %}hidden{% endif %}>
+                    <label for="ca-motivo-otro">Especifique el motivo</label>
+                    <textarea id="ca-motivo-otro" name="motivo_otro" maxlength="240" rows="3" placeholder="Describa brevemente la razón del ingreso">{{ form_data.get('motivo_otro', '') }}</textarea>
+                </div>
+
+                <div class="ca-cct-auto">
+                    <strong>Fecha y hora</strong>
+                    <span>Se tomarán automáticamente al registrar la entrada.</span>
+                </div>
+
+                <button type="submit" class="boton-exito ca-cct-submit">Registrar y generar boleta PDF</button>
+                <p class="ca-cct-nota">El registro digital queda guardado en SICODE. El PDF se abre inmediatamente para imprimir; la hora y firma de salida se completan con lapicero.</p>
+            </form>
+            {% else %}
+            <div class="ca-cct-solo-lectura"><strong>Modo consulta.</strong><p>Este usuario puede revisar el histórico y abrir boletas existentes, pero no registrar nuevas entradas.</p></div>
+            {% endif %}
+        </section>
+
+        <section class="ca-cct-historico">
+            <div class="ca-cct-seccion-titulo">
+                <div><span>Registro virtual</span><h2>Entradas al CCT</h2></div>
+                <span class="ca-cct-paso">{{ paginacion.total }} registro{% if paginacion.total != 1 %}s{% endif %}</span>
+            </div>
+
+            <form method="GET" class="ca-cct-filtros">
+                <input name="q" value="{{ q }}" placeholder="Buscar por CCT, nombre o CUI">
+                <select name="motivo">
+                    <option value="">Todos los motivos</option>
+                    {% for codigo, etiqueta in motivos %}<option value="{{ codigo }}" {% if motivo_filtro == codigo %}selected{% endif %}>{{ etiqueta }}</option>{% endfor %}
+                </select>
+                <button type="submit">Buscar</button>
+                {% if q or motivo_filtro %}<a href="{{ url_for('control_accesos.inicio') }}">Limpiar</a>{% endif %}
+            </form>
+
+            <div class="tabla-contenedor ca-cct-tabla-wrap">
+                <table class="ca-cct-tabla">
+                    <thead><tr><th>Correlativo</th><th>Fecha</th><th>Hora</th><th>Persona</th><th>CUI</th><th>Motivo</th><th>Registró</th><th>Boleta</th></tr></thead>
+                    <tbody>
+                    {% for acceso in accesos %}
+                    <tr>
+                        <td><strong>{{ acceso.correlativo }}</strong></td>
+                        <td>{{ acceso.fecha_hora_entrada.strftime('%d/%m/%Y') }}</td>
+                        <td>{{ acceso.fecha_hora_entrada.strftime('%H:%M:%S') }}</td>
+                        <td>{{ acceso.nombre }}</td>
+                        <td>{{ acceso.cui_formateado }}</td>
+                        <td>{{ acceso.motivo_legible }}</td>
+                        <td>{{ acceso.creado_por.nombre if acceso.creado_por else '—' }}</td>
+                        <td><a class="ca-cct-pdf" href="{{ url_for('control_accesos.pdf', acceso_id=acceso.id) }}" target="_blank" rel="noopener">PDF</a></td>
+                    </tr>
+                    {% else %}<tr><td colspan="8" class="ca-cct-vacio">No hay registros de acceso con los filtros seleccionados.</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if paginacion.pages > 1 %}
+            <nav class="ca-cct-paginacion" aria-label="Paginación de accesos">
+                {% if paginacion.has_prev %}<a href="{{ url_for('control_accesos.inicio', page=paginacion.prev_num, q=q, motivo=motivo_filtro) }}">Anterior</a>{% endif %}
+                <span>Página {{ paginacion.page }} de {{ paginacion.pages }}</span>
+                {% if paginacion.has_next %}<a href="{{ url_for('control_accesos.inicio', page=paginacion.next_num, q=q, motivo=motivo_filtro) }}">Siguiente</a>{% endif %}
+            </nav>
+            {% endif %}
+        </section>
+    </div>
+</section>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script>
+(() => {
+    const motivo = document.querySelector('[data-ca-motivo]');
+    const otro = document.querySelector('[data-ca-otro]');
+    if (!motivo || !otro) return;
+    const sincronizar = () => {
+        const visible = motivo.value === 'OTRO';
+        otro.hidden = !visible;
+        const campo = otro.querySelector('textarea');
+        if (campo) campo.required = visible;
+    };
+    motivo.addEventListener('change', sincronizar);
+    sincronizar();
+})();
+</script>
+{% endblock %}
