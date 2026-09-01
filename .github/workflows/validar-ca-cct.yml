@@ -1,0 +1,93 @@
+name: Validar C.A CCT
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'app/models/control_acceso.py'
+      - 'app/routes/control_accesos.py'
+      - 'app/templates/control_accesos/**'
+      - 'app/static/css/control_accesos.css'
+      - 'app/__init__.py'
+      - 'app/models/__init__.py'
+      - 'app/routes/__init__.py'
+      - 'app/templates/base.html'
+      - 'migrations/versions/v3k7f0g5h396_control_accesos_cct.py'
+      - 'tests/test_control_accesos_cct.py'
+      - '.github/workflows/validar-ca-cct.yml'
+
+jobs:
+  validar-ca-cct:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: sicode_ci
+          POSTGRES_PASSWORD: sicode_ci_password
+          POSTGRES_DB: sicode_ca_cct_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sicode_ci -d sicode_ca_cct_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      SECRET_KEY: ci-ca-cct-segura
+      PYTHONPATH: .
+      PGPASSWORD: sicode_ci_password
+
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Crear base exclusiva para migraciones
+        run: createdb -h localhost -U sicode_ci sicode_ca_cct_migration
+
+      - name: Compilar módulo y migración
+        run: python -m compileall -q app/models/control_acceso.py app/routes/control_accesos.py migrations/versions/v3k7f0g5h396_control_accesos_cct.py tests/test_control_accesos_cct.py
+
+      - name: Probar C.A CCT contra PostgreSQL
+        env:
+          DATABASE_URL: postgresql://sicode_ci:sicode_ci_password@localhost:5432/sicode_ca_cct_test
+        run: pytest -q tests/test_control_accesos_cct.py
+
+      - name: Aplicar cadena completa de migraciones
+        env:
+          DATABASE_URL: postgresql://sicode_ci:sicode_ci_password@localhost:5432/sicode_ca_cct_migration
+        run: |
+          python -m flask --app run.py db heads
+          python -m flask --app run.py db upgrade
+          python -m flask --app run.py db current
+
+      - name: Verificar tabla C.A CCT en PostgreSQL
+        env:
+          DATABASE_URL: postgresql://sicode_ci:sicode_ci_password@localhost:5432/sicode_ca_cct_migration
+        run: |
+          python - <<'PY'
+          from sqlalchemy import create_engine, inspect
+          import os
+
+          engine = create_engine(os.environ['DATABASE_URL'])
+          inspector = inspect(engine)
+          assert 'accesos_cct' in inspector.get_table_names()
+          columnas = {item['name'] for item in inspector.get_columns('accesos_cct')}
+          esperadas = {
+              'id', 'nombre', 'cui', 'motivo', 'motivo_otro',
+              'fecha_hora_entrada', 'usuario_id', 'creado_en'
+          }
+          assert esperadas <= columnas, f'Columnas faltantes: {sorted(esperadas - columnas)}'
+          print('C.A CCT validado correctamente en PostgreSQL.')
+          PY
