@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Pagos — SICODE-UCT{% endblock %}
+{% block body_class %}vista-pagos{% endblock %}
+{% block content %}
+<section class="panel panel-ancho pagos-modulo">
+    <div class="encabezado-modulo pagos-encabezado">
+        <div>
+            <h1>Pagos de SP</h1>
+            <p>Control de pagos, cobertura y solvencia vinculados al expediente maestro de cada sujeto portador.</p>
+        </div>
+        {% if current_user.puede_modificar %}<a class="boton-exito" href="{{ url_for('pagos.registrar') }}">Registrar pago</a>{% endif %}
+    </div>
+
+    {% include "pagos/_nav.html" %}
+
+    <form method="GET" class="pagos-filtros pagos-filtros-dashboard">
+        <div class="campo-filtro campo-filtro-grande"><label>Buscar</label><input name="q" value="{{ filtros.q }}" placeholder="SP, providencia, RC/RE, boleta o banco"></div>
+        <div class="campo-filtro"><label>SP</label><input name="no_sp" value="{{ filtros.no_sp }}" list="pagos-sps" placeholder="Todos"></div>
+        <div class="campo-filtro"><label>Banco</label><select name="banco"><option value="">Todos</option>{% for banco in bancos %}<option value="{{ banco }}" {% if filtros.banco == banco %}selected{% endif %}>{{ banco }}</option>{% endfor %}</select></div>
+        <div class="campo-filtro"><label>Referencia</label><select name="tipo_referencia"><option value="">RC y RE</option><option value="RC" {% if filtros.tipo_referencia == 'RC' %}selected{% endif %}>RC</option><option value="RE" {% if filtros.tipo_referencia == 'RE' %}selected{% endif %}>RE</option></select></div>
+        <div class="campo-filtro"><label>Registro desde</label><input type="date" name="fecha_desde" value="{{ filtros.fecha_desde }}"></div>
+        <div class="campo-filtro"><label>Registro hasta</label><input type="date" name="fecha_hasta" value="{{ filtros.fecha_hasta }}"></div>
+        <div class="acciones-filtro"><button type="submit">Aplicar filtros</button><a href="{{ url_for('pagos.inicio') }}">Limpiar</a></div>
+        <datalist id="pagos-sps">{% for expediente in sps %}<option value="{{ expediente.no_sp }}">{{ expediente.nombre_referencia or '' }}</option>{% endfor %}</datalist>
+    </form>
+
+    <div class="pagos-kpis" aria-label="Indicadores de pagos">
+        <article class="pagos-kpi"><span>Pagos registrados</span><strong>{{ total_pagos }}</strong><small>con los filtros actuales</small></article>
+        <article class="pagos-kpi"><span>Monto total</span><strong>Q {{ "{:,.2f}".format(total_monto) }}</strong><small>pagos filtrados</small></article>
+        <article class="pagos-kpi"><span>SP con pagos</span><strong>{{ sp_unicos }}</strong><small>expedientes distintos</small></article>
+        <article class="pagos-kpi"><span>Pago promedio</span><strong>Q {{ "{:,.2f}".format(promedio) }}</strong><small>por registro</small></article>
+        <article class="pagos-kpi pagos-kpi-solvente"><span>Solventes hoy</span><strong>{{ solvencia.solventes }}</strong><small>SP activos, incluye exonerados</small></article>
+        <article class="pagos-kpi pagos-kpi-no-solvente"><span>No solventes hoy</span><strong>{{ solvencia.no_solventes }}</strong><small>SP activos sin cobertura vigente</small></article>
+    </div>
+
+    <div class="pagos-dashboard-grid">
+        <section class="pagos-visual">
+            <div class="pagos-visual-titulo"><div><h2>Monto por banco</h2><p>Distribución de los registros filtrados.</p></div><span>{{ bancos_grafica|length }} bancos</span></div>
+            <div class="pagos-barras">
+                {% for item in bancos_grafica %}
+                <div class="pagos-barra-fila">
+                    <div class="pagos-barra-etiqueta"><strong>{{ item.nombre }}</strong><span>{{ item.cantidad }} pago{% if item.cantidad != 1 %}s{% endif %} · Q {{ "{:,.2f}".format(item.monto) }}</span></div>
+                    <div class="pagos-barra-pista"><span style="width: {{ '%.2f'|format(item.porcentaje) }}%"></span></div>
+                </div>
+                {% else %}<p class="pagos-vacio">No hay pagos para graficar con estos filtros.</p>{% endfor %}
+            </div>
+        </section>
+
+        <section class="pagos-visual">
+            <div class="pagos-visual-titulo"><div><h2>Evolución mensual</h2><p>Monto registrado por mes.</p></div><span>Últimos 12 meses con datos</span></div>
+            <div class="pagos-barras">
+                {% for item in meses_grafica %}
+                <div class="pagos-barra-fila">
+                    <div class="pagos-barra-etiqueta"><strong>{{ item.nombre }}</strong><span>{{ item.cantidad }} pago{% if item.cantidad != 1 %}s{% endif %} · Q {{ "{:,.2f}".format(item.monto) }}</span></div>
+                    <div class="pagos-barra-pista"><span style="width: {{ '%.2f'|format(item.porcentaje) }}%"></span></div>
+                </div>
+                {% else %}<p class="pagos-vacio">No hay pagos para graficar con estos filtros.</p>{% endfor %}
+            </div>
+        </section>
+    </div>
+
+    <section class="pagos-recientes">
+        <div class="pagos-seccion-titulo"><div><h2>Pagos recientes</h2><p>Últimos registros dentro del conjunto filtrado.</p></div><a href="{{ url_for('pagos.historico') }}">Abrir histórico completo</a></div>
+        <div class="tabla-contenedor">
+            <table class="tabla-pagos">
+                <thead><tr><th>Fecha y hora</th><th>SP</th><th>RC / RE</th><th>Providencia</th><th>Banco</th><th>Boleta</th><th>Período pagado</th><th>Monto</th><th>Acción</th></tr></thead>
+                <tbody>
+                {% for pago in recientes %}
+                    <tr>
+                        <td>{{ pago.registro.creado_en.strftime('%d/%m/%Y %H:%M:%S') if pago.registro.creado_en else 'Sin dato' }}</td>
+                        <td><strong>{{ pago.registro.no_sp_referencia or '—' }}</strong></td>
+                        <td>{{ pago.registro.rc or '—' }}</td>
+                        <td>{{ pago.registro.providencia or '—' }}</td>
+                        <td>{{ pago.banco or 'Sin dato' }}</td>
+                        <td>{{ pago.boleta or '—' }}</td>
+                        <td>{{ pago.periodo_desde.strftime('%d/%m/%Y') if pago.periodo_desde else '—' }} — {{ pago.periodo_hasta.strftime('%d/%m/%Y') if pago.periodo_hasta else '—' }}</td>
+                        <td><strong>Q {{ "{:,.2f}".format(pago.total or 0) }}</strong></td>
+                        <td>{% if pago.registro.expediente_id %}<a href="{{ url_for('pagos.sp', expediente_id=pago.registro.expediente_id) }}">Ver SP</a>{% else %}<span>Sin vínculo</span>{% endif %}</td>
+                    </tr>
+                {% else %}<tr><td colspan="9">No hay pagos con los filtros seleccionados.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</section>
+{% endblock %}
