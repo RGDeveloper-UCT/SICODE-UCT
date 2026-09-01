@@ -31,6 +31,15 @@ def app_navegacion():
                 rol="usuario_autorizado",
                 activo=True,
             ),
+            Usuario(
+                nombre="Visor Navegación",
+                usuario="visor-nav",
+                correo="visor-nav@uct.local",
+                password_hash=generate_password_hash("Password123", method="pbkdf2:sha256"),
+                debe_cambiar_password=False,
+                rol="visor",
+                activo=True,
+            ),
         ]
         db.session.add_all(usuarios)
         db.session.commit()
@@ -63,6 +72,7 @@ def test_administrador_ve_modulos_y_panel_administracion(app_navegacion):
     assert 'href="/admin/uo"' in html
     assert 'href="/admin/usuarios"' in html
     assert 'href="/admin/sistema"' in html
+    assert 'href="/coordinacion/analisis-documental/ia/"' in html
     assert "css/navegacion.css" in html
     assert "js/navegacion.js" in html
 
@@ -79,9 +89,39 @@ def test_usuario_autorizado_no_ve_panel_administracion_y_nexo_rechaza_url_direct
     assert 'href="/admin/uo"' not in html
     assert 'href="/admin/usuarios"' not in html
     assert 'href="/admin/sistema"' not in html
+    assert 'href="/coordinacion/analisis-documental/ia/"' in html
 
     respuesta_nexo = cliente.get("/nexo/")
     assert respuesta_nexo.status_code == 403
+
+
+def test_visor_ve_y_puede_usar_sicode_ia_sin_habilitar_otros_escritos(app_navegacion):
+    cliente = _cliente_autenticado(app_navegacion, "visor-nav")
+
+    respuesta = cliente.get("/dashboard")
+    html = respuesta.get_data(as_text=True)
+    assert respuesta.status_code == 200
+    assert 'href="/coordinacion/analisis-documental/ia/"' in html
+    assert 'id="nav-administracion-sicode"' not in html
+
+    inicio_ia = cliente.get("/coordinacion/analisis-documental/ia/")
+    assert inicio_ia.status_code == 200
+
+    # El POST llega al flujo propio de SICODE.IA y redirige por validación de
+    # formulario; si el visor siguiera bloqueado globalmente respondería 403.
+    analizar_sin_datos = cliente.post(
+        "/coordinacion/analisis-documental/ia/analizar",
+        data={},
+        follow_redirects=False,
+    )
+    assert analizar_sin_datos.status_code == 302
+
+    trabajo_sin_datos = cliente.post(
+        "/coordinacion/analisis-documental/ia/trabajos/crear",
+        data={},
+        follow_redirects=False,
+    )
+    assert trabajo_sin_datos.status_code == 302
 
 
 def test_navegacion_incluye_controles_accesibles_y_animacion_reducible():

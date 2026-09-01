@@ -26,8 +26,9 @@ def _cola():
 
 
 def _exigir_modificacion():
-    if not current_user.puede_modificar:
-        abort(403)
+    """Compatibilidad histórica: los trabajos de SICODE.IA son para todo usuario autenticado."""
+    if not current_user.is_authenticated:
+        abort(401)
 
 
 def _tamano(archivo):

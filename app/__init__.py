@@ -94,6 +94,7 @@ def create_app():
         if not current_user.is_authenticated or not getattr(current_user, "es_visor", False): return None
         if request.endpoint in {"cuenta.cambiar_password", "auth.logout", "static", "uo.pulso"}: return None
         if request.endpoint == "busqueda.ia": return None
+        if request.endpoint and request.endpoint.split(".", 1)[0] in {"sicode_ia", "sicode_ia_jobs"}: return None
         if request.method not in {"GET", "HEAD", "OPTIONS"}: abort(403)
         if _endpoint_es_accion_escritura(request.endpoint): abort(403)
         return None
