@@ -63,6 +63,7 @@ jobs:
               }
               faltantes = esperadas - tablas
               assert not faltantes, f'Tablas faltantes: {sorted(faltantes)}'
+              assert 'banco' in db.metadata.tables['pagos_coordinacion'].columns
 
           rutas = [str(regla) for regla in app.url_map.iter_rules()]
           assert '/coordinacion/' in rutas
@@ -80,6 +81,10 @@ jobs:
           assert '/coordinacion/analisis-documental/lotes/<int:analisis_id>/segmentos/<int:segmento_id>/confirmar' in rutas
           assert '/coordinacion/analisis-documental/lotes/<int:analisis_id>/segmentos/<int:segmento_id>/descartar' in rutas
           assert '/coordinacion/analisis-documental/lotes/aprendizaje' in rutas
+          assert '/pagos/' in rutas
+          assert '/pagos/registrar' in rutas
+          assert '/pagos/historico' in rutas
+          assert '/pagos/sp/<int:expediente_id>' in rutas
 
           plantillas = [
               'coordinacion/inicio.html',
@@ -91,12 +96,15 @@ jobs:
               'analisis_documental/inicio.html',
               'analisis_documental/resultado.html',
               'analisis_documental/lote_resultado.html',
+              'pagos/dashboard.html',
+              'pagos/registrar.html',
+              'pagos/historico.html',
           ]
           for nombre in plantillas:
               app.jinja_env.get_template(nombre)
 
-          print('Validacion de Coordinacion completada correctamente.')
+          print('Validacion de Coordinacion y Pagos completada correctamente.')
           PY
 
-      - name: Probar Coordinacion y extractores documentales
-        run: pytest -q tests/test_rectificacion_produccion_coordinacion.py tests/test_coordinacion_carrusel_ui.py tests/test_analisis_documental_service.py tests/test_lote_documental_service.py
+      - name: Probar Coordinacion, Pagos y extractores documentales
+        run: pytest -q tests/test_rectificacion_produccion_coordinacion.py tests/test_coordinacion_carrusel_ui.py tests/test_pagos_service.py tests/test_analisis_documental_service.py tests/test_lote_documental_service.py
