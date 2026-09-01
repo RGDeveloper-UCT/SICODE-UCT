@@ -142,7 +142,7 @@ class RemisionCoordinacion(db.Model):
     destino = db.Column(db.String(180), nullable=False, default="Archivo/Bodega MINGOB")
     numero_control = db.Column(db.String(120), nullable=True, index=True)
 
-    registro = db.relationship("RemisionCoordinacion", backref=db.backref("remision_coordinacion", uselist=False, cascade="all, delete-orphan"))
+    registro = db.relationship("RegistroCoordinacion", backref=db.backref("remision_coordinacion", uselist=False, cascade="all, delete-orphan"))
 
 
 class RemisionExpediente(db.Model):
