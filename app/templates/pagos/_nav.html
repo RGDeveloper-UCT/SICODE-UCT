@@ -1,0 +1,7 @@
+<nav class="pagos-subnav" aria-label="Navegación del módulo de pagos">
+    <a class="{% if request.endpoint == 'pagos.inicio' %}activo{% endif %}" href="{{ url_for('pagos.inicio') }}">Dashboard</a>
+    {% if current_user.puede_modificar %}
+        <a class="{% if request.endpoint == 'pagos.registrar' %}activo{% endif %}" href="{{ url_for('pagos.registrar') }}">Registrar pago</a>
+    {% endif %}
+    <a class="{% if request.endpoint in ['pagos.historico', 'pagos.sp'] %}activo{% endif %}" href="{{ url_for('pagos.historico') }}">Histórico</a>
+</nav>
