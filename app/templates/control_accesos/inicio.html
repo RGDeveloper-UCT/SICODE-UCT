@@ -22,15 +22,13 @@
                 <span class="ca-cct-paso">PDF automático</span>
             </div>
 
-            {% if errores %}
-            <div class="ca-cct-errores" role="alert">
+            <div class="ca-cct-errores" role="alert" data-ca-errores {% if not errores %}hidden{% endif %}>
                 <strong>Revise los datos:</strong>
-                <ul>{% for error in errores %}<li>{{ error }}</li>{% endfor %}</ul>
+                <ul data-ca-errores-lista>{% for error in errores %}<li>{{ error }}</li>{% endfor %}</ul>
             </div>
-            {% endif %}
 
             {% if current_user.puede_modificar %}
-            <form method="POST" action="{{ url_for('control_accesos.inicio') }}" class="ca-cct-form" autocomplete="off">
+            <form method="POST" action="{{ url_for('control_accesos.inicio') }}" class="ca-cct-form" autocomplete="off" data-ca-form>
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 <label for="ca-nombre">Nombre completo</label>
@@ -56,8 +54,8 @@
                     <span>Se tomarán automáticamente al registrar la entrada.</span>
                 </div>
 
-                <button type="submit" class="boton-exito ca-cct-submit">Registrar y generar boleta PDF</button>
-                <p class="ca-cct-nota">El registro digital queda guardado en SICODE. El PDF se abre inmediatamente para imprimir; la hora y firma de salida se completan con lapicero.</p>
+                <button type="submit" class="boton-exito ca-cct-submit" data-ca-submit>Registrar y generar boleta PDF</button>
+                <p class="ca-cct-nota">Al registrar, SICODE guarda la entrada, abre automáticamente la boleta PDF en otra pestaña y actualiza este panel con el nuevo correlativo. La hora y firma de salida se completan con lapicero.</p>
             </form>
             {% else %}
             <div class="ca-cct-solo-lectura"><strong>Modo consulta.</strong><p>Este usuario puede revisar el histórico y abrir boletas existentes, pero no registrar nuevas entradas.</p></div>
@@ -117,15 +115,94 @@
 (() => {
     const motivo = document.querySelector('[data-ca-motivo]');
     const otro = document.querySelector('[data-ca-otro]');
-    if (!motivo || !otro) return;
-    const sincronizar = () => {
-        const visible = motivo.value === 'OTRO';
-        otro.hidden = !visible;
-        const campo = otro.querySelector('textarea');
-        if (campo) campo.required = visible;
+    if (motivo && otro) {
+        const sincronizar = () => {
+            const visible = motivo.value === 'OTRO';
+            otro.hidden = !visible;
+            const campo = otro.querySelector('textarea');
+            if (campo) campo.required = visible;
+        };
+        motivo.addEventListener('change', sincronizar);
+        sincronizar();
+    }
+
+    const form = document.querySelector('[data-ca-form]');
+    if (!form || !window.fetch) return;
+
+    const boton = form.querySelector('[data-ca-submit]');
+    const cajaErrores = document.querySelector('[data-ca-errores]');
+    const listaErrores = document.querySelector('[data-ca-errores-lista]');
+    const textoBoton = boton?.textContent || 'Registrar y generar boleta PDF';
+
+    const mostrarErrores = (errores) => {
+        if (!cajaErrores || !listaErrores) return;
+        listaErrores.innerHTML = '';
+        (errores || ['No fue posible registrar la entrada.']).forEach((mensaje) => {
+            const item = document.createElement('li');
+            item.textContent = mensaje;
+            listaErrores.appendChild(item);
+        });
+        cajaErrores.hidden = false;
+        cajaErrores.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     };
-    motivo.addEventListener('change', sincronizar);
-    sincronizar();
+
+    form.addEventListener('submit', async (evento) => {
+        evento.preventDefault();
+        if (!form.reportValidity()) return;
+
+        if (cajaErrores) cajaErrores.hidden = true;
+        if (boton) {
+            boton.disabled = true;
+            boton.textContent = 'Registrando entrada y generando PDF…';
+        }
+
+        // Se crea la pestaña durante el gesto del usuario para evitar que el
+        // navegador la considere un popup tardío y la bloquee.
+        const pestañaPdf = window.open('about:blank', '_blank');
+        if (pestañaPdf) {
+            pestañaPdf.document.title = 'Generando boleta C.A CCT';
+            pestañaPdf.document.body.innerHTML = '<p style="font-family:Arial,sans-serif;padding:24px">Generando boleta C.A CCT…</p>';
+        }
+
+        try {
+            const respuesta = await fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
+            const datos = await respuesta.json();
+
+            if (!respuesta.ok || !datos.ok) {
+                if (pestañaPdf) pestañaPdf.close();
+                mostrarErrores(datos.errores);
+                return;
+            }
+
+            if (pestañaPdf) {
+                pestañaPdf.location.replace(datos.pdf_url);
+            } else {
+                // Si el navegador bloqueó la nueva pestaña, el registro ya está
+                // guardado y el PDF seguirá disponible en la fila recién creada.
+                console.warn('El navegador bloqueó la pestaña automática del PDF.');
+            }
+
+            // La confirmación del servidor ocurre después del commit. Al volver
+            // al panel el histórico y los indicadores ya incluyen la entrada.
+            window.location.assign(datos.panel_url);
+        } catch (error) {
+            if (pestañaPdf) pestañaPdf.close();
+            mostrarErrores(['No fue posible completar el registro. Verifique la conexión e inténtelo nuevamente.']);
+        } finally {
+            if (boton) {
+                boton.disabled = false;
+                boton.textContent = textoBoton;
+            }
+        }
+    });
 })();
 </script>
 {% endblock %}
