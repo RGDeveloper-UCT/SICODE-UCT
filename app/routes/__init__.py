@@ -24,6 +24,7 @@ from app.routes.rectificaciones import rectificaciones_bp
 from app.routes.rectificacion_produccion import rectificacion_produccion_bp
 from app.routes.soporte_tecnico import soporte_tecnico_bp
 from app.routes.soporte_tecnico_pdf import soporte_tecnico_pdf_bp
+from app.routes.control_accesos import control_accesos_bp
 from app.routes.analisis_documental import analisis_documental_bp
 from app.routes.lote_documental import lote_documental_bp
 from app.routes.sicode_ia import sicode_ia_bp
