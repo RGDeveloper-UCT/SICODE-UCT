@@ -2,7 +2,7 @@ from datetime import datetime
 from io import BytesIO
 from xml.sax.saxutils import escape
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
@@ -29,6 +29,10 @@ MOTIVOS_VALIDOS = {codigo for codigo, _ in MOTIVOS}
 
 def _normalizar_cui(valor):
     return "".join(caracter for caracter in str(valor or "") if caracter.isdigit())
+
+
+def _es_peticion_asincrona():
+    return request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
 
 def _datos_bitacora(acceso):
@@ -123,6 +127,8 @@ def inicio():
         errores.append("El motivo personalizado no puede superar 240 caracteres.")
 
     if errores:
+        if _es_peticion_asincrona():
+            return jsonify({"ok": False, "errores": errores}), 400
         return _render_inicio(request.form, errores, status=400)
 
     acceso = AccesoCCT(
@@ -148,8 +154,23 @@ def inicio():
     )
     db.session.commit()
 
-    flash(f"Entrada {acceso.correlativo} registrada. La boleta PDF está lista para imprimir.", "success")
-    return redirect(url_for("control_accesos.pdf", acceso_id=acceso.id))
+    mensaje = f"Entrada {acceso.correlativo} registrada. La boleta PDF se abrió en una pestaña nueva."
+    flash(mensaje, "success")
+
+    pdf_url = url_for("control_accesos.pdf", acceso_id=acceso.id)
+    panel_url = url_for("control_accesos.inicio")
+    if _es_peticion_asincrona():
+        return jsonify({
+            "ok": True,
+            "correlativo": acceso.correlativo,
+            "pdf_url": pdf_url,
+            "panel_url": panel_url,
+        })
+
+    # Fallback sin JavaScript: conserva el comportamiento clásico y abre el PDF
+    # en la misma pestaña. El flujo normal del panel usa la respuesta JSON para
+    # abrir el PDF aparte y recargar el histórico en la pestaña original.
+    return redirect(pdf_url)
 
 
 def _p(texto, estilo):
