@@ -29,9 +29,10 @@
     <p class="contador-resultados">SP encontrados: <strong>{{ expedientes|length }}</strong></p>
     <div class="tabla-contenedor tabla-expedientes-estados-contenedor">
         <table class="tabla-expedientes-estados">
-            <thead><tr><th>No. SP</th><th>Nombre</th><th>Estado SP</th><th>Pago</th><th>Expediente físico</th><th>Disponibilidad</th><th>Estado documental</th><th>Folios</th><th>Anexos</th><th>Código interno</th><th>Acción</th></tr></thead>
+            <thead><tr><th>No. SP</th><th>Nombre</th><th>Estado SP</th><th>Solvencia</th><th>Expediente físico</th><th>Disponibilidad</th><th>Estado documental</th><th>Folios</th><th>Anexos</th><th>Código interno</th><th>Acción</th></tr></thead>
             <tbody>
             {% for expediente in expedientes %}
+                {% set solvencia = expediente.solvencia_pago %}
                 <tr>
                     <td><strong>{{ expediente.no_sp }}</strong></td>
                     <td>{{ expediente.nombre_referencia or 'Sin dato' }}</td>
@@ -43,13 +44,12 @@
                         {% endif %}
                     </td>
                     <td class="celda-estado-compacta">
-                        {% if expediente.es_exonerado is sameas true %}
-                            <span class="estado-icono estado-icono-verde" title="Exonerado{% if expediente.financiamiento %}: {{ expediente.financiamiento }}{% endif %}" aria-label="Exonerado">$</span>
-                        {% elif expediente.es_exonerado is sameas false %}
-                            <span class="estado-icono estado-icono-rojo" title="No exonerado; el SP paga el dispositivo{% if expediente.financiamiento %}: {{ expediente.financiamiento }}{% endif %}" aria-label="No exonerado; pago del dispositivo por el SP">$</span>
-                        {% else %}
-                            <span class="estado-icono estado-icono-neutral" title="Financiamiento sin clasificar{% if expediente.financiamiento %}: {{ expediente.financiamiento }}{% endif %}" aria-label="Financiamiento sin clasificar">$</span>
-                        {% endif %}
+                        <a class="estado-indicador {% if solvencia.solvente %}estado-indicador-verde{% else %}estado-indicador-rojo{% endif %}"
+                           href="{{ url_for('pagos.sp', expediente_id=expediente.id) }}"
+                           title="{{ solvencia.motivo }}{% if solvencia.ultima_cobertura %} Cobertura hasta {{ solvencia.ultima_cobertura.strftime('%d/%m/%Y') }}.{% endif %}"
+                           aria-label="Solvencia del SP {{ expediente.no_sp }}: {{ solvencia.estado }}">
+                            <span aria-hidden="true">{% if solvencia.solvente %}✓{% else %}!{% endif %}</span> {{ solvencia.estado }}
+                        </a>
                     </td>
                     <td class="celda-estado-compacta">
                         {% if expediente.expediente_fisico_registrado %}
@@ -65,6 +65,7 @@
                     <td>{{ expediente.codigo_interno }}</td>
                     <td>
                         <a href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Ver</a>
+                        | <a href="{{ url_for('pagos.sp', expediente_id=expediente.id) }}">Pagos</a>
                         {% if current_user.puede_modificar %}
                             {% if expediente.expediente_fisico_registrado %}
                                 | <a class="{% if not expediente.rectificacion_completa %}enlace-rectificar-pendiente{% endif %}" href="{{ url_for('rectificaciones.rectificar', expediente_id=expediente.id) }}">Rectificar</a>
