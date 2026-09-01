@@ -57,6 +57,9 @@ def test_panel_ca_cct_muestra_formulario_e_historico(cliente_accesos):
     assert "Auditoría" in texto
     assert "Registrar y generar boleta PDF" in texto
     assert "Entradas al CCT" in texto
+    assert "data-ca-form" in texto
+    assert "window.open('about:blank', '_blank')" in texto
+    assert "window.location.assign(datos.panel_url)" in texto
 
 
 def test_registro_genera_correlativo_y_redirige_al_pdf(app_accesos, cliente_accesos):
@@ -86,6 +89,42 @@ def test_registro_genera_correlativo_y_redirige_al_pdf(app_accesos, cliente_acce
         assert "cui" not in auditoria.datos_posteriores
 
 
+def test_registro_asincrono_devuelve_pdf_y_panel_actualizado(app_accesos, cliente_accesos):
+    respuesta = cliente_accesos.post(
+        "/ca-cct/",
+        data={
+            "nombre": "Técnico Visitante",
+            "cui": "1234567890101",
+            "motivo": "SERVICIO_TECNICO",
+            "motivo_otro": "",
+        },
+        headers={
+            "X-Requested-With": "XMLHttpRequest",
+            "Accept": "application/json",
+        },
+        follow_redirects=False,
+    )
+
+    assert respuesta.status_code == 200
+    datos = respuesta.get_json()
+    assert datos["ok"] is True
+    assert datos["correlativo"] == "CCT-000001"
+    assert datos["pdf_url"] == "/ca-cct/1/pdf"
+    assert datos["panel_url"] == "/ca-cct/"
+
+    with app_accesos.app_context():
+        acceso = AccesoCCT.query.one()
+        assert acceso.correlativo == "CCT-000001"
+        assert acceso.nombre == "Técnico Visitante"
+
+    panel = cliente_accesos.get(datos["panel_url"])
+    texto_panel = panel.get_data(as_text=True)
+    assert panel.status_code == 200
+    assert "CCT-000001" in texto_panel
+    assert "Técnico Visitante" in texto_panel
+    assert "Entrada CCT-000001 registrada" in texto_panel
+
+
 def test_otro_exige_descripcion(cliente_accesos):
     respuesta = cliente_accesos.post(
         "/ca-cct/",
@@ -93,6 +132,18 @@ def test_otro_exige_descripcion(cliente_accesos):
     )
     assert respuesta.status_code == 400
     assert "Describa el motivo cuando seleccione Otro" in respuesta.get_data(as_text=True)
+
+
+def test_otro_asincrono_devuelve_errores_json(cliente_accesos):
+    respuesta = cliente_accesos.post(
+        "/ca-cct/",
+        data={"nombre": "Persona", "cui": "1234567890101", "motivo": "OTRO", "motivo_otro": ""},
+        headers={"X-Requested-With": "XMLHttpRequest", "Accept": "application/json"},
+    )
+    assert respuesta.status_code == 400
+    datos = respuesta.get_json()
+    assert datos["ok"] is False
+    assert "Describa el motivo cuando seleccione Otro." in datos["errores"]
 
 
 def test_boleta_pdf_carta_es_regenerable(app_accesos, cliente_accesos):
