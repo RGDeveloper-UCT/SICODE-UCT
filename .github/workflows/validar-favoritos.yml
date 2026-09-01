@@ -1,0 +1,90 @@
+name: Validar Favoritos
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'app/models/favorito_usuario.py'
+      - 'app/routes/favoritos.py'
+      - 'app/models/__init__.py'
+      - 'app/routes/__init__.py'
+      - 'app/__init__.py'
+      - 'app/templates/partials/navegacion.html'
+      - 'app/templates/base.html'
+      - 'app/static/js/navegacion.js'
+      - 'app/static/css/favoritos.css'
+      - 'migrations/versions/w4l8g1h6i407_favoritos_usuario.py'
+      - 'tests/test_favoritos_usuario.py'
+      - '.github/workflows/validar-favoritos.yml'
+
+jobs:
+  validar-favoritos:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: sicode_ci
+          POSTGRES_PASSWORD: sicode_ci_password
+          POSTGRES_DB: sicode_favoritos_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sicode_ci -d sicode_favoritos_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      SECRET_KEY: "ci-favoritos-sicode-segura"
+      PYTHONPATH: "."
+      PGPASSWORD: "sicode_ci_password"
+      DATABASE_URL: "postgresql://sicode_ci:sicode_ci_password@localhost:5432/sicode_favoritos_test"
+
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Compilar favoritos
+        run: python -m compileall -q app/models/favorito_usuario.py app/routes/favoritos.py migrations/versions/w4l8g1h6i407_favoritos_usuario.py tests/test_favoritos_usuario.py
+
+      - name: Probar favoritos y navegación
+        run: pytest -q tests/test_favoritos_usuario.py tests/test_navegacion_modulos.py
+
+      - name: Crear base exclusiva para migraciones
+        run: createdb -h localhost -U sicode_ci sicode_favoritos_migration
+
+      - name: Aplicar cadena completa de migraciones
+        env:
+          DATABASE_URL: "postgresql://sicode_ci:sicode_ci_password@localhost:5432/sicode_favoritos_migration"
+        run: |
+          python -m flask --app run.py db heads
+          python -m flask --app run.py db upgrade
+          python -m flask --app run.py db current
+
+      - name: Verificar tabla de favoritos
+        env:
+          DATABASE_URL: "postgresql://sicode_ci:sicode_ci_password@localhost:5432/sicode_favoritos_migration"
+        run: |
+          python - <<'PY'
+          import os
+          from sqlalchemy import create_engine, inspect
+
+          engine = create_engine(os.environ['DATABASE_URL'])
+          inspector = inspect(engine)
+          assert 'favoritos_usuario' in inspector.get_table_names()
+          columnas = {item['name'] for item in inspector.get_columns('favoritos_usuario')}
+          esperadas = {'id', 'usuario_id', 'titulo', 'url', 'tipo', 'icono', 'orden', 'creado_en'}
+          assert esperadas <= columnas, f'Columnas faltantes: {sorted(esperadas - columnas)}'
+          print('Favoritos de usuario validados correctamente en PostgreSQL.')
+          PY

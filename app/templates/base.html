@@ -27,6 +27,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/coordinacion_scroll_fix.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/control_accesos.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/navegacion.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/favoritos.css') }}">
 </head>
 <body class="{% block body_class %}{% endblock %}{% if modo_solo_lectura %} modo-visor{% endif %}" {% if current_user.is_authenticated %}data-presencia-url="{{ url_for('uo.pulso') }}" data-sicode-user="{{ current_user.id }}"{% endif %}>
 {% if current_user.is_authenticated %}

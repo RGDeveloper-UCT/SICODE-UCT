@@ -16,6 +16,7 @@
         <symbol id="nav-icon-system" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"></path></symbol>
         <symbol id="nav-icon-account" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c.7-4.2 3.3-6.5 8-6.5s7.3 2.3 8 6.5"></path></symbol>
         <symbol id="nav-icon-logout" viewBox="0 0 24 24"><path d="M10 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h5M14 8l4 4-4 4M8 12h10"></path></symbol>
+        <symbol id="nav-icon-star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z"></path></symbol>
         <symbol id="nav-icon-chevron" viewBox="0 0 24 24"><path d="m8 10 4 4 4-4"></path></symbol>
     </svg>
 
@@ -41,6 +42,32 @@
                 <a class="nav-modulo" href="{{ url_for('prestamos.listado') }}"><span class="nav-modulo__icono"><svg aria-hidden="true"><use href="#nav-icon-loan"></use></svg></span><span><strong>Préstamos</strong><small>Préstamos y devoluciones</small></span></a>
                 <a class="nav-modulo" href="{{ url_for('alertas.listado') }}"><span class="nav-modulo__icono"><svg aria-hidden="true"><use href="#nav-icon-alert"></use></svg></span><span><strong>Alertas</strong><small>Incidentes y pendientes</small></span></a>
                 <a class="nav-modulo" href="{{ url_for('bitacora.listado') }}"><span class="nav-modulo__icono"><svg aria-hidden="true"><use href="#nav-icon-log"></use></svg></span><span><strong>Bitácora</strong><small>Auditoría de acciones</small></span></a>
+            </div>
+        </div>
+    </div>
+
+    <div class="nav-seccion nav-seccion--favoritos" data-nav-dropdown data-favoritos-root data-favoritos-api="{{ url_for('favoritos.listar') }}">
+        <button class="nav-seccion__toggle" type="button" aria-expanded="false" aria-controls="nav-favoritos-sicode" data-nav-toggle>
+            <svg aria-hidden="true"><use href="#nav-icon-star"></use></svg>
+            <span>Favoritos</span>
+            <span class="nav-favoritos-contador" data-favoritos-contador>0/6</span>
+            <svg class="nav-seccion__chevron" aria-hidden="true"><use href="#nav-icon-chevron"></use></svg>
+        </button>
+        <div class="nav-panel nav-panel--favoritos" id="nav-favoritos-sicode" data-nav-panel>
+            <div class="nav-panel__encabezado">
+                <div><strong>Mis favoritos</strong><span>Hasta 6 accesos personales</span></div>
+                <span class="nav-panel__badge nav-panel__badge--favoritos" data-favoritos-badge>0 de 6</span>
+            </div>
+            <div class="favoritos-lista" data-favoritos-lista aria-live="polite">
+                <div class="favoritos-vacio">Cargando favoritos…</div>
+            </div>
+            <div class="favoritos-acciones">
+                <p>Abra cualquier módulo, expediente, registro o pantalla y guárdelo aquí para volver con un clic.</p>
+                <button class="favorito-agregar" type="button" data-favorito-agregar>
+                    <svg aria-hidden="true"><use href="#nav-icon-star"></use></svg>
+                    <span>Agregar página actual</span>
+                </button>
+                <div class="favoritos-aviso" data-favoritos-aviso aria-live="polite"></div>
             </div>
         </div>
     </div>

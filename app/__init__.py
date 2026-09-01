@@ -43,7 +43,7 @@ def create_app():
         Usuario, Expediente, UbicacionFisica, Bitacora, DocumentoExpediente, Alerta, PrestamoExpediente,
         PrestamoGrupo, PrestamoGrupoDetalle, TrasladoVirtualExpediente, ImportacionPortadores,
         VerificacionExpediente, PresenciaUsuario, AnexoRectificado, ServicioSoporteTecnico, AccesoCCT,
-        AnalisisDocumental, SegmentoDocumental, AprendizajeDocumental, PatronAprendizajeDocumental,
+        FavoritoUsuario, AnalisisDocumental, SegmentoDocumental, AprendizajeDocumental, PatronAprendizajeDocumental,
     )
     from app.services.integridad_events import registrar_eventos_integridad
     from app.services.version_service import obtener_version
@@ -61,8 +61,8 @@ def create_app():
         bitacora_bp, indice_documental_bp, alertas_bp, prestamos_bp, prestamos_grupales_bp, admin_bp,
         integridad_bp, busqueda_bp, cuenta_bp, pagos_bp, coordinacion_bp, coordinacion_export_bp, portadores_bp, uo_bp,
         codigos_barras_bp, rectificaciones_bp, rectificacion_produccion_bp, soporte_tecnico_bp, soporte_tecnico_pdf_bp,
-        control_accesos_bp, analisis_documental_bp, lote_documental_bp, sicode_ia_bp, sicode_ia_jobs_bp, cerebro_sicode_bp, nexo_ia_bp,
-        monitoreo_anexos_bp, instalar_registro_monitoreo,
+        control_accesos_bp, favoritos_bp, analisis_documental_bp, lote_documental_bp, sicode_ia_bp, sicode_ia_jobs_bp,
+        cerebro_sicode_bp, nexo_ia_bp, monitoreo_anexos_bp, instalar_registro_monitoreo,
     )
     from app.services.referencia_rc_re import instalar_deteccion_rc_re
     instalar_deteccion_rc_re()
@@ -72,8 +72,8 @@ def create_app():
         bitacora_bp, indice_documental_bp, alertas_bp, prestamos_bp, prestamos_grupales_bp, admin_bp,
         integridad_bp, busqueda_bp, cuenta_bp, pagos_bp, coordinacion_bp, coordinacion_export_bp, portadores_bp, uo_bp,
         codigos_barras_bp, rectificaciones_bp, rectificacion_produccion_bp, soporte_tecnico_bp, soporte_tecnico_pdf_bp,
-        control_accesos_bp, analisis_documental_bp, lote_documental_bp, sicode_ia_bp, sicode_ia_jobs_bp, cerebro_sicode_bp, nexo_ia_bp,
-        monitoreo_anexos_bp,
+        control_accesos_bp, favoritos_bp, analisis_documental_bp, lote_documental_bp, sicode_ia_bp, sicode_ia_jobs_bp,
+        cerebro_sicode_bp, nexo_ia_bp, monitoreo_anexos_bp,
     ):
         app.register_blueprint(blueprint)
 
@@ -94,7 +94,7 @@ def create_app():
         if not current_user.is_authenticated or not getattr(current_user, "es_visor", False): return None
         if request.endpoint in {"cuenta.cambiar_password", "auth.logout", "static", "uo.pulso"}: return None
         if request.endpoint == "busqueda.ia": return None
-        if request.endpoint and request.endpoint.split(".", 1)[0] in {"sicode_ia", "sicode_ia_jobs"}: return None
+        if request.endpoint and request.endpoint.split(".", 1)[0] in {"sicode_ia", "sicode_ia_jobs", "favoritos"}: return None
         if request.method not in {"GET", "HEAD", "OPTIONS"}: abort(403)
         if _endpoint_es_accion_escritura(request.endpoint): abort(403)
         return None
