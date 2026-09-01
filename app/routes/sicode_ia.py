@@ -22,8 +22,9 @@ MAX_ARCHIVOS = 100
 
 
 def _exigir_modificacion():
-    if not current_user.puede_modificar:
-        abort(403)
+    """Compatibilidad histórica: SICODE.IA está disponible a todo usuario autenticado."""
+    if not current_user.is_authenticated:
+        abort(401)
 
 
 def _limpiar(valor, maximo=None):
