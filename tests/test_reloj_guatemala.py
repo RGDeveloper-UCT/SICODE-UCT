@@ -14,7 +14,8 @@ def test_reloj_guatemala_integrado_en_barra_superior():
     assert 'reloj_guatemala.js' in base
     assert 'reloj_guatemala.css' in base
     assert 'class="topbar-utilidad"' in base
-    assert base.index('class="topbar-utilidad"') < base.index('<nav>')
+    assert "partials/navegacion.html" in base
+    assert base.index('class="topbar-utilidad"') < base.index("partials/navegacion.html")
     assert "America/Guatemala" in javascript
     assert "second: '2-digit'" in javascript
     assert "hour12: false" in javascript
