@@ -146,6 +146,13 @@ class Expediente(db.Model):
             return False
         return None
 
+    @property
+    def solvencia_pago(self):
+        """Estado de pago vigente derivado del historial del módulo de Pagos."""
+        from app.services.pagos_service import obtener_solvencia_expediente
+
+        return obtener_solvencia_expediente(self)
+
     @validates("no_sp")
     def _normalizar_no_sp(self, _clave, valor):
         import re
