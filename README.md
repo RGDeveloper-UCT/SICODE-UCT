@@ -32,6 +32,7 @@ Aplicación web institucional interna para registrar, localizar, relacionar y au
 - **Importación de Portadores:** sincronización diaria de la manta `.xls` con previsualización y reconciliación de vínculos.
 - **Índice documental:** documentos, anexos y rangos de folios; evita traslapes y valida totales.
 - **Coordinación:** pagos, instalaciones, desinstalaciones, anexos, monitoreos, documentos emitidos, actividades y remisiones.
+- **C.A CCT:** control de accesos al Centro de Control Telemático con nombre, CUI, motivo, fecha/hora automática, correlativo único, histórico y boleta PDF para firmas físicas de entrada y salida.
 - **Análisis documental asistido:** procesa PDFs temporalmente, propone metadatos y exige validación humana antes de crear registros; el PDF, las imágenes y el texto OCR completo no se conservan.
 - **Préstamos:** entrega, devolución, vencimientos y comprobantes.
 - **Alertas:** control de observaciones e incidencias.
