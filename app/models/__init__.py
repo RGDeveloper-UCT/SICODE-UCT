@@ -12,6 +12,7 @@ from app.models.verificacion import VerificacionExpediente
 from app.models.presencia import PresenciaUsuario
 from app.models.anexo_rectificado import AnexoRectificado
 from app.models.soporte_tecnico import ServicioSoporteTecnico
+from app.models.control_acceso import AccesoCCT
 from app.models.analisis_documental import AnalisisDocumental
 from app.models.lote_documental import SegmentoDocumental, AprendizajeDocumental, PatronAprendizajeDocumental
 from app.models.coordinacion import (
