@@ -78,6 +78,9 @@ jobs:
           assert '/coordinacion/exportar' in rutas
           assert '/coordinacion/rectificacion-produccion/estado' in rutas
           assert '/coordinacion/rectificacion-produccion/guardar' in rutas
+          assert '/coordinacion/monitoreo/masivo' in rutas
+          assert '/coordinacion/monitoreo/masivo/estado-sp' in rutas
+          assert '/coordinacion/monitoreo/masivo/rectificar' in rutas
           assert '/coordinacion/analisis-documental/' in rutas
           assert '/coordinacion/analisis-documental/<int:analisis_id>' in rutas
           assert '/coordinacion/analisis-documental/<int:analisis_id>/confirmar' in rutas
@@ -97,6 +100,7 @@ jobs:
               'coordinacion/inicio.html',
               'coordinacion/formulario.html',
               'coordinacion/anexo_control.html',
+              'coordinacion/monitoreo_masivo.html',
               'coordinacion/listado.html',
               'coordinacion/detalle.html',
               'coordinacion/remision_detalle.html',
@@ -116,7 +120,7 @@ jobs:
           PY
 
       - name: Probar Coordinacion, Pagos, C.A CCT y extractores documentales
-        run: pytest -q tests/test_rectificacion_produccion_coordinacion.py tests/test_coordinacion_carrusel_ui.py tests/test_monitoreo_anexos.py tests/test_analisis_riesgo_anexos.py tests/test_pagos_service.py tests/test_control_accesos_cct.py tests/test_analisis_documental_service.py tests/test_lote_documental_service.py
+        run: pytest -q tests/test_rectificacion_produccion_coordinacion.py tests/test_coordinacion_carrusel_ui.py tests/test_monitoreo_anexos.py tests/test_monitoreo_masivo.py tests/test_analisis_riesgo_anexos.py tests/test_pagos_service.py tests/test_control_accesos_cct.py tests/test_analisis_documental_service.py tests/test_lote_documental_service.py
 
   postgres-anexos:
     runs-on: ubuntu-latest
@@ -161,4 +165,4 @@ jobs:
           python -m flask --app run.py db heads
 
       - name: Probar Monitoreo y Analisis de riesgo en PostgreSQL
-        run: pytest -q tests/test_monitoreo_anexos.py tests/test_analisis_riesgo_anexos.py tests/test_rectificacion_produccion_coordinacion.py
+        run: pytest -q tests/test_monitoreo_anexos.py tests/test_monitoreo_masivo.py tests/test_analisis_riesgo_anexos.py tests/test_rectificacion_produccion_coordinacion.py
