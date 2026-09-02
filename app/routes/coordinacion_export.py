@@ -43,7 +43,7 @@ def _folios(registro):
         return registro.pago.folios
     if registro.tipo in {"INSTALACION", "DESINSTALACION"} and registro.movimiento_dispositivo and registro.movimiento_dispositivo.folios:
         return registro.movimiento_dispositivo.folios
-    if registro.tipo == "ANEXO" and registro.anexo_coordinacion and registro.anexo_coordinacion.folios:
+    if registro.tipo in {"ANEXO", "MONITOREO", "ANALISIS_RIESGO"} and registro.anexo_coordinacion and registro.anexo_coordinacion.folios:
         return registro.anexo_coordinacion.folios
     return ""
 
@@ -82,6 +82,9 @@ def _resumen_especifico(registro):
     if registro.tipo == "MONITOREO" and registro.reporte_monitoreo:
         reporte = registro.reporte_monitoreo
         return f"Documento: {reporte.tipo_documento or ''} | Reporte: {reporte.numero_reporte or ''} | Evento: {reporte.tipo_evento or ''}"
+    if registro.tipo == "ANALISIS_RIESGO" and registro.analisis_riesgo:
+        analisis = registro.analisis_riesgo
+        return f"Documento: {analisis.tipo_documento or ''} | Correlativo: {analisis.correlativo or ''} | Evento: {analisis.tipo_evento or ''}"
     if registro.tipo == "DOCUMENTO_EMITIDO" and registro.documento_emitido:
         documento = registro.documento_emitido
         return f"Documento: {documento.numero_documento or ''} | Destino: {documento.destino or ''} | {documento.descripcion or ''}"
@@ -263,6 +266,22 @@ def exportar_todos():
                 r.reporte_monitoreo.tipo_evento or "",
             ]
             for r in monitoreos
+        ],
+    )
+
+    analisis_riesgo = [r for r in registros if r.tipo == "ANALISIS_RIESGO" and r.analisis_riesgo]
+    _agregar_hoja(
+        wb,
+        "Análisis de riesgo",
+        comunes + ["Tipo documento", "Correlativo", "Evento", "Anexo No."],
+        [
+            _campos_comunes(r) + [
+                r.analisis_riesgo.tipo_documento or "",
+                r.analisis_riesgo.correlativo or "",
+                r.analisis_riesgo.tipo_evento or "",
+                r.anexo_coordinacion.numero_anexo if r.anexo_coordinacion else "",
+            ]
+            for r in analisis_riesgo
         ],
     )
 
