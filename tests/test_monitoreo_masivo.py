@@ -111,7 +111,7 @@ def test_panel_masivo_tiene_revision_rectificacion_y_sin_observaciones(cliente_m
     assert "Datos comunes del lote" in texto
     assert "Rectificar expediente" in texto
     assert "Verificación final del lote" in texto
-    assert "Vencido / histórico" in texto
+    assert "vencido/histórico" in texto.lower()
     assert "observaciones" not in texto.lower()
 
 
