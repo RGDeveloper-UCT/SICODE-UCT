@@ -42,6 +42,297 @@
     const temporizadores = new WeakMap();
     let filaRectificando = null;
 
+    function instalarVistaCompacta() {
+        if (document.getElementById("monitoreo-masivo-viewport-css")) return;
+        const estilo = document.createElement("style");
+        estilo.id = "monitoreo-masivo-viewport-css";
+        estilo.textContent = `
+            body.vista-monitoreo-masivo {
+                overflow: hidden !important;
+            }
+            body.vista-monitoreo-masivo .contenedor {
+                width: 100% !important;
+                max-width: none !important;
+                height: calc(100vh - var(--masivo-topbar-h, 50px)) !important;
+                margin: 0 !important;
+                padding: 10px 16px 8px !important;
+                overflow: hidden !important;
+            }
+            body.vista-monitoreo-masivo .pie-sicode {
+                display: none !important;
+            }
+            body.vista-monitoreo-masivo .masivo-shell {
+                width: 100% !important;
+                max-width: none !important;
+                height: 100% !important;
+                margin: 0 !important;
+                display: grid !important;
+                grid-template-rows: auto auto minmax(0, 1fr) !important;
+                gap: 8px !important;
+                overflow: hidden !important;
+            }
+            body.vista-monitoreo-masivo .masivo-hero {
+                margin: 0 !important;
+                padding: 8px 14px !important;
+                gap: 12px !important;
+                border-radius: 10px !important;
+                min-height: 58px;
+            }
+            body.vista-monitoreo-masivo .masivo-hero-identidad {
+                gap: 10px !important;
+                min-width: 0;
+            }
+            body.vista-monitoreo-masivo .masivo-radar {
+                width: 44px !important;
+                height: 44px !important;
+                border-radius: 12px !important;
+                flex: 0 0 44px;
+            }
+            body.vista-monitoreo-masivo .masivo-hero h1 {
+                margin-bottom: 2px !important;
+                font-size: clamp(1.18rem, 1.55vw, 1.55rem) !important;
+                line-height: 1.05 !important;
+            }
+            body.vista-monitoreo-masivo .masivo-hero p {
+                font-size: .76rem !important;
+                line-height: 1.15 !important;
+            }
+            body.vista-monitoreo-masivo .masivo-paso {
+                margin-top: 4px !important;
+                padding: 2px 7px !important;
+                font-size: .64rem !important;
+            }
+            body.vista-monitoreo-masivo .masivo-cabecera,
+            body.vista-monitoreo-masivo .masivo-tabla-panel {
+                margin: 0 !important;
+                border-radius: 10px !important;
+            }
+            body.vista-monitoreo-masivo .masivo-cabecera {
+                padding: 8px 12px !important;
+            }
+            body.vista-monitoreo-masivo .masivo-cabecera h2,
+            body.vista-monitoreo-masivo .masivo-tabla-panel h2 {
+                margin: 0 0 5px !important;
+                font-size: .88rem !important;
+            }
+            body.vista-monitoreo-masivo .masivo-grid {
+                grid-template-columns: 90px minmax(130px, .9fr) minmax(140px, 1fr) 140px minmax(180px, 1.2fr) !important;
+                gap: 7px !important;
+            }
+            body.vista-monitoreo-masivo .masivo-campo label {
+                margin-bottom: 3px !important;
+                font-size: .67rem !important;
+            }
+            body.vista-monitoreo-masivo .masivo-campo input,
+            body.vista-monitoreo-masivo .masivo-campo select,
+            body.vista-monitoreo-masivo .masivo-tabla input,
+            body.vista-monitoreo-masivo .masivo-tabla select {
+                min-height: 28px !important;
+                height: 28px !important;
+                padding: 3px 6px !important;
+                border-radius: 6px !important;
+                font-size: .72rem !important;
+            }
+            body.vista-monitoreo-masivo .masivo-recibe {
+                margin-top: 5px !important;
+                padding: 4px 8px !important;
+                min-height: 24px;
+                font-size: .69rem !important;
+            }
+            body.vista-monitoreo-masivo .masivo-tabla-panel {
+                min-height: 0 !important;
+                padding: 7px 10px 8px !important;
+                display: flex !important;
+                flex-direction: column !important;
+                overflow: hidden !important;
+            }
+            body.vista-monitoreo-masivo .masivo-toolbar {
+                margin-bottom: 5px !important;
+                gap: 8px !important;
+                flex: 0 0 auto;
+            }
+            body.vista-monitoreo-masivo .masivo-toolbar > div:first-child {
+                min-width: 0;
+            }
+            body.vista-monitoreo-masivo .masivo-nota {
+                margin: 2px 0 0 !important;
+                font-size: .66rem !important;
+                line-height: 1.15 !important;
+            }
+            body.vista-monitoreo-masivo .masivo-toolbar-acciones {
+                gap: 5px !important;
+                flex-wrap: nowrap !important;
+            }
+            body.vista-monitoreo-masivo .boton-mini {
+                min-height: 27px !important;
+                padding: 4px 7px !important;
+                border-radius: 6px !important;
+                font-size: .67rem !important;
+                white-space: nowrap;
+            }
+            body.vista-monitoreo-masivo .masivo-tabla-wrap {
+                flex: 1 1 auto !important;
+                min-height: 0 !important;
+                max-height: none !important;
+                overflow-x: hidden !important;
+                overflow-y: auto !important;
+                scrollbar-gutter: stable;
+                border-radius: 8px !important;
+            }
+            body.vista-monitoreo-masivo .masivo-tabla {
+                width: 100% !important;
+                min-width: 0 !important;
+                table-layout: fixed !important;
+                font-size: .7rem !important;
+            }
+            body.vista-monitoreo-masivo .masivo-tabla th {
+                padding: 5px 5px !important;
+                white-space: normal !important;
+                line-height: 1.05 !important;
+            }
+            body.vista-monitoreo-masivo .masivo-tabla td {
+                padding: 3px 4px !important;
+                transition: background-color .18s ease, border-color .18s ease;
+            }
+            body.vista-monitoreo-masivo .masivo-col-num { width: 30px !important; }
+            body.vista-monitoreo-masivo .masivo-col-sp { width: 8% !important; }
+            body.vista-monitoreo-masivo .masivo-col-reporte { width: 10% !important; }
+            body.vista-monitoreo-masivo .masivo-col-evento { width: 15% !important; }
+            body.vista-monitoreo-masivo .masivo-col-folios { width: 9% !important; }
+            body.vista-monitoreo-masivo .masivo-col-modo { width: 12% !important; }
+            body.vista-monitoreo-masivo .masivo-col-anexo { width: 7% !important; }
+            body.vista-monitoreo-masivo .masivo-col-rect { width: 22% !important; }
+            body.vista-monitoreo-masivo .masivo-col-accion { width: 34px !important; }
+            body.vista-monitoreo-masivo .estado-rect {
+                gap: 4px !important;
+                min-width: 0;
+            }
+            body.vista-monitoreo-masivo .estado-rect-badge {
+                min-height: 24px !important;
+                padding: 3px 6px !important;
+                font-size: .63rem !important;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: 58%;
+            }
+            body.vista-monitoreo-masivo .fila-rectificar {
+                flex: 1 1 auto;
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            body.vista-monitoreo-masivo .boton-eliminar-fila {
+                width: 26px !important;
+                height: 26px !important;
+                border-radius: 6px !important;
+                font-size: .95rem !important;
+            }
+            body.vista-monitoreo-masivo .masivo-acciones-finales {
+                margin-top: 6px !important;
+                flex: 0 0 auto;
+            }
+            body.vista-monitoreo-masivo .masivo-acciones-finales .boton {
+                min-height: 30px !important;
+                padding: 6px 10px !important;
+                font-size: .72rem !important;
+            }
+            body.vista-monitoreo-masivo .masivo-error {
+                margin-top: 5px !important;
+                padding: 6px 8px !important;
+                font-size: .7rem !important;
+            }
+            body.vista-monitoreo-masivo .masivo-tabla tr.fila-lista td {
+                background: #f0fdf4 !important;
+                border-bottom-color: #bbf7d0 !important;
+            }
+            body.vista-monitoreo-masivo .masivo-tabla tr.fila-lista:nth-child(even) td {
+                background: #ecfdf5 !important;
+            }
+            body.vista-monitoreo-masivo .masivo-tabla tr.fila-lista td:first-child {
+                box-shadow: inset 3px 0 0 #86efac;
+                color: #166534;
+            }
+            body.vista-monitoreo-masivo .masivo-tabla tr.fila-lista input,
+            body.vista-monitoreo-masivo .masivo-tabla tr.fila-lista select {
+                background: rgba(255, 255, 255, .78) !important;
+                border-color: #bbf7d0 !important;
+            }
+            body.vista-monitoreo-masivo .masivo-tabla tr.fila-error td {
+                background: #fff7ed !important;
+            }
+            @media (max-height: 760px) {
+                body.vista-monitoreo-masivo .contenedor {
+                    padding-top: 6px !important;
+                    padding-bottom: 5px !important;
+                }
+                body.vista-monitoreo-masivo .masivo-shell {
+                    gap: 5px !important;
+                }
+                body.vista-monitoreo-masivo .masivo-hero {
+                    min-height: 48px;
+                    padding-top: 5px !important;
+                    padding-bottom: 5px !important;
+                }
+                body.vista-monitoreo-masivo .masivo-radar {
+                    width: 38px !important;
+                    height: 38px !important;
+                    flex-basis: 38px;
+                }
+                body.vista-monitoreo-masivo .masivo-paso {
+                    display: none !important;
+                }
+                body.vista-monitoreo-masivo .masivo-cabecera {
+                    padding-top: 6px !important;
+                    padding-bottom: 6px !important;
+                }
+                body.vista-monitoreo-masivo .masivo-recibe {
+                    margin-top: 3px !important;
+                    padding-top: 2px !important;
+                    padding-bottom: 2px !important;
+                }
+                body.vista-monitoreo-masivo .masivo-campo input,
+                body.vista-monitoreo-masivo .masivo-campo select,
+                body.vista-monitoreo-masivo .masivo-tabla input,
+                body.vista-monitoreo-masivo .masivo-tabla select {
+                    min-height: 25px !important;
+                    height: 25px !important;
+                }
+                body.vista-monitoreo-masivo .masivo-tabla th {
+                    padding-top: 3px !important;
+                    padding-bottom: 3px !important;
+                }
+                body.vista-monitoreo-masivo .masivo-tabla td {
+                    padding-top: 2px !important;
+                    padding-bottom: 2px !important;
+                }
+            }
+            @media (max-width: 1150px) {
+                body.vista-monitoreo-masivo {
+                    overflow: auto !important;
+                }
+                body.vista-monitoreo-masivo .contenedor {
+                    height: auto !important;
+                    min-height: calc(100vh - var(--masivo-topbar-h, 50px));
+                    overflow: visible !important;
+                }
+                body.vista-monitoreo-masivo .masivo-shell {
+                    height: auto !important;
+                    overflow: visible !important;
+                }
+                body.vista-monitoreo-masivo .masivo-tabla-panel {
+                    min-height: 520px !important;
+                }
+            }
+        `;
+        document.head.appendChild(estilo);
+    }
+
+    function sincronizarAlturaViewport() {
+        const topbar = document.querySelector(".topbar");
+        const altura = topbar ? Math.ceil(topbar.getBoundingClientRect().height) : 50;
+        document.documentElement.style.setProperty("--masivo-topbar-h", `${altura}px`);
+    }
+
     function mostrarError(elemento, texto) {
         elemento.textContent = texto || "";
         elemento.hidden = !texto;
@@ -77,6 +368,35 @@
         ].some((v) => String(v || "").trim());
     }
 
+    function filaEstaLista(tr) {
+        const noSp = tr.querySelector(".fila-sp")?.value.trim() || "";
+        const numeroReporte = tr.querySelector(".fila-reporte")?.value.trim() || "";
+        const tipoEvento = tr.querySelector(".fila-evento")?.value.trim() || "";
+        const folios = tr.querySelector(".fila-folios")?.value.trim() || "";
+        const modo = tr.querySelector(".fila-modo")?.value || "vigente";
+        const numeroAnexo = Number(tr.querySelector(".fila-anexo")?.value);
+        const estado = estadoParaSp(noSp);
+
+        if (!noSp || !numeroReporte || !tipoEvento || !folios) return false;
+        if (!estado?.rectificado_lote) return false;
+        if (!Number.isInteger(numeroAnexo) || numeroAnexo < 1 || numeroAnexo > 200) return false;
+        if (modo === "vencido" && numeroAnexo > Number(estado.anexos_rectificados)) return false;
+        return true;
+    }
+
+    function actualizarEstadoVisual(tr) {
+        tr.classList.toggle("fila-lista", filaEstaLista(tr));
+    }
+
+    function actualizarFilasPorSp(sp) {
+        const clave = String(sp || "").trim();
+        filas().forEach((tr) => {
+            if (!clave || tr.querySelector(".fila-sp").value.trim() === clave) {
+                actualizarEstadoVisual(tr);
+            }
+        });
+    }
+
     function estadoBadge(tr, estado) {
         const badge = tr.querySelector(".estado-rect-badge");
         const boton = tr.querySelector(".fila-rectificar");
@@ -84,18 +404,21 @@
             badge.textContent = "Pendiente";
             badge.classList.remove("ok");
             boton.textContent = "Rectificar";
+            actualizarEstadoVisual(tr);
             return;
         }
         if (estado.cargando) {
             badge.textContent = "Consultando…";
             badge.classList.remove("ok");
             boton.textContent = "Rectificar";
+            tr.classList.remove("fila-lista");
             return;
         }
         if (estado.error) {
             badge.textContent = "SP no válido";
             badge.classList.remove("ok");
             boton.textContent = "Revisar SP";
+            tr.classList.remove("fila-lista");
             return;
         }
         if (estado.rectificado_lote) {
@@ -107,6 +430,7 @@
             badge.classList.remove("ok");
             boton.textContent = "Rectificar";
         }
+        actualizarEstadoVisual(tr);
     }
 
     function estadoParaSp(sp) {
@@ -117,7 +441,10 @@
         const clave = String(sp || "").trim();
         if (!clave) return;
         const estado = estadoParaSp(clave);
-        if (!estado || !estado.rectificado_lote) return;
+        if (!estado || !estado.rectificado_lote) {
+            actualizarFilasPorSp(clave);
+            return;
+        }
 
         let siguiente = Number(estado.anexos_rectificados) + 1;
         filas().forEach((tr) => {
@@ -136,6 +463,7 @@
                 }
                 anexo.placeholder = `1-${estado.anexos_rectificados}`;
             }
+            actualizarEstadoVisual(tr);
         });
     }
 
@@ -145,6 +473,7 @@
         if (!sp) {
             estadoBadge(tr, null);
             tr.querySelector(".fila-anexo").value = "";
+            actualizarEstadoVisual(tr);
             return;
         }
 
@@ -204,8 +533,10 @@
         `;
 
         const spInput = tr.querySelector(".fila-sp");
+        const camposFila = tr.querySelectorAll(".fila-reporte, .fila-evento, .fila-folios, .fila-anexo");
+
         spInput.addEventListener("input", () => {
-            tr.classList.remove("fila-error");
+            tr.classList.remove("fila-error", "fila-lista");
             programarConsulta(tr);
         });
         spInput.addEventListener("change", () => consultarSp(tr));
@@ -213,9 +544,19 @@
             if (spInput.value.trim()) consultarSp(tr);
         });
 
+        camposFila.forEach((campo) => {
+            campo.addEventListener("input", () => {
+                tr.classList.remove("fila-error");
+                actualizarEstadoVisual(tr);
+            });
+            campo.addEventListener("change", () => actualizarEstadoVisual(tr));
+        });
+
         tr.querySelector(".fila-modo").addEventListener("change", () => {
+            tr.classList.remove("fila-error");
             const sp = spInput.value.trim();
             recalcularAnexos(sp);
+            actualizarEstadoVisual(tr);
         });
 
         tr.querySelector(".fila-rectificar").addEventListener("click", async () => {
@@ -255,6 +596,7 @@
 
         tbody.appendChild(tr);
         renumerar();
+        actualizarEstadoVisual(tr);
         return tr;
     }
 
@@ -313,6 +655,7 @@
                 if (tr.querySelector(".fila-sp").value.trim() === sp) estadoBadge(tr, data);
             });
             recalcularAnexos(sp);
+            actualizarFilasPorSp(sp);
             cerrarModal(modalRect);
             mostrarError(errorGeneral, "");
         } catch (_error) {
@@ -485,6 +828,10 @@
             volverEdicion.disabled = false;
         }
     }
+
+    instalarVistaCompacta();
+    sincronizarAlturaViewport();
+    window.addEventListener("resize", sincronizarAlturaViewport, { passive: true });
 
     botonAgregar.addEventListener("click", () => agregarFilas(1));
     botonAgregarDiez.addEventListener("click", () => agregarFilas(10));
