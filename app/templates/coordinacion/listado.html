@@ -35,7 +35,7 @@
         {{ registro.pago.folios }}
     {% elif registro.tipo in ['INSTALACION','DESINSTALACION'] and registro.movimiento_dispositivo and registro.movimiento_dispositivo.folios %}
         {{ registro.movimiento_dispositivo.folios }}
-    {% elif registro.tipo == 'ANEXO' and registro.anexo_coordinacion and registro.anexo_coordinacion.folios %}
+    {% elif registro.tipo in ['ANEXO','MONITOREO','ANALISIS_RIESGO'] and registro.anexo_coordinacion and registro.anexo_coordinacion.folios %}
         {{ registro.anexo_coordinacion.folios }}
     {% else %}
         <span class="sin-dato">—</span>
@@ -75,6 +75,10 @@
         <span class="resumen-etiqueta">Reporte</span> {{ registro.reporte_monitoreo.numero_reporte or '—' }}
         <span class="resumen-separador">·</span>
         <span class="resumen-etiqueta">Evento</span> {{ registro.reporte_monitoreo.tipo_evento or 'Sin dato' }}
+    {% elif registro.tipo == 'ANALISIS_RIESGO' and registro.analisis_riesgo %}
+        <span class="resumen-etiqueta">Correlativo</span> {{ registro.analisis_riesgo.correlativo or '—' }}
+        <span class="resumen-separador">·</span>
+        <span class="resumen-etiqueta">Evento</span> {{ registro.analisis_riesgo.tipo_evento or 'Sin dato' }}
     {% elif registro.tipo == 'DOCUMENTO_EMITIDO' and registro.documento_emitido %}
         <span class="resumen-etiqueta">Documento</span> {{ registro.documento_emitido.numero_documento }}
         <span class="resumen-separador">·</span>
@@ -114,6 +118,7 @@
                 {% for clave,item in tipos.items() %}
                 <option value="{{ item.codigo }}" {% if tipo == item.codigo %}selected{% endif %}>{{ item.titulo }}</option>
                 {% endfor %}
+                <option value="ANALISIS_RIESGO" {% if tipo == 'ANALISIS_RIESGO' %}selected{% endif %}>Análisis de riesgo</option>
             </select>
         </div>
         <div class="campo-filtro">
@@ -142,7 +147,7 @@
     {% elif tipo == 'DESINSTALACION' %}
         {% set columnas = 10 %}
         {% set clase_tabla = 'tabla-coordinacion-media' %}
-    {% elif tipo in ['ANEXO','MONITOREO'] %}
+    {% elif tipo in ['ANEXO','MONITOREO','ANALISIS_RIESGO'] %}
         {% set columnas = 12 %}
         {% set clase_tabla = 'tabla-coordinacion-amplia' %}
     {% elif tipo == 'DOCUMENTO_EMITIDO' %}
@@ -161,100 +166,25 @@
             <thead>
                 <tr>
                     {% if tipo == 'PAGO' %}
-                        <th class="col-fecha">Fecha</th>
-                        <th class="col-sp">SP</th>
-                        <th class="col-rc">RC</th>
-                        <th class="col-providencia">Providencia</th>
-                        <th class="col-entrega">Quién entrega/remite</th>
-                        <th class="col-folios">Folios</th>
-                        <th class="col-periodo">Período</th>
-                        <th class="col-boleta">Boleta</th>
-                        <th class="col-monto">Total</th>
-                        <th>Quién recibe</th>
-                        <th class="col-estado">Estado</th>
-                        <th class="col-accion"></th>
+                        <th class="col-fecha">Fecha</th><th class="col-sp">SP</th><th class="col-rc">RC</th><th class="col-providencia">Providencia</th><th class="col-entrega">Quién entrega/remite</th><th class="col-folios">Folios</th><th class="col-periodo">Período</th><th class="col-boleta">Boleta</th><th class="col-monto">Total</th><th>Quién recibe</th><th class="col-estado">Estado</th><th class="col-accion"></th>
                     {% elif tipo == 'INSTALACION' %}
-                        <th class="col-fecha">Fecha</th>
-                        <th class="col-sp">SP</th>
-                        <th class="col-rc">RC</th>
-                        <th class="col-providencia">Providencia</th>
-                        <th class="col-entrega">Quién entrega/remite</th>
-                        <th class="col-descripcion">Descripción</th>
-                        <th>Quién recibe</th>
-                        <th class="col-estado">Estado</th>
-                        <th class="col-accion"></th>
+                        <th class="col-fecha">Fecha</th><th class="col-sp">SP</th><th class="col-rc">RC</th><th class="col-providencia">Providencia</th><th class="col-entrega">Quién entrega/remite</th><th class="col-descripcion">Descripción</th><th>Quién recibe</th><th class="col-estado">Estado</th><th class="col-accion"></th>
                     {% elif tipo == 'DESINSTALACION' %}
-                        <th class="col-fecha">Fecha</th>
-                        <th class="col-sp">SP</th>
-                        <th class="col-rc">RC</th>
-                        <th class="col-providencia">Providencia</th>
-                        <th class="col-entrega">Quién entrega/remite</th>
-                        <th class="col-folios">Folios</th>
-                        <th class="col-descripcion">Descripción</th>
-                        <th>Quién recibe</th>
-                        <th class="col-estado">Estado</th>
-                        <th class="col-accion"></th>
+                        <th class="col-fecha">Fecha</th><th class="col-sp">SP</th><th class="col-rc">RC</th><th class="col-providencia">Providencia</th><th class="col-entrega">Quién entrega/remite</th><th class="col-folios">Folios</th><th class="col-descripcion">Descripción</th><th>Quién recibe</th><th class="col-estado">Estado</th><th class="col-accion"></th>
                     {% elif tipo == 'ANEXO' %}
-                        <th class="col-fecha">Fecha</th>
-                        <th class="col-sp">SP</th>
-                        <th class="col-rc">RC</th>
-                        <th class="col-providencia">Providencia</th>
-                        <th class="col-entrega">Quién entrega/remite</th>
-                        <th class="col-folios">Folios</th>
-                        <th>Tipo de anexo</th>
-                        <th>Anexo No.</th>
-                        <th>Escaneado</th>
-                        <th>Quién recibe</th>
-                        <th class="col-estado">Estado</th>
-                        <th class="col-accion"></th>
+                        <th class="col-fecha">Fecha</th><th class="col-sp">SP</th><th class="col-rc">RC</th><th class="col-providencia">Providencia</th><th class="col-entrega">Quién entrega/remite</th><th class="col-folios">Folios</th><th>Tipo de anexo</th><th>Anexo No.</th><th>Escaneado</th><th>Quién recibe</th><th class="col-estado">Estado</th><th class="col-accion"></th>
                     {% elif tipo == 'MONITOREO' %}
-                        <th class="col-fecha">Fecha</th>
-                        <th class="col-sp">SP</th>
-                        <th class="col-rc">RC</th>
-                        <th class="col-providencia">Providencia</th>
-                        <th class="col-entrega">Quién entrega/remite</th>
-                        <th class="col-folios">Folios</th>
-                        <th>Tipo documento</th>
-                        <th>Reporte No.</th>
-                        <th class="col-evento">Evento</th>
-                        <th>Quién recibe</th>
-                        <th class="col-estado">Estado</th>
-                        <th class="col-accion"></th>
+                        <th class="col-fecha">Fecha</th><th class="col-sp">SP</th><th class="col-rc">RC</th><th class="col-providencia">Providencia</th><th class="col-entrega">Quién entrega/remite</th><th class="col-folios">Folios</th><th>Tipo documento</th><th>Reporte No.</th><th class="col-evento">Evento</th><th>Quién recibe</th><th class="col-estado">Estado</th><th class="col-accion"></th>
+                    {% elif tipo == 'ANALISIS_RIESGO' %}
+                        <th class="col-fecha">Fecha</th><th class="col-sp">SP</th><th class="col-rc">RC</th><th class="col-providencia">Providencia</th><th class="col-entrega">Quién entrega/remite</th><th class="col-folios">Folios</th><th>Tipo documento</th><th>Correlativo</th><th class="col-evento">Evento</th><th>Quién recibe</th><th class="col-estado">Estado</th><th class="col-accion"></th>
                     {% elif tipo == 'DOCUMENTO_EMITIDO' %}
-                        <th class="col-fecha">Fecha</th>
-                        <th class="col-rc">RC</th>
-                        <th>No. documento</th>
-                        <th>Destino</th>
-                        <th class="col-descripcion">Descripción</th>
-                        <th>Registrado por</th>
-                        <th class="col-estado">Estado</th>
-                        <th class="col-accion"></th>
+                        <th class="col-fecha">Fecha</th><th class="col-rc">RC</th><th>No. documento</th><th>Destino</th><th class="col-descripcion">Descripción</th><th>Registrado por</th><th class="col-estado">Estado</th><th class="col-accion"></th>
                     {% elif tipo == 'ACTIVIDAD' %}
-                        <th class="col-fecha">Fecha</th>
-                        <th>Tipo actividad</th>
-                        <th>Área apoyada</th>
-                        <th class="col-descripcion">Actividad</th>
-                        <th>Registrado por</th>
-                        <th class="col-estado">Estado</th>
-                        <th class="col-accion"></th>
+                        <th class="col-fecha">Fecha</th><th>Tipo actividad</th><th>Área apoyada</th><th class="col-descripcion">Actividad</th><th>Registrado por</th><th class="col-estado">Estado</th><th class="col-accion"></th>
                     {% elif tipo == 'REMISION' %}
-                        <th class="col-fecha">Fecha</th>
-                        <th>Destino</th>
-                        <th>No. control</th>
-                        <th>Expedientes</th>
-                        <th>Registrado por</th>
-                        <th class="col-estado">Estado</th>
-                        <th class="col-accion"></th>
+                        <th class="col-fecha">Fecha</th><th>Destino</th><th>No. control</th><th>Expedientes</th><th>Registrado por</th><th class="col-estado">Estado</th><th class="col-accion"></th>
                     {% else %}
-                        <th class="col-fecha">Fecha</th>
-                        <th>Tipo</th>
-                        <th class="col-sp">SP</th>
-                        <th class="col-rc">RC</th>
-                        <th class="col-providencia">Providencia</th>
-                        <th class="col-resumen">Resumen relevante</th>
-                        <th>Registrado por</th>
-                        <th class="col-estado">Estado</th>
-                        <th class="col-accion"></th>
+                        <th class="col-fecha">Fecha</th><th>Tipo</th><th class="col-sp">SP</th><th class="col-rc">RC</th><th class="col-providencia">Providencia</th><th class="col-resumen">Resumen relevante</th><th>Registrado por</th><th class="col-estado">Estado</th><th class="col-accion"></th>
                     {% endif %}
                 </tr>
             </thead>
@@ -262,100 +192,25 @@
             {% for registro in registros %}
                 <tr>
                     {% if tipo == 'PAGO' %}
-                        <td class="col-fecha">{{ fecha_registro(registro) }}</td>
-                        <td class="col-sp">{{ sp_registro(registro) }}</td>
-                        <td class="col-rc">{{ registro.rc or '—' }}</td>
-                        <td class="col-providencia">{{ registro.providencia or '—' }}</td>
-                        <td class="col-entrega">{{ registro.persona_entrega or 'No consignado' }}</td>
-                        <td class="col-folios">{{ folios_registro(registro) }}</td>
-                        <td class="col-periodo dato-especifico">{{ periodo_pago(registro.pago) }}</td>
-                        <td class="col-boleta dato-especifico">{{ registro.pago.boleta if registro.pago and registro.pago.boleta else '—' }}</td>
-                        <td class="col-monto dato-especifico">{% if registro.pago and registro.pago.total is not none %}Q {{ '%.2f'|format(registro.pago.total) }}{% else %}<span class="sin-dato">—</span>{% endif %}</td>
-                        <td>{{ usuario_registro(registro) }}</td>
-                        <td class="col-estado">{{ estado_registro(registro) }}</td>
-                        <td class="col-accion"><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
+                        <td class="col-fecha">{{ fecha_registro(registro) }}</td><td class="col-sp">{{ sp_registro(registro) }}</td><td class="col-rc">{{ registro.rc or '—' }}</td><td class="col-providencia">{{ registro.providencia or '—' }}</td><td class="col-entrega">{{ registro.persona_entrega or 'No consignado' }}</td><td class="col-folios">{{ folios_registro(registro) }}</td><td class="col-periodo dato-especifico">{{ periodo_pago(registro.pago) }}</td><td class="col-boleta dato-especifico">{{ registro.pago.boleta if registro.pago and registro.pago.boleta else '—' }}</td><td class="col-monto dato-especifico">{% if registro.pago and registro.pago.total is not none %}Q {{ '%.2f'|format(registro.pago.total) }}{% else %}<span class="sin-dato">—</span>{% endif %}</td><td>{{ usuario_registro(registro) }}</td><td class="col-estado">{{ estado_registro(registro) }}</td><td class="col-accion"><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
                     {% elif tipo == 'INSTALACION' %}
-                        <td class="col-fecha">{{ fecha_registro(registro) }}</td>
-                        <td class="col-sp">{{ sp_registro(registro) }}</td>
-                        <td class="col-rc dato-especifico">{{ registro.rc or '—' }}</td>
-                        <td class="col-providencia dato-especifico">{{ registro.providencia or '—' }}</td>
-                        <td class="col-entrega">{{ registro.persona_entrega or 'No consignado' }}</td>
-                        <td class="col-descripcion">{{ registro.movimiento_dispositivo.descripcion if registro.movimiento_dispositivo and registro.movimiento_dispositivo.descripcion else 'Sin dato' }}</td>
-                        <td>{{ usuario_registro(registro) }}</td>
-                        <td class="col-estado">{{ estado_registro(registro) }}</td>
-                        <td class="col-accion"><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
+                        <td class="col-fecha">{{ fecha_registro(registro) }}</td><td class="col-sp">{{ sp_registro(registro) }}</td><td class="col-rc dato-especifico">{{ registro.rc or '—' }}</td><td class="col-providencia dato-especifico">{{ registro.providencia or '—' }}</td><td class="col-entrega">{{ registro.persona_entrega or 'No consignado' }}</td><td class="col-descripcion">{{ registro.movimiento_dispositivo.descripcion if registro.movimiento_dispositivo and registro.movimiento_dispositivo.descripcion else 'Sin dato' }}</td><td>{{ usuario_registro(registro) }}</td><td class="col-estado">{{ estado_registro(registro) }}</td><td class="col-accion"><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
                     {% elif tipo == 'DESINSTALACION' %}
-                        <td class="col-fecha">{{ fecha_registro(registro) }}</td>
-                        <td class="col-sp">{{ sp_registro(registro) }}</td>
-                        <td class="col-rc dato-especifico">{{ registro.rc or '—' }}</td>
-                        <td class="col-providencia dato-especifico">{{ registro.providencia or '—' }}</td>
-                        <td class="col-entrega">{{ registro.persona_entrega or 'No consignado' }}</td>
-                        <td class="col-folios">{{ folios_registro(registro) }}</td>
-                        <td class="col-descripcion">{{ registro.movimiento_dispositivo.descripcion if registro.movimiento_dispositivo and registro.movimiento_dispositivo.descripcion else 'Sin dato' }}</td>
-                        <td>{{ usuario_registro(registro) }}</td>
-                        <td class="col-estado">{{ estado_registro(registro) }}</td>
-                        <td class="col-accion"><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
+                        <td class="col-fecha">{{ fecha_registro(registro) }}</td><td class="col-sp">{{ sp_registro(registro) }}</td><td class="col-rc dato-especifico">{{ registro.rc or '—' }}</td><td class="col-providencia dato-especifico">{{ registro.providencia or '—' }}</td><td class="col-entrega">{{ registro.persona_entrega or 'No consignado' }}</td><td class="col-folios">{{ folios_registro(registro) }}</td><td class="col-descripcion">{{ registro.movimiento_dispositivo.descripcion if registro.movimiento_dispositivo and registro.movimiento_dispositivo.descripcion else 'Sin dato' }}</td><td>{{ usuario_registro(registro) }}</td><td class="col-estado">{{ estado_registro(registro) }}</td><td class="col-accion"><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
                     {% elif tipo == 'ANEXO' %}
-                        <td class="col-fecha dato-especifico">{{ fecha_registro(registro) }}</td>
-                        <td class="col-sp">{{ sp_registro(registro) }}</td>
-                        <td class="col-rc dato-especifico">{{ registro.rc or '—' }}</td>
-                        <td class="col-providencia dato-especifico">{{ registro.providencia or '—' }}</td>
-                        <td class="col-entrega">{{ registro.persona_entrega or 'No consignado' }}</td>
-                        <td class="col-folios">{{ folios_registro(registro) }}</td>
-                        <td>{{ registro.anexo_coordinacion.tipo_anexo if registro.anexo_coordinacion and registro.anexo_coordinacion.tipo_anexo else 'Sin dato' }}</td>
-                        <td>{{ registro.anexo_coordinacion.numero_anexo if registro.anexo_coordinacion and registro.anexo_coordinacion.numero_anexo else 'Sin dato' }}</td>
-                        <td>{% if registro.anexo_coordinacion and registro.anexo_coordinacion.escaneado %}Sí{% if registro.anexo_coordinacion.fecha_escaneado %} · {{ registro.anexo_coordinacion.fecha_escaneado.strftime('%d/%m/%Y') }}{% endif %}{% else %}Pendiente{% endif %}</td>
-                        <td>{{ usuario_registro(registro) }}</td>
-                        <td class="col-estado">{{ estado_registro(registro) }}</td>
-                        <td class="col-accion"><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
+                        <td class="col-fecha dato-especifico">{{ fecha_registro(registro) }}</td><td class="col-sp">{{ sp_registro(registro) }}</td><td class="col-rc dato-especifico">{{ registro.rc or '—' }}</td><td class="col-providencia dato-especifico">{{ registro.providencia or '—' }}</td><td class="col-entrega">{{ registro.persona_entrega or 'No consignado' }}</td><td class="col-folios">{{ folios_registro(registro) }}</td><td>{{ registro.anexo_coordinacion.tipo_anexo if registro.anexo_coordinacion and registro.anexo_coordinacion.tipo_anexo else 'Sin dato' }}</td><td>{{ registro.anexo_coordinacion.numero_anexo if registro.anexo_coordinacion and registro.anexo_coordinacion.numero_anexo else 'Sin dato' }}</td><td>{% if registro.anexo_coordinacion and registro.anexo_coordinacion.escaneado %}Sí{% if registro.anexo_coordinacion.fecha_escaneado %} · {{ registro.anexo_coordinacion.fecha_escaneado.strftime('%d/%m/%Y') }}{% endif %}{% else %}Pendiente{% endif %}</td><td>{{ usuario_registro(registro) }}</td><td class="col-estado">{{ estado_registro(registro) }}</td><td class="col-accion"><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
                     {% elif tipo == 'MONITOREO' %}
-                        <td class="col-fecha">{{ fecha_registro(registro) }}</td>
-                        <td class="col-sp">{{ sp_registro(registro) }}</td>
-                        <td class="col-rc">{{ registro.rc or '—' }}</td>
-                        <td class="col-providencia dato-especifico">{{ registro.providencia or '—' }}</td>
-                        <td class="col-entrega">{{ registro.persona_entrega or 'No consignado' }}</td>
-                        <td class="col-folios">{{ folios_registro(registro) }}</td>
-                        <td>{{ registro.reporte_monitoreo.tipo_documento if registro.reporte_monitoreo and registro.reporte_monitoreo.tipo_documento else 'Sin dato' }}</td>
-                        <td class="dato-especifico">{{ registro.reporte_monitoreo.numero_reporte if registro.reporte_monitoreo and registro.reporte_monitoreo.numero_reporte else 'Sin dato' }}</td>
-                        <td class="col-evento">{{ registro.reporte_monitoreo.tipo_evento if registro.reporte_monitoreo and registro.reporte_monitoreo.tipo_evento else 'Sin dato' }}</td>
-                        <td>{{ usuario_registro(registro) }}</td>
-                        <td class="col-estado">{{ estado_registro(registro) }}</td>
-                        <td class="col-accion"><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
+                        <td class="col-fecha">{{ fecha_registro(registro) }}</td><td class="col-sp">{{ sp_registro(registro) }}</td><td class="col-rc">{{ registro.rc or '—' }}</td><td class="col-providencia dato-especifico">{{ registro.providencia or '—' }}</td><td class="col-entrega">{{ registro.persona_entrega or 'No consignado' }}</td><td class="col-folios">{{ folios_registro(registro) }}</td><td>{{ registro.reporte_monitoreo.tipo_documento if registro.reporte_monitoreo and registro.reporte_monitoreo.tipo_documento else 'Sin dato' }}</td><td class="dato-especifico">{{ registro.reporte_monitoreo.numero_reporte if registro.reporte_monitoreo and registro.reporte_monitoreo.numero_reporte else 'Sin dato' }}</td><td class="col-evento">{{ registro.reporte_monitoreo.tipo_evento if registro.reporte_monitoreo and registro.reporte_monitoreo.tipo_evento else 'Sin dato' }}</td><td>{{ usuario_registro(registro) }}</td><td class="col-estado">{{ estado_registro(registro) }}</td><td class="col-accion"><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
+                    {% elif tipo == 'ANALISIS_RIESGO' %}
+                        <td class="col-fecha">{{ fecha_registro(registro) }}</td><td class="col-sp">{{ sp_registro(registro) }}</td><td class="col-rc">{{ registro.rc or '—' }}</td><td class="col-providencia dato-especifico">{{ registro.providencia or '—' }}</td><td class="col-entrega">{{ registro.persona_entrega or 'No consignado' }}</td><td class="col-folios">{{ folios_registro(registro) }}</td><td>{{ registro.analisis_riesgo.tipo_documento if registro.analisis_riesgo and registro.analisis_riesgo.tipo_documento else 'Sin dato' }}</td><td class="dato-especifico">{{ registro.analisis_riesgo.correlativo if registro.analisis_riesgo and registro.analisis_riesgo.correlativo else 'Sin dato' }}</td><td class="col-evento">{{ registro.analisis_riesgo.tipo_evento if registro.analisis_riesgo and registro.analisis_riesgo.tipo_evento else 'Sin dato' }}</td><td>{{ usuario_registro(registro) }}</td><td class="col-estado">{{ estado_registro(registro) }}</td><td class="col-accion"><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
                     {% elif tipo == 'DOCUMENTO_EMITIDO' %}
-                        <td class="col-fecha">{{ fecha_registro(registro) }}</td>
-                        <td class="col-rc">{{ registro.rc or '—' }}</td>
-                        <td class="dato-especifico">{{ registro.documento_emitido.numero_documento if registro.documento_emitido else 'Sin dato' }}</td>
-                        <td>{{ registro.documento_emitido.destino if registro.documento_emitido and registro.documento_emitido.destino else 'Sin dato' }}</td>
-                        <td class="col-descripcion">{{ registro.documento_emitido.descripcion if registro.documento_emitido and registro.documento_emitido.descripcion else 'Sin dato' }}</td>
-                        <td>{{ usuario_registro(registro) }}</td>
-                        <td class="col-estado">{{ estado_registro(registro) }}</td>
-                        <td class="col-accion"><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
+                        <td class="col-fecha">{{ fecha_registro(registro) }}</td><td class="col-rc">{{ registro.rc or '—' }}</td><td class="dato-especifico">{{ registro.documento_emitido.numero_documento if registro.documento_emitido else 'Sin dato' }}</td><td>{{ registro.documento_emitido.destino if registro.documento_emitido and registro.documento_emitido.destino else 'Sin dato' }}</td><td class="col-descripcion">{{ registro.documento_emitido.descripcion if registro.documento_emitido and registro.documento_emitido.descripcion else 'Sin dato' }}</td><td>{{ usuario_registro(registro) }}</td><td class="col-estado">{{ estado_registro(registro) }}</td><td class="col-accion"><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
                     {% elif tipo == 'ACTIVIDAD' %}
-                        <td class="col-fecha dato-especifico">{{ fecha_registro(registro) }}</td>
-                        <td>{{ registro.actividad_coordinacion.tipo_actividad if registro.actividad_coordinacion and registro.actividad_coordinacion.tipo_actividad else 'Sin dato' }}</td>
-                        <td>{{ registro.actividad_coordinacion.area_apoyo if registro.actividad_coordinacion and registro.actividad_coordinacion.area_apoyo else 'No especificada' }}</td>
-                        <td class="col-descripcion">{{ registro.actividad_coordinacion.descripcion if registro.actividad_coordinacion else 'Sin dato' }}</td>
-                        <td>{{ usuario_registro(registro) }}</td>
-                        <td class="col-estado">{{ estado_registro(registro) }}</td>
-                        <td class="col-accion"><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
+                        <td class="col-fecha dato-especifico">{{ fecha_registro(registro) }}</td><td>{{ registro.actividad_coordinacion.tipo_actividad if registro.actividad_coordinacion and registro.actividad_coordinacion.tipo_actividad else 'Sin dato' }}</td><td>{{ registro.actividad_coordinacion.area_apoyo if registro.actividad_coordinacion and registro.actividad_coordinacion.area_apoyo else 'No especificada' }}</td><td class="col-descripcion">{{ registro.actividad_coordinacion.descripcion if registro.actividad_coordinacion else 'Sin dato' }}</td><td>{{ usuario_registro(registro) }}</td><td class="col-estado">{{ estado_registro(registro) }}</td><td class="col-accion"><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
                     {% elif tipo == 'REMISION' %}
-                        <td class="col-fecha">{{ fecha_registro(registro) }}</td>
-                        <td class="dato-especifico">{{ registro.remision_coordinacion.destino if registro.remision_coordinacion else 'Sin dato' }}</td>
-                        <td>{{ registro.remision_coordinacion.numero_control if registro.remision_coordinacion and registro.remision_coordinacion.numero_control else 'Sin dato' }}</td>
-                        <td>{{ registro.remision_coordinacion.expedientes_remitidos|length if registro.remision_coordinacion else 0 }}</td>
-                        <td>{{ usuario_registro(registro) }}</td>
-                        <td class="col-estado">{{ estado_registro(registro) }}</td>
-                        <td class="col-accion"><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
+                        <td class="col-fecha">{{ fecha_registro(registro) }}</td><td class="dato-especifico">{{ registro.remision_coordinacion.destino if registro.remision_coordinacion else 'Sin dato' }}</td><td>{{ registro.remision_coordinacion.numero_control if registro.remision_coordinacion and registro.remision_coordinacion.numero_control else 'Sin dato' }}</td><td>{{ registro.remision_coordinacion.expedientes_remitidos|length if registro.remision_coordinacion else 0 }}</td><td>{{ usuario_registro(registro) }}</td><td class="col-estado">{{ estado_registro(registro) }}</td><td class="col-accion"><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
                     {% else %}
-                        <td class="col-fecha">{{ fecha_registro(registro) }}</td>
-                        <td>{{ registro.tipo }}</td>
-                        <td class="col-sp">{{ sp_registro(registro) }}</td>
-                        <td class="col-rc">{{ registro.rc or '—' }}</td>
-                        <td class="col-providencia">{{ registro.providencia or '—' }}</td>
-                        <td class="col-resumen">{{ resumen_registro(registro) }}</td>
-                        <td>{{ usuario_registro(registro) }}</td>
-                        <td class="col-estado">{{ estado_registro(registro) }}</td>
-                        <td class="col-accion"><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
+                        <td class="col-fecha">{{ fecha_registro(registro) }}</td><td>{{ registro.tipo }}</td><td class="col-sp">{{ sp_registro(registro) }}</td><td class="col-rc">{{ registro.rc or '—' }}</td><td class="col-providencia">{{ registro.providencia or '—' }}</td><td class="col-resumen">{{ resumen_registro(registro) }}</td><td>{{ usuario_registro(registro) }}</td><td class="col-estado">{{ estado_registro(registro) }}</td><td class="col-accion"><a href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver</a></td>
                     {% endif %}
                 </tr>
             {% else %}
