@@ -1,5 +1,8 @@
 from datetime import date
+from pathlib import Path
 import re
+import shutil
+import subprocess
 
 import pytest
 from werkzeug.security import generate_password_hash
@@ -9,6 +12,10 @@ from app.models.anexo_rectificado import AnexoRectificado
 from app.models.coordinacion import AnexoCoordinacion, RegistroCoordinacion, ReporteMonitoreo
 from app.models.expediente import Expediente
 from app.models.usuario import Usuario
+
+
+ROOT = Path(__file__).resolve().parents[1]
+MONITOREO_MASIVO_JS = ROOT / "app" / "static" / "js" / "coordinacion_monitoreo_masivo.js"
 
 
 @pytest.fixture()
@@ -218,3 +225,31 @@ def test_lote_es_atomico_si_una_fila_falla_secuencia(app_monitoreo_masivo, clien
         assert AnexoRectificado.query.count() == 0
         assert Expediente.query.filter_by(no_sp="101").one().anexos_rectificados == 1
         assert Expediente.query.filter_by(no_sp="102").one().anexos_rectificados == 2
+
+
+def test_ui_masiva_ocupa_viewport_y_marca_filas_completas_en_verde():
+    javascript = MONITOREO_MASIVO_JS.read_text(encoding="utf-8")
+
+    assert "body.vista-monitoreo-masivo .contenedor" in javascript
+    assert "max-width: none !important;" in javascript
+    assert "min-width: 0 !important;" in javascript
+    assert "overflow-x: hidden !important;" in javascript
+    assert "table-layout: fixed !important;" in javascript
+    assert "function filaEstaLista(tr)" in javascript
+    assert 'tr.classList.toggle("fila-lista", filaEstaLista(tr))' in javascript
+    assert "tr.fila-lista td" in javascript
+    assert "estado?.rectificado_lote" in javascript
+
+
+def test_javascript_monitoreo_masivo_tiene_sintaxis_valida():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node no está disponible en este entorno de pruebas.")
+
+    resultado = subprocess.run(
+        [node, "--check", str(MONITOREO_MASIVO_JS)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert resultado.returncode == 0, resultado.stderr
