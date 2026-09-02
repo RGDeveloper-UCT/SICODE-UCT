@@ -100,6 +100,24 @@
 {%- endmacro %}
 
 {% block content %}
+<style>
+    .subpanel-anexos { width: 100%; margin-top: auto; position: relative; z-index: 8; }
+    .subpanel-anexos summary { list-style: none; cursor: pointer; }
+    .subpanel-anexos summary::-webkit-details-marker { display: none; }
+    .subpanel-anexos-opciones {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 5px;
+        margin-top: 6px;
+    }
+    .subpanel-anexos-opciones .boton-tarjeta-registro {
+        min-height: 31px !important;
+        padding: 6px 10px !important;
+        font-size: 12px !important;
+    }
+    .subpanel-anexos[open] summary { min-height: 34px !important; }
+    .tarjeta-registro-coordinacion--anexo > p { margin-bottom: 5px !important; }
+</style>
 <section class="panel panel-ancho panel-coordinacion-inicio">
     <div class="encabezado-modulo encabezado-coordinacion-inicio">
         <div class="encabezado-coordinacion-texto">
@@ -150,6 +168,7 @@
 
             <div class="grid-registros-coordinacion">
                 {% for clave, item in tipos_registro.items() %}
+                {% if clave != 'monitoreo' %}
                 <article class="tarjeta tarjeta-registro-coordinacion tarjeta-registro-coordinacion--{{ clave|replace('-', '_') }}{% if clave == 'actividad' %} tarjeta-registro-soporte{% endif %}">
                     <div class="tarjeta-registro-cabecera">
                         <div class="tarjeta-registro-identidad">
@@ -157,11 +176,11 @@
                                 {{ icono_registro(clave) }}
                             </div>
                             <div class="tarjeta-registro-titulos">
-                                <h3>{% if clave == 'actividad' %}Soporte técnico y actividades{% else %}{{ item.titulo }}{% endif %}</h3>
-                                <span class="tarjeta-registro-etiqueta">{{ item.codigo|replace('_', ' ') }}</span>
+                                <h3>{% if clave == 'actividad' %}Soporte técnico y actividades{% elif clave == 'anexo' %}Anexos{% else %}{{ item.titulo }}{% endif %}</h3>
+                                <span class="tarjeta-registro-etiqueta">{% if clave == 'anexo' %}ANEXOS DOCUMENTALES{% else %}{{ item.codigo|replace('_', ' ') }}{% endif %}</span>
                             </div>
                         </div>
-                        <span class="contador-tipo-registro" title="Total de registros">{{ conteos.get(item.codigo, 0) }}</span>
+                        <span class="contador-tipo-registro" title="Total de registros">{% if clave == 'anexo' %}{{ conteos.get('ANEXO', 0) + conteos.get('MONITOREO', 0) + conteos.get('ANALISIS_RIESGO', 0) }}{% else %}{{ conteos.get(item.codigo, 0) }}{% endif %}</span>
                     </div>
                     {% if clave == 'actividad' %}
                     <p>Soporte TI, gestión de usuarios, hardware, software, red, equipos, backups y actividades de la Coordinación.</p>
@@ -173,6 +192,22 @@
                         <a class="boton-tarjeta-registro boton-tarjeta-registro-secundario" href="{{ url_for('soporte_tecnico.listado') }}">Ver boletas</a>
                         {% endif %}
                     </div>
+                    {% elif clave == 'anexo' %}
+                    <p>Anexos generales, reportes de monitoreo y análisis de riesgo, conservando una sola secuencia documental por SP.</p>
+                    <details class="subpanel-anexos">
+                        <summary class="boton-tarjeta-registro boton-tarjeta-registro-principal">{% if current_user.es_visor %}Abrir anexos{% else %}Seleccionar tipo de anexo{% endif %}</summary>
+                        <div class="subpanel-anexos-opciones">
+                            {% if current_user.es_visor %}
+                            <a class="boton-tarjeta-registro boton-tarjeta-registro-secundario" href="{{ url_for('coordinacion.listado', tipo='ANEXO') }}">Anexo general</a>
+                            <a class="boton-tarjeta-registro boton-tarjeta-registro-secundario" href="{{ url_for('coordinacion.listado', tipo='MONITOREO') }}">Reporte de monitoreo</a>
+                            <a class="boton-tarjeta-registro boton-tarjeta-registro-secundario" href="{{ url_for('coordinacion.listado', tipo='ANALISIS_RIESGO') }}">Análisis de riesgo</a>
+                            {% else %}
+                            <a class="boton-tarjeta-registro boton-tarjeta-registro-secundario" href="{{ url_for('coordinacion.registrar', tipo='anexo') }}">Anexo general</a>
+                            <a class="boton-tarjeta-registro boton-tarjeta-registro-secundario" href="{{ url_for('coordinacion.registrar', tipo='monitoreo') }}">Reporte de monitoreo</a>
+                            <a class="boton-tarjeta-registro boton-tarjeta-registro-secundario" href="{{ url_for('coordinacion.registrar', tipo='analisis-riesgo') }}">Análisis de riesgo</a>
+                            {% endif %}
+                        </div>
+                    </details>
                     {% else %}
                     <p>{{ item.descripcion }}</p>
                     <div class="acciones-tarjeta-registro">
@@ -184,6 +219,7 @@
                     </div>
                     {% endif %}
                 </article>
+                {% endif %}
                 {% endfor %}
             </div>
         </section>
