@@ -5,9 +5,9 @@ from flask import Blueprint, abort, flash, jsonify, redirect, render_template, r
 from flask_login import current_user, login_required
 
 from app import db
-from app.forms.coordinacion_form import AnexoForm, MonitoreoForm
+from app.forms.coordinacion_form import AnalisisRiesgoForm, AnexoForm, MonitoreoForm
 from app.models.anexo_rectificado import AnexoRectificado
-from app.models.coordinacion import AnexoCoordinacion, RegistroCoordinacion, ReporteMonitoreo
+from app.models.coordinacion import AnalisisRiesgo, AnexoCoordinacion, RegistroCoordinacion, ReporteMonitoreo
 from app.models.expediente import Expediente
 from app.routes.coordinacion import CATALOGOS, TIPOS_REGISTRO, _crear_base, _sp_opciones
 from app.services.bitacora_service import registrar_bitacora
@@ -21,6 +21,12 @@ monitoreo_anexos_bp = Blueprint(
 )
 
 MAX_ANEXOS_MONITOREO = 200
+
+CONFIG_ANALISIS_RIESGO = {
+    "codigo": "ANALISIS_RIESGO",
+    "titulo": "Análisis de riesgo",
+    "descripcion": "Análisis de riesgo recibido e incorporado al expediente como anexo.",
+}
 
 
 def _entero_anexo(valor):
@@ -264,11 +270,25 @@ def _titulo_reporte(form):
     return " ".join(partes)[:180]
 
 
+def _titulo_analisis_riesgo(form):
+    correlativo = (form.correlativo_analisis.data or "").strip()
+    evento = (form.tipo_evento.data or "").strip()
+    partes = ["Análisis de riesgo"]
+    if correlativo:
+        partes.append(f"Correlativo {correlativo}")
+    if evento:
+        partes.append(f"— {evento}")
+    return " ".join(partes)[:180]
+
+
 def _render_control(tipo, form):
+    configuracion = TIPOS_REGISTRO.get(tipo)
+    if tipo == "analisis-riesgo":
+        configuracion = CONFIG_ANALISIS_RIESGO
     return render_template(
         "coordinacion/anexo_control.html",
         tipo=tipo,
-        configuracion=TIPOS_REGISTRO[tipo],
+        configuracion=configuracion,
         form=form,
         expedientes=_sp_opciones(),
         catalogos=CATALOGOS,
@@ -285,7 +305,7 @@ def _registrar_anexo():
         else:
             numero = _entero_anexo(form.numero_anexo.data)
             es_vencido = bool(form.anexo_vencido.data)
-            estado, error = _validar_numero(expediente, numero, es_vencido)
+            _estado, error = _validar_numero(expediente, numero, es_vencido)
             if error:
                 form.numero_anexo.errors.append(error)
             else:
@@ -360,6 +380,26 @@ def _registrar_anexo():
     return _render_control("anexo", form)
 
 
+def _crear_detalle_rectificado(expediente, numero, titulo, form):
+    if _anexo_rectificado_existente(expediente, numero):
+        return
+    db.session.add(AnexoRectificado(
+        expediente_id=expediente.id,
+        numero_anexo=str(numero),
+        titulo=titulo,
+        tipo_anexo="OTRO",
+        fecha_recepcion=form.fecha_recepcion.data,
+        persona_entrega=form.persona_entrega.data,
+        rc=form.rc.data,
+        providencia=form.providencia.data,
+        folios=form.folios.data,
+        escaneado=False,
+        observaciones=form.observaciones.data,
+        creado_por_id=current_user.id,
+        activo=True,
+    ))
+
+
 def _registrar_monitoreo():
     form = MonitoreoForm()
 
@@ -372,7 +412,7 @@ def _registrar_monitoreo():
         else:
             numero = form.numero_anexo_monitoreo.data
             es_vencido = bool(form.anexo_vencido.data)
-            estado, error = _validar_numero(expediente, numero, es_vencido)
+            _estado, error = _validar_numero(expediente, numero, es_vencido)
             if error:
                 form.numero_anexo_monitoreo.errors.append(error)
             else:
@@ -410,25 +450,7 @@ def _registrar_monitoreo():
                     numero_anexo=str(numero),
                     es_vencido=es_vencido,
                 ))
-
-                # Mantiene el detalle rectificado sin crear un duplicado si ese
-                # número histórico ya había sido descrito durante rectificación.
-                if not _anexo_rectificado_existente(expediente, numero):
-                    db.session.add(AnexoRectificado(
-                        expediente_id=expediente.id,
-                        numero_anexo=str(numero),
-                        titulo=titulo,
-                        tipo_anexo="OTRO",
-                        fecha_recepcion=form.fecha_recepcion.data,
-                        persona_entrega=form.persona_entrega.data,
-                        rc=form.rc.data,
-                        providencia=form.providencia.data,
-                        folios=form.folios.data,
-                        escaneado=False,
-                        observaciones=form.observaciones.data,
-                        creado_por_id=current_user.id,
-                        activo=True,
-                    ))
+                _crear_detalle_rectificado(expediente, numero, titulo, form)
 
                 total_anterior = _actualizar_secuencia_vigente(expediente, numero, es_vencido)
 
@@ -481,8 +503,116 @@ def _registrar_monitoreo():
     return _render_control("monitoreo", form)
 
 
+def _registrar_analisis_riesgo():
+    form = AnalisisRiesgoForm()
+
+    if form.validate_on_submit():
+        expediente, _ = resolver_expediente(form.no_sp.data)
+        if not expediente:
+            form.no_sp.errors.append(
+                "El SP debe existir y estar activo para registrar el análisis de riesgo como anexo."
+            )
+        else:
+            numero = form.numero_anexo_monitoreo.data
+            es_vencido = bool(form.anexo_vencido.data)
+            _estado, error = _validar_numero(expediente, numero, es_vencido)
+            if error:
+                form.numero_anexo_monitoreo.errors.append(error)
+            else:
+                registro = _crear_base(
+                    "ANALISIS_RIESGO",
+                    form.no_sp.data,
+                    form.rc.data,
+                    form.providencia.data,
+                    form.fecha_recepcion.data,
+                    form.observaciones.data,
+                    [
+                        form.no_sp.data,
+                        form.rc.data,
+                        form.providencia.data,
+                        form.fecha_recepcion.data,
+                        form.correlativo_analisis.data,
+                        form.tipo_evento.data,
+                        numero,
+                    ],
+                )
+                # ANALISIS_RIESGO no es un módulo principal de recepción; se
+                # conserva bajo Anexos pero debe mantener los mismos metadatos
+                # comunes que Monitoreo.
+                registro.persona_entrega = form.persona_entrega.data
+                registro.folios_recepcion = form.folios.data
+
+                titulo = _titulo_analisis_riesgo(form)
+                db.session.add(AnalisisRiesgo(
+                    registro_id=registro.id,
+                    tipo_documento=form.tipo_documento.data or "PROVIDENCIA",
+                    correlativo=form.correlativo_analisis.data,
+                    tipo_evento=form.tipo_evento.data,
+                ))
+                db.session.add(AnexoCoordinacion(
+                    registro_id=registro.id,
+                    tipo_anexo="ANÁLISIS DE RIESGO",
+                    titulo=titulo,
+                    folios=form.folios.data,
+                    escaneado=False,
+                    numero_anexo=str(numero),
+                    es_vencido=es_vencido,
+                ))
+                _crear_detalle_rectificado(expediente, numero, titulo, form)
+
+                total_anterior = _actualizar_secuencia_vigente(expediente, numero, es_vencido)
+
+                registrar_bitacora(
+                    accion=(
+                        "REGISTRAR_ANALISIS_RIESGO_COMO_ANEXO_VENCIDO"
+                        if es_vencido
+                        else "REGISTRAR_ANALISIS_RIESGO_COMO_ANEXO"
+                    ),
+                    modulo="Coordinación",
+                    descripcion=(
+                        f"Se registró análisis de riesgo del SP {expediente.no_sp} como Anexo {numero}. "
+                        + (
+                            f"ANEXO VENCIDO/HISTÓRICO: el total vigente permanece en {total_anterior}. "
+                            if es_vencido
+                            else f"Total de anexos: {total_anterior} -> {numero}. "
+                        )
+                        + "Número confirmado contra File Server."
+                    ),
+                    usuario_id=current_user.id,
+                    expediente_id=expediente.id,
+                    entidad="RegistroCoordinacion",
+                    entidad_id=registro.id,
+                    datos_posteriores={
+                        "tipo": "ANALISIS_RIESGO",
+                        "sp": expediente.no_sp,
+                        "numero_anexo": numero,
+                        "es_vencido": es_vencido,
+                        "correlativo_analisis": form.correlativo_analisis.data,
+                        "tipo_evento": form.tipo_evento.data,
+                        "anexos_rectificados": expediente.anexos_rectificados,
+                    },
+                    commit=False,
+                )
+                db.session.commit()
+
+                if es_vencido:
+                    flash(
+                        f"Análisis de riesgo registrado como ANEXO VENCIDO/HISTÓRICO {numero} del SP {expediente.no_sp}. "
+                        f"La secuencia vigente continúa en {total_anterior}.",
+                        "warning",
+                    )
+                else:
+                    flash(
+                        f"Análisis de riesgo registrado como Anexo {numero} del SP {expediente.no_sp}.",
+                        "success",
+                    )
+                return redirect(url_for("coordinacion.detalle", registro_id=registro.id))
+
+    return _render_control("analisis-riesgo", form)
+
+
 def instalar_registro_monitoreo(app):
-    """Centraliza ANEXO/MONITOREO para proteger la secuencia maestra del SP."""
+    """Centraliza ANEXO/MONITOREO/ANÁLISIS para proteger la secuencia maestra del SP."""
     original = app.view_functions.get("coordinacion.registrar")
     if original is None or getattr(original, "_control_anexos_monitoreo", False):
         return
@@ -491,6 +621,8 @@ def instalar_registro_monitoreo(app):
     def registrar_con_control_anexos(tipo):
         if tipo == "monitoreo":
             return _registrar_monitoreo()
+        if tipo == "analisis-riesgo":
+            return _registrar_analisis_riesgo()
         if tipo == "anexo":
             return _registrar_anexo()
         return original(tipo)
