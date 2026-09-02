@@ -1,6 +1,7 @@
 import re
 import uuid
 from collections import Counter
+from difflib import SequenceMatcher
 
 from app import db
 from app.models.bitacora import Bitacora
@@ -13,6 +14,7 @@ from app.services.nexo_catalogo_service import evaluar_valor_catalogo, normaliza
 
 UMBRAL_AUTOCORRECCION_VISIBLE = 95
 ACCION_BITACORA = "NEXO_AUTOCORRECCION_ORTOGRAFICA"
+PALABRAS_FUNCIONALES = {"DE", "DEL", "LA", "LAS", "EL", "LOS", "Y", "E"}
 
 
 FUENTES_AUTOCORREGIBLES = (
@@ -55,6 +57,46 @@ def _numeros_compatibles(valor, canonico):
     return origen == destino
 
 
+def _tokens_contenido(valor):
+    return [
+        token
+        for token in normalizar_catalogo(valor).split()
+        if token not in PALABRAS_FUNCIONALES
+    ]
+
+
+def _estructura_ortografica_compatible(valor, canonico):
+    """Evita confundir una variante ortográfica con un alias semántico.
+
+    Se permiten tildes, mayúsculas, signos, espacios y palabras funcionales. Tras
+    retirar esas palabras, ambos valores deben conservar la misma cantidad de
+    palabras de contenido y cada par debe ser igual o una variación tipográfica
+    razonablemente cercana. Así, "Victim Proximity GPS" no se autocorrige a
+    "Victim Proximity" aunque RapidFuzz le otorgue 95%.
+    """
+    normal_origen = normalizar_catalogo(valor)
+    normal_destino = normalizar_catalogo(canonico)
+    if normal_origen == normal_destino:
+        return True
+
+    origen = _tokens_contenido(valor)
+    destino = _tokens_contenido(canonico)
+    if not origen or len(origen) != len(destino):
+        return False
+
+    diferencias = 0
+    for izquierda, derecha in zip(origen, destino):
+        if izquierda == derecha:
+            continue
+        diferencias += 1
+        if diferencias > 2:
+            return False
+        similitud_token = SequenceMatcher(None, izquierda, derecha).ratio()
+        if similitud_token < 0.72:
+            return False
+    return diferencias >= 1
+
+
 def _evaluacion_equivalente_exacta(valor, canonico, frecuencia):
     return {
         "valor": str(valor or "").strip(),
@@ -69,7 +111,7 @@ def _evaluacion_equivalente_exacta(valor, canonico, frecuencia):
 
 
 def es_correccion_ortografica_segura(evaluacion):
-    """Autoriza solo variantes ortográficas con confianza visible >=95%."""
+    """Autoriza solo variantes ortográficas reales con confianza visible >=95%."""
     evaluacion = dict(evaluacion or {})
     if evaluacion.get("clasificacion") != "variante_ortografica":
         return False
@@ -83,8 +125,9 @@ def es_correccion_ortografica_segura(evaluacion):
     confianza_visible = int(round(similitud))
     if confianza_visible < UMBRAL_AUTOCORRECCION_VISIBLE:
         return False
-
-    return _numeros_compatibles(valor, canonico)
+    if not _numeros_compatibles(valor, canonico):
+        return False
+    return _estructura_ortografica_compatible(valor, canonico)
 
 
 def proponer_correcciones_valores(valores, catalogo):
@@ -212,10 +255,12 @@ def aplicar_autocorreccion_ortografica(usuario_id=None):
                     "umbral": UMBRAL_AUTOCORRECCION_VISIBLE,
                     "registros": cantidad,
                     "solo_catalogo": True,
+                    "estructura_ortografica_validada": True,
                 },
                 motivo=(
                     "Autocorrección ortográfica NEXO autorizada únicamente para "
-                    "variante_ortografica con confianza visible >=95% y números compatibles."
+                    "variante_ortografica con confianza visible >=95%, números compatibles "
+                    "y estructura tipográfica compatible."
                 ),
             ))
 
