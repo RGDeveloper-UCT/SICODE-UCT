@@ -18,7 +18,7 @@ from app.services.nexo_catalogo_service import (
     enriquecer_analisis_catalogos,
     resumen_motor_catalogos,
 )
-from app.services.nexo_export_service import construir_exportacion_nexo
+from app.services.nexo_export_seguro_service import construir_exportacion_nexo
 
 
 nexo_ia_bp = Blueprint("nexo_ia", __name__, url_prefix="/nexo")
@@ -173,7 +173,7 @@ def exportar_aprendizaje():
         error = _registrar_error_etapa("exportar_aprendizaje", exc)
         paquete = {
             "formato": "SICODE-NEXO-APRENDIZAJE",
-            "version_formato": 2,
+            "version_formato": 3,
             "generado_en": datetime.utcnow().isoformat(timespec="seconds") + "Z",
             "estado_exportacion": "parcial",
             "diagnostico_exportacion": {
@@ -190,6 +190,7 @@ def exportar_aprendizaje():
                     "PDF e imágenes",
                     "texto OCR completo",
                     "datos personales",
+                    "texto libre probable en campos de catálogo",
                     "credenciales, tokens o secretos",
                     "direcciones IP y user-agent",
                 ],
