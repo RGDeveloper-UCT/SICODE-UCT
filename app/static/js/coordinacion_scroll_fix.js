@@ -71,15 +71,55 @@
     };
 
     /*
-     * Los botones de registro son controles interactivos, no zonas de arrastre.
-     * Detener pointerdown en el propio control evita que el listener de arrastre
-     * del carrete capture el puntero y termine anulando la navegación del enlace.
+     * Los controles interactivos no son zonas de arrastre. Summary se incluye
+     * expresamente porque el carrete usa pointer capture y, sin esta exclusión,
+     * el <details> de Anexos no recibe el click nativo para abrirse.
      */
-    track.querySelectorAll("a, button, input, select, textarea, label").forEach((control) => {
+    track.querySelectorAll("a, button, summary, input, select, textarea, label, .tarjeta-registro-coordinacion--anexo .tarjeta-registro-titulos").forEach((control) => {
         control.addEventListener("pointerdown", (evento) => {
             evento.stopPropagation();
         });
     });
+
+    /*
+     * Al abrir Anexos se incrementa la altura útil del carrete para mostrar las
+     * dos opciones sin recortes. El título Anexos también funciona como activador.
+     */
+    const subpanelAnexos = track.querySelector(".subpanel-anexos");
+    if (subpanelAnexos instanceof HTMLDetailsElement) {
+        const tarjetaAnexos = subpanelAnexos.closest(".tarjeta-registro-coordinacion--anexo");
+        const tituloAnexos = tarjetaAnexos?.querySelector(".tarjeta-registro-titulos");
+
+        const sincronizarSubpanel = () => {
+            track.classList.toggle("coord-subpanel-abierto", subpanelAnexos.open);
+            tarjetaAnexos?.classList.toggle("tarjeta-anexos-abierta", subpanelAnexos.open);
+            if (tituloAnexos) {
+                tituloAnexos.setAttribute("aria-expanded", subpanelAnexos.open ? "true" : "false");
+            }
+        };
+
+        subpanelAnexos.addEventListener("toggle", sincronizarSubpanel);
+
+        if (tituloAnexos instanceof HTMLElement) {
+            tituloAnexos.setAttribute("role", "button");
+            tituloAnexos.setAttribute("tabindex", "0");
+
+            const alternarDesdeTitulo = () => {
+                subpanelAnexos.open = !subpanelAnexos.open;
+            };
+
+            tituloAnexos.addEventListener("click", alternarDesdeTitulo);
+            tituloAnexos.addEventListener("keydown", (evento) => {
+                if (evento.key !== "Enter" && evento.key !== " ") {
+                    return;
+                }
+                evento.preventDefault();
+                alternarDesdeTitulo();
+            });
+        }
+
+        sincronizarSubpanel();
+    }
 
     /*
      * Flechas del carrete: interceptamos el click antes del listener anterior y
@@ -97,6 +137,10 @@
 
     /* Teclado con la misma animación fluida de las flechas. */
     track.addEventListener("keydown", (evento) => {
+        if (evento.target instanceof Element && evento.target.closest("a, button, summary, input, select, textarea, [role='button']")) {
+            return;
+        }
+
         let destino = null;
 
         if (evento.key === "ArrowLeft") {
@@ -147,7 +191,7 @@
     }, { capture: true, passive: false });
 
     track.addEventListener("pointerdown", (evento) => {
-        if (evento.target instanceof Element && evento.target.closest("a, button, input, select, textarea, label")) {
+        if (evento.target instanceof Element && evento.target.closest("a, button, summary, input, select, textarea, label, [role='button']")) {
             cancelarAnimacion();
             destinoGestual = track.scrollLeft;
             return;
