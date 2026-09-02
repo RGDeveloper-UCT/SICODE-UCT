@@ -110,7 +110,10 @@ def test_inicio_agrupa_monitoreo_y_analisis_dentro_de_anexos(cliente_riesgo):
     assert "Análisis de riesgo" in texto
     assert "/coordinacion/registrar/monitoreo" in texto
     assert "/coordinacion/registrar/analisis-riesgo" in texto
-    assert "tarjeta-registro-coordinacion--monitoreo" not in texto
+    # El reporte individual continúa agrupado dentro de Anexos. La nueva
+    # captura masiva es una opción operativa independiente en REGISTROS.
+    assert 'tarjeta-registro-coordinacion--monitoreo"' not in texto
+    assert "tarjeta-registro-coordinacion--monitoreo_masivo" in texto
 
 
 def test_analisis_riesgo_se_guarda_como_siguiente_anexo(app_analisis_riesgo, cliente_riesgo):
