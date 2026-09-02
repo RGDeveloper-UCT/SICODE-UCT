@@ -256,8 +256,6 @@ def test_guard_de_produccion_bloquea_registro_hasta_rectificar(
     app_rectificacion_produccion,
     cliente_rectificacion_produccion,
 ):
-    # Activa explícitamente el guard de producción para esta prueba sin tocar
-    # la base aislada de pytest ni el resto de la suite histórica.
     app_rectificacion_produccion.config["TESTING"] = False
     try:
         bloqueado = cliente_rectificacion_produccion.post(
@@ -283,9 +281,6 @@ def test_guard_de_produccion_bloquea_registro_hasta_rectificar(
         )
         assert rectificacion.status_code == 200
 
-        # Tras rectificar, el guard debe dejar pasar un formulario de anexo
-        # realmente válido. La prueba anterior enviaba solo SP/RC y terminaba
-        # probando validaciones del formulario en lugar del guard de producción.
         permitido = cliente_rectificacion_produccion.post(
             "/coordinacion/registrar/anexo",
             data={
@@ -315,7 +310,7 @@ def test_guard_de_produccion_permite_registro_si_se_confirma_sin_expediente(
             json={
                 "no_sp": "358",
                 "total_folios": None,
-                "total_anexos": None,
+                "total_anexos": 0,
                 "sin_expediente_fisico": True,
                 "confirmado": True,
                 "origen": "anexo",
