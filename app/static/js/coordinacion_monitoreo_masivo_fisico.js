@@ -58,12 +58,6 @@
     if (grid) grid.parentNode.insertBefore(etiqueta, grid);
     const sinFisico = etiqueta.querySelector("input");
 
-    function filasDelSp(sp) {
-        return Array.from(tabla.querySelectorAll("tr")).filter(
-            (tr) => tr.querySelector(".fila-sp")?.value.trim() === sp
-        );
-    }
-
     function actualizarBadges() {
         Array.from(tabla.querySelectorAll("tr")).forEach((tr) => {
             const sp = tr.querySelector(".fila-sp")?.value.trim();
@@ -76,7 +70,9 @@
                 if (badge.textContent !== deseado) badge.textContent = deseado;
                 badge.classList.remove("ok");
                 badge.classList.add("sin-fisico");
-                if (boton) boton.textContent = "Confirmar de nuevo";
+                if (boton && boton.textContent !== "Confirmar de nuevo") {
+                    boton.textContent = "Confirmar de nuevo";
+                }
             } else {
                 badge.classList.remove("sin-fisico");
             }
