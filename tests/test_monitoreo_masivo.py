@@ -1,6 +1,8 @@
 from datetime import date
 from pathlib import Path
 import re
+import shutil
+import subprocess
 
 import pytest
 from werkzeug.security import generate_password_hash
@@ -237,3 +239,17 @@ def test_ui_masiva_ocupa_viewport_y_marca_filas_completas_en_verde():
     assert 'tr.classList.toggle("fila-lista", filaEstaLista(tr))' in javascript
     assert "tr.fila-lista td" in javascript
     assert "estado?.rectificado_lote" in javascript
+
+
+def test_javascript_monitoreo_masivo_tiene_sintaxis_valida():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node no está disponible en este entorno de pruebas.")
+
+    resultado = subprocess.run(
+        [node, "--check", str(MONITOREO_MASIVO_JS)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert resultado.returncode == 0, resultado.stderr
