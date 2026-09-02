@@ -77,7 +77,12 @@ class AnexoForm(RegistroBaseForm):
     folios = StringField("Folios recibidos", validators=[Optional(), Length(max=80)])
     escaneado = BooleanField("Escaneado")
     fecha_escaneado = DateField("Fecha escaneado", validators=[Optional()], format="%Y-%m-%d")
-    numero_anexo = StringField("Anexo No.", validators=[Optional(), Length(max=50)])
+    numero_anexo = StringField("Anexo No.", validators=[DataRequired(), Length(max=50)])
+    anexo_vencido = BooleanField("ANEXO VENCIDO / HISTÓRICO")
+    confirmacion_file_server = BooleanField(
+        "Confirmé en File Server el número de anexo",
+        validators=[DataRequired(message="Debe confirmar el número de anexo contra File Server.")],
+    )
     submit = SubmitField("Guardar anexo")
 
 
@@ -87,6 +92,7 @@ class MonitoreoForm(RegistroBaseForm):
         "Anexo que corresponde",
         validators=[DataRequired(), NumberRange(min=1, max=200)],
     )
+    anexo_vencido = BooleanField("ANEXO VENCIDO / HISTÓRICO")
     confirmacion_file_server = BooleanField(
         "Confirmé en File Server el número de anexo",
         validators=[DataRequired(message="Debe confirmar el número de anexo contra File Server.")],
