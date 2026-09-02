@@ -185,9 +185,17 @@ def test_guard_de_produccion_bloquea_registro_hasta_rectificar(
         )
         assert rectificacion.status_code == 200
 
+        # Tras rectificar, el guard debe dejar pasar un formulario de anexo
+        # realmente válido. La prueba anterior enviaba solo SP/RC y terminaba
+        # probando validaciones del formulario en lugar del guard de producción.
         permitido = cliente_rectificacion_produccion.post(
             "/coordinacion/registrar/anexo",
-            data={"no_sp": "358", "tipo_referencia": "RC"},
+            data={
+                "no_sp": "358",
+                "tipo_referencia": "RC",
+                "numero_anexo": "4",
+                "confirmacion_file_server": "y",
+            },
             follow_redirects=False,
         )
         assert permitido.status_code == 302
