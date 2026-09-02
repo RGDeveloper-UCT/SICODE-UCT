@@ -29,11 +29,12 @@ def _caracteristicas_seguras(valor):
 
 
 def _es_muestra_sicode_ia(segmento):
-    """Reconoce muestras nuevas e históricas de SICODE.IA.
+    """Reconoce únicamente muestras originadas en el flujo supervisado SICODE.IA.
 
-    Versiones previas dependían exclusivamente de datos_detectados['modo']; algunos
-    análisis antiguos solo conservaron metodo_extraccion. Aceptar ambas señales
-    permite recuperar retroalimentación válida sin tocar contenido documental.
+    El lote documental clásico también usa SegmentoDocumental, pero ya posee su
+    propio circuito de aprendizaje al confirmar. Mezclar ambos caminos haría
+    posible contar una misma confirmación dos veces. Para NEXO se aceptan las
+    señales explícitas de SICODE.IA conservadas por versiones actuales o previas.
     """
     analisis = getattr(segmento, "analisis", None)
     if analisis is None:
@@ -42,9 +43,8 @@ def _es_muestra_sicode_ia(segmento):
     meta = _dict_seguro(getattr(analisis, "datos_detectados", None))
     modo = str(meta.get("modo") or "").strip().upper()
     metodo = str(getattr(analisis, "metodo_extraccion", "") or "").strip().upper()
-    tipo = str(getattr(analisis, "tipo_detectado", "") or "").strip().upper()
 
-    return modo == "SICODE_IA" or metodo == "SICODE_IA" or tipo == "LOTE_DOCUMENTAL"
+    return modo == "SICODE_IA" or metodo == "SICODE_IA"
 
 
 def _marca_aprendizaje(segmento_id):
@@ -119,23 +119,31 @@ def incorporar_segmento_verificado(segmento, usuario_id=None, commit=True):
 
 
 def estado_cola_aprendizaje():
-    """Resume el flujo de verificación -> aprendizaje sin exponer documentos."""
-    verificadas = (
-        SegmentoDocumental.query
-        .filter(SegmentoDocumental.estado.in_(["VERIFICADO_HUMANO", "CONFIRMADO"]))
-        .filter(SegmentoDocumental.datos_confirmados.isnot(None))
-        .count()
+    """Resume el flujo SICODE.IA -> verificación humana -> aprendizaje."""
+    segmentos = SegmentoDocumental.query.order_by(SegmentoDocumental.id.asc()).all()
+    elegibles = [segmento for segmento in segmentos if _es_muestra_sicode_ia(segmento)]
+    verificadas = [
+        segmento
+        for segmento in elegibles
+        if segmento.estado in {"VERIFICADO_HUMANO", "CONFIRMADO"}
+        and segmento.datos_confirmados
+    ]
+    pendientes_validacion = sum(
+        1 for segmento in elegibles if segmento.estado == "PENDIENTE_VALIDACION"
     )
-    pendientes_validacion = SegmentoDocumental.query.filter_by(estado="PENDIENTE_VALIDACION").count()
-    aprendidas = Bitacora.query.filter_by(
+
+    marcas = Bitacora.query.filter_by(
         accion="CEREBRO_SICODE_APRENDIZAJE",
         entidad="SegmentoDocumental",
-    ).count()
+    ).all()
+    ids_aprendidos = {str(marca.entidad_id or "") for marca in marcas}
+    aprendidas = sum(1 for segmento in verificadas if str(segmento.id) in ids_aprendidos)
 
     return {
-        "segmentos_verificados": int(verificadas or 0),
+        "segmentos_sicode_ia": len(elegibles),
+        "segmentos_verificados": len(verificadas),
         "segmentos_aprendidos": int(aprendidas or 0),
-        "pendientes_aprendizaje": max(0, int(verificadas or 0) - int(aprendidas or 0)),
+        "pendientes_aprendizaje": max(0, len(verificadas) - int(aprendidas or 0)),
         "pendientes_validacion_humana": int(pendientes_validacion or 0),
     }
 
@@ -160,6 +168,8 @@ def absorber_verificaciones_pendientes(usuario_id=None):
     omitidas = 0
 
     for segmento in segmentos:
+        if not _es_muestra_sicode_ia(segmento):
+            continue
         try:
             if incorporar_segmento_verificado(segmento, usuario_id=usuario_id, commit=True):
                 aprendidas += 1
