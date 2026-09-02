@@ -55,6 +55,7 @@ jobs:
                   'movimientos_dispositivo',
                   'anexos_coordinacion',
                   'reportes_monitoreo',
+                  'analisis_riesgo',
                   'documentos_emitidos',
                   'actividades_coordinacion',
                   'remisiones_coordinacion',
@@ -95,6 +96,7 @@ jobs:
           plantillas = [
               'coordinacion/inicio.html',
               'coordinacion/formulario.html',
+              'coordinacion/anexo_control.html',
               'coordinacion/listado.html',
               'coordinacion/detalle.html',
               'coordinacion/remision_detalle.html',
@@ -114,4 +116,49 @@ jobs:
           PY
 
       - name: Probar Coordinacion, Pagos, C.A CCT y extractores documentales
-        run: pytest -q tests/test_rectificacion_produccion_coordinacion.py tests/test_coordinacion_carrusel_ui.py tests/test_pagos_service.py tests/test_control_accesos_cct.py tests/test_analisis_documental_service.py tests/test_lote_documental_service.py
+        run: pytest -q tests/test_rectificacion_produccion_coordinacion.py tests/test_coordinacion_carrusel_ui.py tests/test_monitoreo_anexos.py tests/test_analisis_riesgo_anexos.py tests/test_pagos_service.py tests/test_control_accesos_cct.py tests/test_analisis_documental_service.py tests/test_lote_documental_service.py
+
+  postgres-anexos:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: sicode
+          POSTGRES_PASSWORD: sicode_ci
+          POSTGRES_DB: sicode_coordinacion_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U sicode -d sicode_coordinacion_ci"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      DATABASE_URL: "postgresql://sicode:sicode_ci@127.0.0.1:5432/sicode_coordinacion_ci"
+      SECRET_KEY: prueba-ci-sicode-postgres
+      PYTHONPATH: .
+    steps:
+      - name: Obtener codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Compilar Python y migraciones
+        run: python -m compileall -q app migrations tests
+
+      - name: Aplicar cadena completa de migraciones en PostgreSQL
+        run: |
+          python -m flask --app run.py db upgrade
+          python -m flask --app run.py db current
+          python -m flask --app run.py db heads
+
+      - name: Probar Monitoreo y Analisis de riesgo en PostgreSQL
+        run: pytest -q tests/test_monitoreo_anexos.py tests/test_analisis_riesgo_anexos.py tests/test_rectificacion_produccion_coordinacion.py

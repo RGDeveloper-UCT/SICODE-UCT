@@ -200,7 +200,7 @@
             </div>
 
             <div class="grid-form">
-                {% if tipo == 'monitoreo' %}
+                {% if tipo in ['monitoreo', 'analisis-riesgo'] %}
                     {{ campo(form.numero_anexo_monitoreo, readonly=True) }}
                 {% else %}
                     {{ campo(form.numero_anexo, readonly=True) }}
@@ -227,11 +227,18 @@
                 </div>
                 {{ campo(form.fecha_escaneado) }}
             </div>
-        {% else %}
-            <h2>Datos del reporte</h2>
+        {% elif tipo == 'monitoreo' %}
+            <h2>Datos del reporte de monitoreo</h2>
             <div class="grid-form">
                 {{ campo(form.tipo_documento,'tipo-documento-list') }}
                 {{ campo(form.numero_reporte) }}
+                {{ campo(form.tipo_evento,'tipos-evento-list') }}
+            </div>
+        {% else %}
+            <h2>Datos del análisis de riesgo</h2>
+            <div class="grid-form">
+                {{ campo(form.tipo_documento,'tipo-documento-list') }}
+                {{ campo(form.correlativo_analisis,None,'Ej. AR-2026-001') }}
                 {{ campo(form.tipo_evento,'tipos-evento-list') }}
             </div>
         {% endif %}

@@ -101,20 +101,26 @@ def test_inicio_coordinacion_muestra_layout_y_exportacion(cliente_admin):
     assert "/coordinacion/exportar" in texto
     assert "BOLETA-EXPORT" not in texto
 
-    # Cada tipo operativo tiene identidad visual propia y el CSS de animación
-    # está cargado desde la plantilla base.
+    # Los módulos principales mantienen identidad visual propia. Monitoreo deja
+    # de ser tarjeta principal y se conserva, junto con Análisis de riesgo,
+    # dentro del subpanel documental de Anexos.
     assert "coordinacion_tarjetas.css" in texto
     for clase in (
         "registro-animacion--pago",
         "registro-animacion--instalacion",
         "registro-animacion--desinstalacion",
         "registro-animacion--anexo",
-        "registro-animacion--monitoreo",
         "registro-animacion--documento_emitido",
         "registro-animacion--actividad",
         "registro-animacion--remision",
     ):
         assert clase in texto
+    assert "tarjeta-registro-coordinacion--monitoreo" not in texto
+    assert "subpanel-anexos" in texto
+    assert "Reporte de monitoreo" in texto
+    assert "Análisis de riesgo" in texto
+    assert "/coordinacion/registrar/monitoreo" in texto
+    assert "/coordinacion/registrar/analisis-riesgo" in texto
     assert "boton-tarjeta-registro-principal" in texto
     assert "tarjeta-registro-etiqueta" in texto
 
@@ -134,6 +140,7 @@ def test_exportacion_coordinacion_genera_excel_completo(app_coordinacion_export,
         "Desinstalaciones",
         "Anexos",
         "Monitoreo",
+        "Análisis de riesgo",
         "Documentos emitidos",
         "Actividades",
         "Soporte técnico",
@@ -145,6 +152,11 @@ def test_exportacion_coordinacion_genera_excel_completo(app_coordinacion_export,
     encabezados = [celda.value for celda in pagos[1]]
     assert "Boleta" in encabezados
     assert "Total" in encabezados
+
+    analisis = libro["Análisis de riesgo"]
+    encabezados_analisis = [celda.value for celda in analisis[1]]
+    assert "Correlativo" in encabezados_analisis
+    assert "Anexo No." in encabezados_analisis
 
     soporte = libro["Soporte técnico"]
     encabezados_soporte = [celda.value for celda in soporte[1]]

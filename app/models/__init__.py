@@ -22,6 +22,7 @@ from app.models.coordinacion import (
     MovimientoDispositivo,
     AnexoCoordinacion,
     ReporteMonitoreo,
+    AnalisisRiesgo,
     DocumentoEmitido,
     ActividadCoordinacion,
     RemisionCoordinacion,

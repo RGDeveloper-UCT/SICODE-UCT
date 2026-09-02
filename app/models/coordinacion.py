@@ -113,6 +113,21 @@ class ReporteMonitoreo(db.Model):
     registro = db.relationship("RegistroCoordinacion", backref=db.backref("reporte_monitoreo", uselist=False, cascade="all, delete-orphan"))
 
 
+class AnalisisRiesgo(db.Model):
+    __tablename__ = "analisis_riesgo"
+
+    id = db.Column(db.Integer, primary_key=True)
+    registro_id = db.Column(db.Integer, db.ForeignKey("registros_coordinacion.id"), nullable=False, unique=True)
+    tipo_documento = db.Column(db.String(80), nullable=True, default="PROVIDENCIA")
+    correlativo = db.Column(db.String(120), nullable=True, index=True)
+    tipo_evento = db.Column(db.String(180), nullable=True)
+
+    registro = db.relationship(
+        "RegistroCoordinacion",
+        backref=db.backref("analisis_riesgo", uselist=False, cascade="all, delete-orphan"),
+    )
+
+
 class DocumentoEmitido(db.Model):
     __tablename__ = "documentos_emitidos"
 
