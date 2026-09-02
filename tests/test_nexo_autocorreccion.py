@@ -19,6 +19,11 @@ def test_alias_de_90_no_se_autocorrige():
     assert propuestas == []
 
 
+def test_sufijo_de_contenido_no_se_autocorrige_aunque_tenga_95():
+    propuestas = proponer_correcciones_valores(["Victim Proximity GPS"], TIPOS_EVENTO)
+    assert propuestas == []
+
+
 def test_equivalencia_de_tilde_y_mayuscula_es_100_segura():
     propuestas = proponer_correcciones_valores(["Salida de zona de inclusion"], TIPOS_EVENTO)
     assert len(propuestas) == 1
