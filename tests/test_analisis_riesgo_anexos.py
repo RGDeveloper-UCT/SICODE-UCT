@@ -105,9 +105,10 @@ def test_inicio_agrupa_monitoreo_y_analisis_dentro_de_anexos(cliente_riesgo):
 
     assert respuesta.status_code == 200
     assert "subpanel-anexos" in texto
-    assert "Anexo general" in texto
+    assert "Anexo general" not in texto
     assert "Reporte de monitoreo" in texto
     assert "Análisis de riesgo" in texto
+    assert "/coordinacion/registrar/monitoreo" in texto
     assert "/coordinacion/registrar/analisis-riesgo" in texto
     assert "tarjeta-registro-coordinacion--monitoreo" not in texto
 
