@@ -52,6 +52,65 @@ body.vista-coordinacion-inicio {
     margin-bottom: 10px;
 }
 
+/* Anexos: cuando el subpanel se abre, se libera espacio real en el carrete.
+   El details deja de quedar pegado al borde inferior y sus dos opciones son
+   visibles sin que overflow:hidden de la tarjeta o del carrete las recorte. */
+.vista-coordinacion-inicio .grid-registros-coordinacion.coord-carrete-track.coord-subpanel-abierto {
+    height: 360px !important;
+    min-height: 360px !important;
+    max-height: 360px !important;
+    overflow-y: visible !important;
+}
+
+.vista-coordinacion-inicio .tarjeta-registro-coordinacion--anexo,
+.vista-coordinacion-inicio .tarjeta-registro-coordinacion--anexo.tarjeta-anexos-abierta {
+    overflow: visible !important;
+    z-index: 20;
+}
+
+.vista-coordinacion-inicio .tarjeta-registro-coordinacion--anexo .tarjeta-registro-titulos {
+    cursor: pointer;
+    border-radius: 7px;
+}
+
+.vista-coordinacion-inicio .tarjeta-registro-coordinacion--anexo .tarjeta-registro-titulos:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--registro-acento) 32%, #ffffff);
+    outline-offset: 3px;
+}
+
+.vista-coordinacion-inicio .subpanel-anexos {
+    position: relative;
+    z-index: 30;
+    pointer-events: auto !important;
+}
+
+.vista-coordinacion-inicio .subpanel-anexos[open] {
+    margin-top: 0 !important;
+}
+
+.vista-coordinacion-inicio .subpanel-anexos summary {
+    position: relative;
+    z-index: 31;
+    pointer-events: auto !important;
+    cursor: pointer !important;
+}
+
+.vista-coordinacion-inicio .subpanel-anexos[open] .subpanel-anexos-opciones {
+    position: relative;
+    z-index: 32;
+    margin-top: 8px;
+    padding: 8px;
+    border: 1px solid color-mix(in srgb, var(--registro-acento) 20%, #dbe4ef);
+    border-radius: 10px;
+    background: #ffffff;
+    box-shadow: 0 8px 22px rgba(23, 35, 60, .14);
+}
+
+.vista-coordinacion-inicio .subpanel-anexos-opciones .boton-tarjeta-registro {
+    width: 100%;
+    min-height: 38px !important;
+}
+
 /* Acciones: el arrastre del carrete no debe sentirse sobre los controles.
    Se refuerza el área clicable y se centra el botón principal. */
 .vista-coordinacion-inicio .acciones-tarjeta-registro {
@@ -134,6 +193,11 @@ body.vista-coordinacion-inicio {
         max-height: none !important;
     }
 
+    .vista-coordinacion-inicio .grid-registros-coordinacion.coord-carrete-track.coord-subpanel-abierto {
+        height: 370px !important;
+        min-height: 370px !important;
+    }
+
     .vista-coordinacion-inicio .panel-recientes-coordinacion {
         height: auto;
         min-height: 440px;
@@ -144,6 +208,11 @@ body.vista-coordinacion-inicio {
     .vista-coordinacion-inicio .grid-registros-coordinacion.coord-carrete-track {
         height: 265px !important;
         min-height: 265px !important;
+    }
+
+    .vista-coordinacion-inicio .grid-registros-coordinacion.coord-carrete-track.coord-subpanel-abierto {
+        height: 390px !important;
+        min-height: 390px !important;
     }
 
     .vista-coordinacion-inicio .tarjeta-registro-coordinacion .boton-tarjeta-registro-principal {
