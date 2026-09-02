@@ -32,6 +32,10 @@
         <div><span class="nexo-eyebrow dark">ANÁLISIS TRANSVERSAL</span><h2>Hallazgos y oportunidades</h2></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
           {% if current_user.rol == "administrador" %}
+          <form method="post" action="{{ url_for('nexo_ia.corregir_ortografia_segura') }}" style="margin:0" onsubmit="return confirm('NEXO corregirá únicamente variantes ortográficas de catálogo con confianza visible igual o mayor a 95%. Cada cambio quedará registrado en Bitácora. ¿Continuar?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="nexo-refresh" title="Corrige solo errores ortográficos de catálogo con confianza >=95%">Corregir ortografía ≥95%</button>
+          </form>
           <a class="nexo-refresh" href="{{ url_for('nexo_ia.exportar_aprendizaje') }}" style="text-decoration:none" title="Genera un JSON técnico seguro para revisión externa">Exportar aprendizaje</a>
           {% endif %}
           <button type="button" class="nexo-refresh" data-refresh>Volver a analizar</button>
@@ -49,7 +53,7 @@
         <div><span class="connection-dot neutral"></span><b>GitHub</b><small>Código y evolución</small></div>
         <div><span class="connection-dot active"></span><b>Verificación humana</b><small>Fuente de aprendizaje supervisado</small></div>
       </div>
-      <div class="nexo-principle"><strong>NEXO recomienda; una persona decide.</strong><p>No modifica expedientes, no elimina información y no aplica cambios de código automáticamente. Los hallazgos quedan disponibles para revisión técnica.</p></div>
+      <div class="nexo-principle"><strong>NEXO recomienda; la corrección ortográfica segura puede automatizarse.</strong><p>No elimina información ni decide sobre expedientes. Solo un administrador puede aplicar correcciones en campos de catálogo cuando el valor sea una variante ortográfica con confianza visible ≥95%, conserve los mismos números y exista un valor canónico institucional. Cada cambio queda trazado en Bitácora.</p></div>
     </aside>
   </div>
 
@@ -59,7 +63,7 @@
       <div><b>1 · Observar</b><p>Inventario de esquema, métricas, catálogos, errores repetidos y trazabilidad.</p></div>
       <div><b>2 · Aprender</b><p>Absorber verificaciones humanas válidas y medir claramente la cola pendiente.</p></div>
       <div><b>3 · Normalizar</b><p>Distinguir error ortográfico, alias, texto libre, combinación y categoría nueva antes de recomendar.</p></div>
-      <div><b>4 · Recomendar</b><p>Priorizar mejoras por impacto, frecuencia, riesgo y evidencia, manteniendo decisión humana.</p></div>
+      <div><b>4 · Corregir con seguridad</b><p>Permitir al administrador normalizar variantes ortográficas confirmadas al ≥95%, sin tocar alias ni decisiones institucionales ambiguas.</p></div>
     </div>
   </section>
 </section>
