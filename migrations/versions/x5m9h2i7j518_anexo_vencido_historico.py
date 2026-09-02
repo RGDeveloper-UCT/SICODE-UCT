@@ -26,7 +26,26 @@ def upgrade():
         ["es_vencido"],
         unique=False,
     )
-    op.alter_column("anexos_coordinacion", "es_vencido", server_default=None)
+
+    # PostgreSQL admite ALTER COLUMN ... DROP DEFAULT de forma directa. SQLite
+    # no implementa esa sintaxis y las pruebas de CI crean la base desde cero
+    # sobre SQLite. En ese caso Alembic debe recrear la tabla mediante batch.
+    if op.get_bind().dialect.name == "sqlite":
+        with op.batch_alter_table("anexos_coordinacion") as batch_op:
+            batch_op.alter_column(
+                "es_vencido",
+                existing_type=sa.Boolean(),
+                existing_nullable=False,
+                server_default=None,
+            )
+    else:
+        op.alter_column(
+            "anexos_coordinacion",
+            "es_vencido",
+            existing_type=sa.Boolean(),
+            existing_nullable=False,
+            server_default=None,
+        )
 
 
 def downgrade():
