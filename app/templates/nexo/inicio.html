@@ -21,8 +21,8 @@
 
   <div class="nexo-kpis">
     <article><span>Madurez de aprendizaje</span><strong data-kpi-level>0%</strong><i><b data-meter></b></i></article>
-    <article><span>Verificaciones aprendidas</span><strong data-kpi-samples>0</strong><small>retroalimentación humana segura</small></article>
-    <article><span>Hallazgos técnicos</span><strong data-kpi-findings>0</strong><small>oportunidades detectadas</small></article>
+    <article><span>Verificaciones aprendidas</span><strong data-kpi-samples>0</strong><small data-kpi-queue>esperando retroalimentación humana</small></article>
+    <article><span>Hallazgos técnicos</span><strong data-kpi-findings>0</strong><small>oportunidades detectadas y explicables</small></article>
     <article><span>Objetos estudiados</span><strong data-kpi-objects>0</strong><small>metadatos revisados</small></article>
   </div>
 
@@ -45,20 +45,21 @@
       <div class="connections" data-connections>
         <div><span class="connection-dot active"></span><b>PostgreSQL</b><small>Núcleo de datos</small></div>
         <div><span class="connection-dot"></span><b>Ollama</b><small>IA local</small></div>
+        <div><span class="connection-dot"></span><b>RapidFuzz</b><small>Normalización local explicable</small></div>
         <div><span class="connection-dot neutral"></span><b>GitHub</b><small>Código y evolución</small></div>
-        <div><span class="connection-dot active"></span><b>Verificación humana</b><small>Fuente de aprendizaje</small></div>
+        <div><span class="connection-dot active"></span><b>Verificación humana</b><small>Fuente de aprendizaje supervisado</small></div>
       </div>
       <div class="nexo-principle"><strong>NEXO recomienda; una persona decide.</strong><p>No modifica expedientes, no elimina información y no aplica cambios de código automáticamente. Los hallazgos quedan disponibles para revisión técnica.</p></div>
     </aside>
   </div>
 
   <section class="nexo-card nexo-roadmap">
-    <span class="nexo-eyebrow dark">EVOLUCIÓN PROPUESTA</span><h2>De analizador a motor inteligente de mejora</h2>
+    <span class="nexo-eyebrow dark">EVOLUCIÓN NEXO V2</span><h2>De analizador a motor inteligente de mejora</h2>
     <div class="roadmap-grid">
       <div><b>1 · Observar</b><p>Inventario de esquema, métricas, catálogos, errores repetidos y trazabilidad.</p></div>
-      <div><b>2 · Aprender</b><p>Usar verificaciones humanas como señal segura, sin almacenar documentos sensibles.</p></div>
-      <div><b>3 · Relacionar</b><p>Encontrar patrones entre módulos y detectar pasos repetitivos que puedan automatizarse.</p></div>
-      <div><b>4 · Recomendar</b><p>Priorizar mejoras por impacto, frecuencia, riesgo y esfuerzo técnico estimado.</p></div>
+      <div><b>2 · Aprender</b><p>Absorber verificaciones humanas válidas y medir claramente la cola pendiente.</p></div>
+      <div><b>3 · Normalizar</b><p>Distinguir error ortográfico, alias, texto libre, combinación y categoría nueva antes de recomendar.</p></div>
+      <div><b>4 · Recomendar</b><p>Priorizar mejoras por impacto, frecuencia, riesgo y evidencia, manteniendo decisión humana.</p></div>
     </div>
   </section>
 </section>
