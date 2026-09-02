@@ -8,13 +8,62 @@ from app.services.nexo_export_service import construir_exportacion_nexo as const
 
 
 VERSION_EXPORTACION_NEXO_SEGURA = 3
+CLASIFICACIONES_EQUIVALENTES = {"variante_ortografica", "alias_probable", "canonico"}
 
 
-def _evaluar_evidencia_valores(evidencia, catalogo):
+def _evaluar_contextual(valor, frecuencia, catalogo, catalogos_alternos=None):
+    """Evalúa un valor y detecta si parece pertenecer a otro catálogo de SICODE.
+
+    La detección es únicamente diagnóstica. Nunca mueve ni reescribe registros.
+    """
+    principal = evaluar_valor_catalogo(valor, catalogo, frecuencia=frecuencia)
+    if principal.get("clasificacion") in {
+        "canonico",
+        "variante_ortografica",
+        "alias_probable",
+        "texto_libre_probable",
+        "valor_especial",
+        "combinacion_categorias",
+    }:
+        return principal
+
+    mejor_cruce = None
+    for etiqueta, alterno in catalogos_alternos or []:
+        evaluacion = evaluar_valor_catalogo(valor, alterno, frecuencia=frecuencia)
+        if evaluacion.get("clasificacion") not in CLASIFICACIONES_EQUIVALENTES:
+            continue
+        score = float(evaluacion.get("similitud") or 0)
+        if score < 86:
+            continue
+        if mejor_cruce is None or score > mejor_cruce["similitud"]:
+            mejor_cruce = {
+                "catalogo": etiqueta,
+                "canonico": evaluacion.get("canonico"),
+                "similitud": score,
+                "clasificacion": evaluacion.get("clasificacion"),
+            }
+
+    if mejor_cruce:
+        principal["clasificacion"] = "posible_campo_incorrecto"
+        principal["accion"] = "revisar_campo_origen"
+        principal["catalogo_probable"] = mejor_cruce["catalogo"]
+        principal["canonico_alternativo"] = mejor_cruce["canonico"]
+        principal["similitud_alternativa"] = round(mejor_cruce["similitud"], 1)
+    return principal
+
+
+def _evaluar_evidencia_valores(evidencia, catalogo, catalogos_alternos=None):
     valores = dict((evidencia or {}).get("valores") or {})
     salida = []
     for valor, frecuencia in valores.items():
-        salida.append(evaluar_valor_catalogo(valor, catalogo, frecuencia=frecuencia))
+        salida.append(
+            _evaluar_contextual(
+                valor,
+                frecuencia,
+                catalogo,
+                catalogos_alternos=catalogos_alternos,
+            )
+        )
     return salida
 
 
@@ -29,23 +78,93 @@ def _sanitizar_hallazgo_historico(item):
             "Los textos libres potenciales se omiten de esta memoria portable."
         )
         item["evidencia"] = {
-            "evaluaciones": _evaluar_evidencia_valores(evidencia, TIPOS_EVENTO),
+            "evaluaciones": _evaluar_evidencia_valores(
+                evidencia,
+                TIPOS_EVENTO,
+                catalogos_alternos=[
+                    ("tipos documentales", TIPOS_DOCUMENTO_LOTE),
+                    ("tipos de anexo", TIPOS_ANEXO),
+                ],
+            ),
             "reanalizado_por": "NEXO_V2",
         }
     elif "Tipos de anexo fuera del catálogo" in descripcion:
         item["descripcion"] = "Hallazgo histórico de catálogo de anexos reanalizado por NEXO V2."
         item["evidencia"] = {
-            "evaluaciones": _evaluar_evidencia_valores(evidencia, TIPOS_ANEXO),
+            "evaluaciones": _evaluar_evidencia_valores(
+                evidencia,
+                TIPOS_ANEXO,
+                catalogos_alternos=[
+                    ("tipos documentales", TIPOS_DOCUMENTO_LOTE),
+                    ("eventos de monitoreo", TIPOS_EVENTO),
+                ],
+            ),
             "reanalizado_por": "NEXO_V2",
         }
     elif "Tipos documentales no reconocidos por SICODE.IA" in descripcion:
         item["descripcion"] = "Hallazgo histórico de tipos documentales reanalizado por NEXO V2."
         item["evidencia"] = {
-            "evaluaciones": _evaluar_evidencia_valores(evidencia, TIPOS_DOCUMENTO_LOTE),
+            "evaluaciones": _evaluar_evidencia_valores(
+                evidencia,
+                TIPOS_DOCUMENTO_LOTE,
+                catalogos_alternos=[
+                    ("eventos de monitoreo", TIPOS_EVENTO),
+                    ("tipos de anexo", TIPOS_ANEXO),
+                ],
+            ),
             "reanalizado_por": "NEXO_V2",
         }
 
     return item
+
+
+def _detectar_cruces_catalogo(analisis):
+    """Añade un resumen seguro de posibles valores guardados en el campo equivocado."""
+    analisis = deepcopy(analisis or {})
+    catalogos = dict(analisis.get("catalogos_inteligentes") or {})
+    cruces = []
+
+    configuracion = {
+        "eventos de monitoreo": (
+            TIPOS_EVENTO,
+            [("tipos documentales", TIPOS_DOCUMENTO_LOTE), ("tipos de anexo", TIPOS_ANEXO)],
+        ),
+        "tipos de anexo": (
+            TIPOS_ANEXO,
+            [("tipos documentales", TIPOS_DOCUMENTO_LOTE), ("eventos de monitoreo", TIPOS_EVENTO)],
+        ),
+        "tipos documentales": (
+            TIPOS_DOCUMENTO_LOTE,
+            [("eventos de monitoreo", TIPOS_EVENTO), ("tipos de anexo", TIPOS_ANEXO)],
+        ),
+    }
+
+    for etiqueta, (catalogo, alternos) in configuracion.items():
+        bloque = dict(catalogos.get(etiqueta) or {})
+        for item in list(bloque.get("evaluaciones") or []):
+            valor = item.get("valor")
+            if not valor or valor == "[texto libre omitido]":
+                continue
+            contextual = _evaluar_contextual(
+                valor,
+                item.get("frecuencia") or 1,
+                catalogo,
+                catalogos_alternos=alternos,
+            )
+            if contextual.get("clasificacion") != "posible_campo_incorrecto":
+                continue
+            cruces.append({
+                "catalogo_actual": etiqueta,
+                "valor": contextual.get("valor"),
+                "frecuencia": contextual.get("frecuencia"),
+                "catalogo_probable": contextual.get("catalogo_probable"),
+                "canonico_alternativo": contextual.get("canonico_alternativo"),
+                "similitud_alternativa": contextual.get("similitud_alternativa"),
+                "accion": "revisar_campo_origen",
+            })
+
+    analisis["cruces_catalogo"] = cruces[:20]
+    return analisis
 
 
 def construir_exportacion_nexo(usuario_id=None):
@@ -64,8 +183,8 @@ def construir_exportacion_nexo(usuario_id=None):
     }
 
     try:
-        paquete["analisis_actual"] = enriquecer_analisis_catalogos(
-            paquete.get("analisis_actual") or {}
+        paquete["analisis_actual"] = _detectar_cruces_catalogo(
+            enriquecer_analisis_catalogos(paquete.get("analisis_actual") or {})
         )
     except Exception:
         # El exportador base ya tiene su propio diagnóstico resiliente. Esta capa
@@ -102,5 +221,8 @@ def construir_exportacion_nexo(usuario_id=None):
     resumen["version_motor_nexo"] = 2
     resumen["cola_aprendizaje_incluida"] = True
     resumen["normalizacion_explicable"] = True
+    resumen["cruces_catalogo_detectados"] = len(
+        (paquete.get("analisis_actual") or {}).get("cruces_catalogo") or []
+    )
     paquete["resumen_exportacion"] = resumen
     return paquete
