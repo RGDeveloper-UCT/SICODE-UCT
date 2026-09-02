@@ -44,9 +44,33 @@ def test_botones_registro_quedan_activos_centrados_y_con_area_clicable_amplia():
     assert "pointer-events: auto !important;" in css
     assert "min-height: 42px;" in css
     assert "flex: 0 1 84%;" in css
-    assert 'querySelectorAll("a, button, input, select, textarea, label")' in javascript
+    assert 'querySelectorAll("a, button, summary, input, select, textarea, label' in javascript
     assert 'control.addEventListener("pointerdown"' in javascript
     assert "evento.stopPropagation();" in javascript
+
+
+def test_subpanel_anexos_no_es_capturado_por_el_arrastre_y_libera_altura():
+    css = SCROLL_FIX_CSS.read_text(encoding="utf-8")
+    javascript = SCROLL_FIX_JS.read_text(encoding="utf-8")
+
+    assert 'track.querySelector(".subpanel-anexos")' in javascript
+    assert "HTMLDetailsElement" in javascript
+    assert 'classList.toggle("coord-subpanel-abierto"' in javascript
+    assert 'evento.target.closest("a, button, summary' in javascript
+    assert ".coord-carrete-track.coord-subpanel-abierto" in css
+    assert "height: 360px !important;" in css
+    assert ".subpanel-anexos[open]" in css
+    assert "overflow: visible !important;" in css
+
+
+def test_titulo_anexos_tambien_abre_subpanel_con_mouse_y_teclado():
+    javascript = SCROLL_FIX_JS.read_text(encoding="utf-8")
+
+    assert 'querySelector(".tarjeta-registro-titulos")' in javascript
+    assert 'setAttribute("role", "button")' in javascript
+    assert 'setAttribute("tabindex", "0")' in javascript
+    assert 'tituloAnexos.addEventListener("click"' in javascript
+    assert 'evento.key !== "Enter" && evento.key !== " "' in javascript
 
 
 def test_carrete_usa_animacion_quintica_para_flechas_teclado_y_gestos():
