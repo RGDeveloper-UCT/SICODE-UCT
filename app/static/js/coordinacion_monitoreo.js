@@ -3,7 +3,10 @@
     if (!control) return;
 
     const spInput = document.getElementById("no_sp");
-    const anexoInput = document.getElementById("numero_anexo_monitoreo");
+    const anexoInput =
+        document.getElementById("numero_anexo_monitoreo") ||
+        document.getElementById("numero_anexo");
+    const vencidoInput = document.getElementById("anexo_vencido");
     const confirmacion = document.getElementById("confirmacion_file_server");
     const submit = document.getElementById("submit");
 
@@ -12,8 +15,12 @@
     const spTexto = document.getElementById("anexos-sp");
     const totalTexto = document.getElementById("anexos-total");
     const siguienteTexto = document.getElementById("anexos-siguiente");
+    const modoTexto = document.getElementById("anexos-modo");
     const conocidos = document.getElementById("anexos-conocidos");
     const advertencia = document.getElementById("anexos-advertencia");
+    const opcionVencido = document.getElementById("opcion-anexo-vencido");
+    const mensajeVencido = document.getElementById("modo-vencido-mensaje");
+    const notaModo = document.getElementById("anexos-nota-modo");
 
     const modal = document.getElementById("modal-rectificacion-anexos");
     const modalContexto = document.getElementById("modal-anexos-contexto");
@@ -36,10 +43,8 @@
     }
 
     function bloquearRegistro(bloquear) {
-        if (anexoInput) {
-            anexoInput.disabled = bloquear;
-            if (bloquear) anexoInput.value = "";
-        }
+        if (anexoInput) anexoInput.readOnly = true;
+        if (vencidoInput) vencidoInput.disabled = bloquear;
         if (confirmacion) confirmacion.disabled = bloquear;
         if (submit) submit.disabled = bloquear;
     }
@@ -71,7 +76,7 @@
         modalContexto.textContent =
             `SP ${estadoActual.no_sp}. SICODE registra actualmente ` +
             `${estadoActual.total_rectificado === null ? "un total sin rectificar" : estadoActual.total_rectificado + " anexo(s)"}. ` +
-            `Confirme el total real en File Server.`;
+            "Confirme el total real en File Server.";
         window.setTimeout(() => totalInput.focus(), 0);
     }
 
@@ -92,10 +97,57 @@
         detalles.forEach((item) => {
             const chip = document.createElement("span");
             chip.className = "chip-anexo";
+            if (item.vencido) chip.classList.add("chip-anexo-vencido");
             const numero = item.numero ? `Anexo ${item.numero}` : "Anexo";
-            chip.textContent = item.titulo ? `${numero}: ${item.titulo}` : numero;
+            const titulo = item.titulo ? `: ${item.titulo}` : "";
+            chip.textContent = `${numero}${titulo}${item.vencido ? " · VENCIDO" : ""}`;
             conocidos.appendChild(chip);
         });
+    }
+
+    function numeroActualInput() {
+        const valor = Number.parseInt((anexoInput?.value || "").trim(), 10);
+        return Number.isInteger(valor) ? valor : null;
+    }
+
+    function aplicarModo({ conservarNumeroVencido = true } = {}) {
+        if (!estadoActual || estadoActual.requiere_rectificacion || !anexoInput) return;
+
+        const esVencido = Boolean(vencidoInput?.checked);
+        opcionVencido?.classList.toggle("activo", esVencido);
+        if (mensajeVencido) mensajeVencido.hidden = !esVencido;
+
+        if (esVencido) {
+            anexoInput.readOnly = false;
+            modoTexto.textContent = "VENCIDO / HISTÓRICO";
+            if (notaModo) {
+                notaModo.textContent =
+                    `Escriba el número físico original entre 1 y ${estadoActual.total_rectificado}. ` +
+                    `Al guardar, la secuencia vigente seguirá en ${estadoActual.total_rectificado}.`;
+            }
+            mostrarAdvertencia(
+                `Modo ANEXO VENCIDO activo. Puede registrar un número anterior entre 1 y ${estadoActual.total_rectificado}; ` +
+                "este registro NO incrementará el total vigente."
+            );
+
+            const actual = numeroActualInput();
+            const valido = actual !== null && actual >= 1 && actual <= Number(estadoActual.total_rectificado);
+            if (!conservarNumeroVencido || !valido) anexoInput.value = "";
+            return;
+        }
+
+        anexoInput.readOnly = true;
+        anexoInput.value = String(estadoActual.siguiente_anexo);
+        modoTexto.textContent = "Vigente";
+        if (notaModo) {
+            notaModo.textContent =
+                `En modo vigente SICODE asigna automáticamente el Anexo ${estadoActual.siguiente_anexo} ` +
+                "y actualiza la secuencia al guardar.";
+        }
+        mostrarAdvertencia(
+            `Este registro corresponde al Anexo ${estadoActual.siguiente_anexo}. ` +
+            "Si está capturando un anexo anterior que faltaba registrar, active la opción roja «ANEXO VENCIDO / HISTÓRICO»."
+        );
     }
 
     function pintarEstado(data, abrirSiHaceFalta = true) {
@@ -106,39 +158,29 @@
         totalTexto.textContent =
             data.total_rectificado === null
                 ? "Sin rectificar"
-                : `${data.total_rectificado} anexo(s)`;
+                : `Anexo ${data.total_rectificado}`;
 
         pintarAnexos(data.anexos);
         limpiarConfirmacion();
 
         if (data.requiere_rectificacion) {
             siguienteTexto.textContent = "Pendiente de confirmar";
+            if (modoTexto) modoTexto.textContent = "Bloqueado";
             bloquearRegistro(true);
+            if (anexoInput) anexoInput.value = "";
             const razon = data.inconsistente
                 ? `El total rectificado (${data.total_rectificado}) es menor que la evidencia ya registrada (${data.minimo_conocido}).`
                 : "SICODE todavía no tiene un total de anexos rectificado para este SP.";
             mostrarAdvertencia(
-                `${razon} Verifique File Server y rectifique el total antes de registrar el reporte.`
+                `${razon} Verifique File Server y rectifique el total antes de registrar anexos vigentes o vencidos.`
             );
             if (abrirSiHaceFalta) abrirModal(true);
             return;
         }
 
         bloquearRegistro(false);
-        anexoInput.value = String(data.siguiente_anexo);
         siguienteTexto.textContent = `Anexo ${data.siguiente_anexo}`;
-
-        if (data.total_rectificado === 0) {
-            mostrarAdvertencia(
-                "SICODE registra 0 anexos. Confirme en File Server que este reporte efectivamente corresponde al Anexo 1. " +
-                "Si encuentra anexos previos, use «Rectificar anexos»."
-            );
-        } else {
-            mostrarAdvertencia(
-                `Según la última rectificación, este reporte corresponde al Anexo ${data.siguiente_anexo}. ` +
-                "Confirme el número en File Server antes de guardar."
-            );
-        }
+        aplicarModo({ conservarNumeroVencido: true });
     }
 
     async function cargarEstado(abrirSiHaceFalta = true) {
@@ -147,9 +189,11 @@
             ultimoSpConsultado = "";
             estadoActual = null;
             mensajeInicial.hidden = false;
+            mensajeInicial.textContent = "Seleccione un SP para consultar la secuencia de anexos.";
             resumen.hidden = true;
             bloquearRegistro(true);
             limpiarConfirmacion();
+            if (anexoInput) anexoInput.value = "";
             return;
         }
 
@@ -220,8 +264,7 @@
             }
 
             modal.dataset.forzado = "0";
-            modal.hidden = true;
-            modal.setAttribute("aria-hidden", "true");
+            cerrarModal();
             await cargarEstado(false);
         } catch (_error) {
             modalError.textContent = "No fue posible guardar la rectificación. Intente nuevamente.";
@@ -248,6 +291,12 @@
         });
     }
 
+    vencidoInput?.addEventListener("change", () => {
+        limpiarConfirmacion();
+        aplicarModo({ conservarNumeroVencido: false });
+        if (vencidoInput.checked) window.setTimeout(() => anexoInput?.focus(), 0);
+    });
+
     abrirRectificacion?.addEventListener("click", () => abrirModal(false));
     cerrarRectificacion?.addEventListener("click", cerrarModal);
     guardarRectificacion?.addEventListener("click", guardarRectificacionActual);
@@ -267,6 +316,26 @@
             if (estadoActual) abrirModal(true);
             return;
         }
+
+        const esVencido = Boolean(vencidoInput?.checked);
+        const numero = numeroActualInput();
+        if (esVencido) {
+            const total = Number(estadoActual.total_rectificado);
+            if (numero === null || numero < 1 || numero > total) {
+                evento.preventDefault();
+                anexoInput?.focus();
+                mostrarAdvertencia(
+                    `Un anexo vencido debe conservar un número entre 1 y ${total}. La secuencia vigente no se modificará.`
+                );
+                return;
+            }
+        } else if (numero !== Number(estadoActual.siguiente_anexo)) {
+            evento.preventDefault();
+            anexoInput.value = String(estadoActual.siguiente_anexo);
+            mostrarAdvertencia(`El anexo vigente debe continuar con el número ${estadoActual.siguiente_anexo}.`);
+            return;
+        }
+
         if (!confirmacion?.checked) {
             evento.preventDefault();
             confirmacion?.focus();

@@ -90,6 +90,9 @@ class AnexoCoordinacion(db.Model):
     escaneado = db.Column(db.Boolean, nullable=False, default=False)
     fecha_escaneado = db.Column(db.Date, nullable=True)
     numero_anexo = db.Column(db.String(50), nullable=True)
+    # Un anexo vencido/histórico conserva su número físico original, pero no
+    # avanza el contador maestro de anexos vigentes del expediente.
+    es_vencido = db.Column(db.Boolean, nullable=False, default=False, index=True)
 
     registro = db.relationship("RegistroCoordinacion", backref=db.backref("anexo_coordinacion", uselist=False, cascade="all, delete-orphan"))
     documento_expediente = db.relationship(
