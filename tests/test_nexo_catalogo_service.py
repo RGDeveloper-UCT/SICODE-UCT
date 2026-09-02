@@ -1,4 +1,5 @@
 from app.services.nexo_catalogo_service import evaluar_valor_catalogo
+from app.services.nexo_export_seguro_service import _evaluar_contextual
 
 
 EVENTOS = (
@@ -12,6 +13,35 @@ EVENTOS = (
     "Batería baja 12%",
     "No comunicación",
     "Ingreso prevención",
+)
+
+ANEXOS = (
+    "REEMPLAZO",
+    "MOVILIZACION",
+    "AMPLIACION ZONA",
+    "EXONERACION",
+    "PRORROGA",
+    "ZONA DE INCLUSION",
+    "CARGADOR",
+    "CORREA",
+    "CAMBIO JUZGADO",
+)
+
+DOCUMENTOS = (
+    "PAGO",
+    "PROVIDENCIA",
+    "ANEXO",
+    "IFT",
+    "ACTA",
+    "DPI",
+    "INSTALACION",
+    "DESINSTALACION",
+    "MONITOREO",
+    "OFICIO",
+    "INFORME",
+    "RESOLUCION",
+    "FORMULARIO",
+    "OTRO",
 )
 
 
@@ -55,3 +85,16 @@ def test_valor_recurrente_distinto_pasa_a_revision_institucional():
     }
     if resultado["clasificacion"] == "candidato_nueva_categoria":
         assert resultado["accion"] == "validar_categoria_institucional"
+
+
+def test_reporte_monitoreo_en_anexos_se_marca_como_posible_campo_incorrecto():
+    resultado = _evaluar_contextual(
+        "REPORTE DE MONITOREO",
+        41,
+        ANEXOS,
+        catalogos_alternos=[("tipos documentales", DOCUMENTOS)],
+    )
+    assert resultado["clasificacion"] == "posible_campo_incorrecto"
+    assert resultado["catalogo_probable"] == "tipos documentales"
+    assert resultado["canonico_alternativo"] == "MONITOREO"
+    assert resultado["accion"] == "revisar_campo_origen"
