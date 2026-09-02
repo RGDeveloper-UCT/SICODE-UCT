@@ -103,6 +103,28 @@ class MonitoreoForm(RegistroBaseForm):
     submit = SubmitField("Guardar reporte")
 
 
+class AnalisisRiesgoForm(RegistroBaseForm):
+    """Mismo control documental de Monitoreo, con correlativo propio de Análisis de Riesgo."""
+
+    folios = StringField("Folios recibidos", validators=[Optional(), Length(max=80)])
+    numero_anexo_monitoreo = IntegerField(
+        "Anexo que corresponde",
+        validators=[DataRequired(), NumberRange(min=1, max=200)],
+    )
+    anexo_vencido = BooleanField("ANEXO VENCIDO / HISTÓRICO")
+    confirmacion_file_server = BooleanField(
+        "Confirmé en File Server el número de anexo",
+        validators=[DataRequired(message="Debe confirmar el número de anexo contra File Server.")],
+    )
+    tipo_documento = StringField("Tipo de documento", validators=[Optional(), Length(max=80)], default="PROVIDENCIA")
+    correlativo_analisis = StringField(
+        "Correlativo de análisis de riesgo",
+        validators=[Optional(), Length(max=120)],
+    )
+    tipo_evento = StringField("Tipo de reporte / evento", validators=[Optional(), Length(max=180)])
+    submit = SubmitField("Guardar análisis de riesgo")
+
+
 class DocumentoEmitidoForm(ReferenciaRCREMixin, FlaskForm):
     no_sp = StringField("No. de SP relacionado (opcional)", validators=[Optional(), Length(max=50)])
     numero_documento = StringField("No. de documento", validators=[DataRequired(), Length(max=120)])
