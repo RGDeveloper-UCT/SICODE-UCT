@@ -4,12 +4,17 @@
 <section class="panel panel-ancho">
     <div class="encabezado-modulo"><div><h1>{{ 'SOPORTE TI' if registro.soporte_tecnico else registro.tipo|replace('_', ' ') }}</h1><p>Registro operativo No. {{ registro.id }}</p></div><div class="acciones-detalle">{% if registro.soporte_tecnico %}<a class="boton-secundario" href="{{ url_for('soporte_tecnico.detalle', boleta_id=registro.soporte_tecnico.id) }}">Abrir boleta {{ registro.soporte_tecnico.numero_boleta }}</a>{% endif %}<a class="boton-cancelar" href="{{ url_for('coordinacion.listado') }}">Volver</a></div></div>
 
-    {% if registro.soporte_tecnico %}
+    {% if registro.anexo_coordinacion and registro.anexo_coordinacion.es_vencido %}
+    <div class="aviso" style="border:2px solid #dc2626;background:#fef2f2;color:#991b1b;">
+        <strong>ANEXO VENCIDO / HISTÓRICO:</strong> este registro conserva el número físico original
+        <strong>Anexo {{ registro.anexo_coordinacion.numero_anexo }}</strong> y no modificó la secuencia vigente del SP.
+    </div>
+    {% elif registro.soporte_tecnico %}
     <div class="aviso"><strong>Boleta estructurada de soporte:</strong> este registro forma parte del control de Soporte técnico y servicios TI. Abra la boleta para consultar servicio, equipo, diagnóstico, cierre y constancia PDF.</div>
     {% elif registro.tipo == 'EXPEDIENTE_COMPLETO' %}
     <div class="aviso"><strong>Expediente completo recibido:</strong> este control confirma la recepción física y su vinculación al SP existente en SICODE. La fecha, hora y usuario quedan trazados automáticamente.</div>
     {% elif registro.tipo == 'MONITOREO' and registro.anexo_coordinacion %}
-    <div class="aviso"><strong>Reporte incorporado al expediente:</strong> este reporte de monitoreo quedó registrado como <strong>Anexo {{ registro.anexo_coordinacion.numero_anexo }}</strong> y actualizó el total de anexos del SP.</div>
+    <div class="aviso"><strong>Reporte incorporado al expediente:</strong> este reporte de monitoreo quedó registrado como <strong>Anexo {{ registro.anexo_coordinacion.numero_anexo }}</strong> y actualizó la secuencia vigente de anexos del SP.</div>
     {% endif %}
 
     <h2>Recepción / control</h2>
@@ -43,12 +48,14 @@
     {% elif registro.tipo == 'ANEXO' and registro.anexo_coordinacion %}
         <tr><th>Tipo</th><td>{{ registro.anexo_coordinacion.tipo_anexo or 'Sin dato' }}</td></tr>
         <tr><th>Anexo No.</th><td>{{ registro.anexo_coordinacion.numero_anexo or 'Sin dato' }}</td></tr>
+        <tr><th>Secuencia</th><td>{% if registro.anexo_coordinacion.es_vencido %}<strong style="color:#b91c1c;">ANEXO VENCIDO / HISTÓRICO — no avanzó el contador vigente</strong>{% else %}Anexo vigente{% endif %}</td></tr>
         {% if registro.anexo_coordinacion.titulo %}<tr><th>Título</th><td>{{ registro.anexo_coordinacion.titulo }}</td></tr>{% endif %}
         <tr><th>Escaneado</th><td>{{ 'Sí' if registro.anexo_coordinacion.escaneado else 'Pendiente' }}</td></tr>
         <tr><th>Fecha escaneado</th><td>{{ registro.anexo_coordinacion.fecha_escaneado.strftime('%d/%m/%Y') if registro.anexo_coordinacion.fecha_escaneado else 'Sin dato' }}</td></tr>
         <tr><th>Índice documental</th><td>{% if registro.anexo_coordinacion.documento_expediente %}<a href="{{ url_for('indice_documental.listado', expediente_id=registro.expediente_id) }}">Incorporado: {{ registro.anexo_coordinacion.documento_expediente.nombre_documento }}</a>{% elif registro.expediente_id %}<a href="{{ url_for('indice_documental.listado', expediente_id=registro.expediente_id, anexo_id=registro.anexo_coordinacion.id) }}">Pendiente de incorporar</a>{% else %}Pendiente de vincular SP{% endif %}</td></tr>
     {% elif registro.tipo == 'MONITOREO' and registro.reporte_monitoreo %}
         <tr><th>Anexo del expediente</th><td>{% if registro.anexo_coordinacion %}<strong>Anexo {{ registro.anexo_coordinacion.numero_anexo }}</strong>{% else %}Registro histórico sin número de anexo{% endif %}</td></tr>
+        {% if registro.anexo_coordinacion %}<tr><th>Secuencia</th><td>{% if registro.anexo_coordinacion.es_vencido %}<strong style="color:#b91c1c;">ANEXO VENCIDO / HISTÓRICO — no avanzó el contador vigente</strong>{% else %}Anexo vigente{% endif %}</td></tr>{% endif %}
         {% if registro.anexo_coordinacion and registro.anexo_coordinacion.titulo %}<tr><th>Título del anexo</th><td>{{ registro.anexo_coordinacion.titulo }}</td></tr>{% endif %}
         <tr><th>Tipo documento</th><td>{{ registro.reporte_monitoreo.tipo_documento or 'Sin dato' }}</td></tr>
         <tr><th>Reporte No.</th><td>{{ registro.reporte_monitoreo.numero_reporte or 'Sin dato' }}</td></tr>
