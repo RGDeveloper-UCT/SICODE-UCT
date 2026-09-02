@@ -62,15 +62,26 @@ def cliente(app_operacion):
 
 
 def test_recepcion_integra_quien_entrega_folios_y_quien_recibe(app_operacion, cliente):
+    # Monitoreo forma parte de la secuencia de anexos: antes de registrar se
+    # rectifica el total actual y el formulario confirma el número en File Server.
+    rectificacion = cliente.post(
+        "/coordinacion/monitoreo/rectificar-anexos",
+        json={"expediente_id": 1, "total_anexos": 0},
+    )
+    assert rectificacion.status_code == 200
+
     respuesta = cliente.post(
         "/coordinacion/registrar/monitoreo",
         data={
             "no_sp": "100",
+            "tipo_referencia": "RC",
             "rc": "RC-100",
             "providencia": "PROV-100",
             "fecha_recepcion": date.today().isoformat(),
             "persona_entrega": "Centro de Control y Monitoreo",
             "folios": "1-8",
+            "numero_anexo_monitoreo": "1",
+            "confirmacion_file_server": "y",
             "tipo_documento": "PROVIDENCIA",
             "numero_reporte": "REP-100",
             "tipo_evento": "No comunicación",
