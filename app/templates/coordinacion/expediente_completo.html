@@ -5,13 +5,13 @@
     <div class="encabezado-modulo">
         <div>
             <h1>Recepción de expediente completo</h1>
-            <p>Seleccione el SP, la forma de registro y confirme o ajuste el índice documental antes de adjuntarlo.</p>
+            <p>Seleccione el SP, la fecha de recepción, la forma de registro y confirme o ajuste el índice documental antes de adjuntarlo.</p>
         </div>
         <a class="boton-cancelar" href="{{ url_for('coordinacion.inicio') }}">Volver</a>
     </div>
 
     <div class="aviso">
-        <strong>Recepción automática:</strong> quién recibe y la fecha/hora se toman de la sesión. Cada fila del índice representa un documento independiente del expediente. Puede cambiar nombres y folios antes de registrar.
+        <strong>Recepción controlada:</strong> quién recibe y la hora de registro se toman de la sesión. La fecha de recepción se carga con el día actual, pero puede modificarla antes de guardar. Cada fila del índice representa un documento independiente del expediente. Puede cambiar nombres y folios antes de registrar.
     </div>
 
     <form method="post">
@@ -28,6 +28,15 @@
                 {{ form.forma_registro.label }}
                 {{ form.forma_registro() }}
                 {% for error in form.forma_registro.errors %}<span class="error">{{ error }}</span>{% endfor %}
+            </div>
+
+            <div class="campo">
+                {{ form.fecha_recepcion.label }}
+                {{ form.fecha_recepcion() }}
+                <small style="display:block; margin-top:4px; color:#64748b;">
+                    Por defecto se carga la fecha de hoy; puede corregirla si la recepción corresponde a otro día.
+                </small>
+                {% for error in form.fecha_recepcion.errors %}<span class="error">{{ error }}</span>{% endfor %}
             </div>
 
             <div class="campo">
