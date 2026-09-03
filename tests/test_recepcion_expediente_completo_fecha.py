@@ -7,6 +7,7 @@ from werkzeug.security import generate_password_hash
 from app import create_app, db
 from app.models.bitacora import Bitacora
 from app.models.coordinacion import RegistroCoordinacion
+from app.models.documento_expediente import DocumentoExpediente
 from app.models.expediente import Expediente
 from app.models.usuario import Usuario
 
@@ -59,6 +60,20 @@ def cliente_recepcion_completa(app_recepcion_completa):
     return cliente
 
 
+def _datos_recepcion(expediente_id, inicio="1", fin="4"):
+    return {
+        "expediente_id": expediente_id,
+        "forma_registro": "BASE_EDITABLE",
+        "fecha_recepcion": "2026-08-27",
+        "tipo_referencia": "RE",
+        "numero_referencia": "20261591",
+        "persona_entrega": "Coordinación de prueba",
+        "documento_1": "Solicitud de Informe de Factibilidad",
+        "folio_inicio_1": inicio,
+        "folio_fin_1": fin,
+    }
+
+
 def test_formulario_fecha_recepcion_carga_hoy(cliente_recepcion_completa):
     respuesta = cliente_recepcion_completa.get("/coordinacion/registrar/expediente-completo")
     texto = respuesta.get_data(as_text=True)
@@ -80,17 +95,7 @@ def test_recepcion_completa_guarda_fecha_modificada(
 
     respuesta = cliente_recepcion_completa.post(
         "/coordinacion/registrar/expediente-completo",
-        data={
-            "expediente_id": expediente_id,
-            "forma_registro": "BASE_EDITABLE",
-            "fecha_recepcion": "2026-08-27",
-            "tipo_referencia": "RE",
-            "numero_referencia": "20261591",
-            "persona_entrega": "Coordinación de prueba",
-            "documento_1": "Solicitud de Informe de Factibilidad",
-            "folio_inicio_1": "1",
-            "folio_fin_1": "4",
-        },
+        data=_datos_recepcion(expediente_id),
         follow_redirects=False,
     )
 
@@ -106,3 +111,84 @@ def test_recepcion_completa_guarda_fecha_modificada(
         assert "hora_registro" in evento.datos_posteriores
         assert "fecha_hora_registro" in evento.datos_posteriores
         assert evento.datos_posteriores["zona_horaria_registro"] == "America/Guatemala"
+
+
+def test_anexo_con_mismo_rango_no_bloquea_recepcion_del_expediente_principal(
+    app_recepcion_completa,
+    cliente_recepcion_completa,
+):
+    with app_recepcion_completa.app_context():
+        expediente = Expediente.query.filter_by(no_sp="378").one()
+        expediente_id = expediente.id
+        db.session.add(
+            DocumentoExpediente(
+                expediente_id=expediente.id,
+                nombre_documento="Anexo 2 - MOVILIZACION",
+                tipo_documento="Anexo",
+                folio_inicio=1,
+                folio_fin=3,
+                total_folios=3,
+                estado_revision="Verificado",
+                es_anexo=True,
+                activo=True,
+            )
+        )
+        db.session.commit()
+
+    respuesta = cliente_recepcion_completa.post(
+        "/coordinacion/registrar/expediente-completo",
+        data=_datos_recepcion(expediente_id, inicio="1", fin="5"),
+        follow_redirects=False,
+    )
+
+    assert respuesta.status_code == 302
+
+    with app_recepcion_completa.app_context():
+        documentos = DocumentoExpediente.query.filter_by(expediente_id=expediente_id, activo=True).all()
+        anexos = [documento for documento in documentos if documento.es_anexo]
+        principales = [documento for documento in documentos if not documento.es_anexo]
+
+        assert len(anexos) == 1
+        assert anexos[0].folio_inicio == 1
+        assert anexos[0].folio_fin == 3
+        assert len(principales) == 1
+        assert principales[0].folio_inicio == 1
+        assert principales[0].folio_fin == 5
+        assert RegistroCoordinacion.query.filter_by(tipo="EXPEDIENTE_COMPLETO").count() == 1
+
+
+def test_documento_principal_con_mismo_rango_sigue_bloqueando_la_recepcion(
+    app_recepcion_completa,
+    cliente_recepcion_completa,
+):
+    with app_recepcion_completa.app_context():
+        expediente = Expediente.query.filter_by(no_sp="378").one()
+        expediente_id = expediente.id
+        db.session.add(
+            DocumentoExpediente(
+                expediente_id=expediente.id,
+                nombre_documento="Documento principal existente",
+                tipo_documento="PROVIDENCIA",
+                folio_inicio=1,
+                folio_fin=3,
+                total_folios=3,
+                estado_revision="Verificado",
+                es_anexo=False,
+                activo=True,
+            )
+        )
+        db.session.commit()
+
+    respuesta = cliente_recepcion_completa.post(
+        "/coordinacion/registrar/expediente-completo",
+        data=_datos_recepcion(expediente_id, inicio="1", fin="5"),
+        follow_redirects=False,
+    )
+    texto = respuesta.get_data(as_text=True)
+
+    assert respuesta.status_code == 200
+    assert "documentos activos del expediente principal" in texto
+
+    with app_recepcion_completa.app_context():
+        assert DocumentoExpediente.query.filter_by(expediente_id=expediente_id, activo=True).count() == 1
+        assert RegistroCoordinacion.query.filter_by(tipo="EXPEDIENTE_COMPLETO").count() == 0
