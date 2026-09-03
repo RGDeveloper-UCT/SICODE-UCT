@@ -62,7 +62,7 @@ def create_app():
         integridad_bp, busqueda_bp, cuenta_bp, pagos_bp, coordinacion_bp, coordinacion_export_bp, portadores_bp, uo_bp,
         codigos_barras_bp, rectificaciones_bp, rectificacion_produccion_bp, soporte_tecnico_bp, soporte_tecnico_pdf_bp,
         control_accesos_bp, favoritos_bp, analisis_documental_bp, lote_documental_bp, sicode_ia_bp, sicode_ia_jobs_bp,
-        cerebro_sicode_bp, nexo_ia_bp, monitoreo_anexos_bp, instalar_registro_monitoreo,
+        cerebro_sicode_bp, nexo_ia_bp, monitoreo_anexos_bp, anexos_inteligentes_bp, instalar_registro_monitoreo,
     )
     from app.services.referencia_rc_re import instalar_deteccion_rc_re
     instalar_deteccion_rc_re()
@@ -73,7 +73,7 @@ def create_app():
         integridad_bp, busqueda_bp, cuenta_bp, pagos_bp, coordinacion_bp, coordinacion_export_bp, portadores_bp, uo_bp,
         codigos_barras_bp, rectificaciones_bp, rectificacion_produccion_bp, soporte_tecnico_bp, soporte_tecnico_pdf_bp,
         control_accesos_bp, favoritos_bp, analisis_documental_bp, lote_documental_bp, sicode_ia_bp, sicode_ia_jobs_bp,
-        cerebro_sicode_bp, nexo_ia_bp, monitoreo_anexos_bp,
+        cerebro_sicode_bp, nexo_ia_bp, monitoreo_anexos_bp, anexos_inteligentes_bp,
     ):
         app.register_blueprint(blueprint)
 
