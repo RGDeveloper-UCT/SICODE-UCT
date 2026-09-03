@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Registrar anexo — SICODE-UCT{% endblock %}
+{% block body_class %}vista-anexos-inteligentes{% endblock %}
+
+{% block content %}
+<section class="panel panel-ancho anexos-inteligentes" data-anexos-inteligentes data-estado-sp-url="{{ url_estado_sp }}">
+    <header class="anexos-inteligentes__encabezado">
+        <div>
+            <a class="anexos-volver" href="{{ url_for('coordinacion.inicio') }}">← Volver a Coordinación</a>
+            <p class="anexos-kicker">SICODE-UCT · ANEXOS DOCUMENTALES</p>
+            <h1>Registrar anexo</h1>
+            <p>Seleccione primero la clase de documento. SICODE mostrará únicamente los campos necesarios y conservará una sola secuencia de anexos por SP.</p>
+        </div>
+        <div class="anexos-progreso" aria-label="Progreso de registro">
+            <span class="activo" data-paso-indicador="1"><b>1</b> Tipo</span>
+            <span data-paso-indicador="2"><b>2</b> Datos</span>
+            <span data-paso-indicador="3"><b>3</b> Revisar</span>
+        </div>
+    </header>
+
+    <form method="post" action="{{ url_for('anexos_inteligentes.guardar') }}" data-anexos-form novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="tipo_codigo" data-tipo-codigo>
+
+        <section class="anexos-paso activo" data-paso="1">
+            <div class="anexos-paso__cabecera">
+                <div>
+                    <span class="anexos-paso__numero">PASO 1</span>
+                    <h2>¿Qué tipo de anexo va a registrar?</h2>
+                    <p>Puede buscar por nombre o navegar por categorías. Las combinaciones de componentes se registran en un solo evento.</p>
+                </div>
+                <label class="anexos-buscador">
+                    <span>Buscar tipo</span>
+                    <input type="search" data-buscar-anexo placeholder="Ej. batería, movilización, correa..." autocomplete="off">
+                </label>
+            </div>
+
+            <nav class="anexos-filtros" aria-label="Categorías de anexos">
+                <button type="button" class="activo" data-filtro-categoria="TODOS">Todos</button>
+                {% for categoria in categorias %}
+                <button type="button" data-filtro-categoria="{{ categoria.codigo }}">{{ categoria.titulo }}</button>
+                {% endfor %}
+            </nav>
+
+            <div class="anexos-categorias">
+                {% for categoria in categorias %}
+                <section class="anexos-categoria" data-categoria="{{ categoria.codigo }}">
+                    <header>
+                        <div class="anexos-categoria__icono" aria-hidden="true">{% if categoria.icono == 'radar' %}◎{% elif categoria.icono == 'riesgo' %}△{% elif categoria.icono == 'notificacion' %}▣{% elif categoria.icono == 'zona' %}⌖{% elif categoria.icono == 'judicial' %}§{% elif categoria.icono == 'dispositivo' %}⌁{% else %}▤{% endif %}</div>
+                        <div><h3>{{ categoria.titulo }}</h3><p>{{ categoria.descripcion }}</p></div>
+                    </header>
+                    <div class="anexos-tipos">
+                        {% for tipo in categoria.tipos %}
+                        <button type="button" class="anexo-tipo" data-tipo="{{ tipo.codigo }}" data-titulo="{{ tipo.titulo }}" data-modo="{{ tipo.modo }}" data-categoria-titulo="{{ categoria.titulo }}"{% if tipo.codigo == 'REPORTE_MONITOREO' %} data-url-especial="{{ url_monitoreo }}"{% elif tipo.codigo == 'ANALISIS_RIESGO' %} data-url-especial="{{ url_analisis }}"{% endif %}>
+                            <span class="anexo-tipo__marca" aria-hidden="true">✓</span>
+                            <span><strong>{{ tipo.titulo }}</strong>{% if tipo.modo == 'especial' %}<small>Formulario especializado</small>{% elif tipo.modo == 'componentes' %}<small>Selección múltiple de componentes</small>{% elif tipo.modo == 'libre' %}<small>Nombre controlado por el usuario</small>{% endif %}</span>
+                        </button>
+                        {% endfor %}
+                    </div>
+                </section>
+                {% endfor %}
+            </div>
+
+            <div class="anexos-sin-resultados" data-sin-resultados hidden>No se encontró un tipo con ese texto. Use <strong>Otro tipo de anexo</strong> si corresponde.</div>
+
+            <aside class="nexo-anexos">
+                <div class="nexo-anexos__orb" aria-hidden="true">N</div>
+                <div>
+                    <strong>NEXO vigila la evolución del catálogo</strong>
+                    {% if sugerencias_nexo %}
+                    <p>NEXO encontró denominaciones históricas que aún no coinciden con el catálogo oficial. Se muestran como propuestas de revisión y <strong>no se incorporan automáticamente</strong>.</p>
+                    <div class="nexo-anexos__sugerencias">
+                        {% for sugerencia in sugerencias_nexo %}<span>{{ sugerencia.titulo }} <b>{{ sugerencia.registros }}</b></span>{% endfor %}
+                    </div>
+                    {% else %}
+                    <p>No hay nuevos tipos pendientes detectados en los metadatos actuales. Cuando aparezca una denominación nueva, NEXO podrá señalarla para revisión.</p>
+                    {% endif %}
+                </div>
+            </aside>
+
+            <div class="anexos-acciones anexos-acciones--derecha">
+                <button type="button" class="boton anexos-continuar" data-ir-paso="2" disabled>Continuar con el anexo →</button>
+            </div>
+        </section>
+
+        <section class="anexos-paso" data-paso="2" hidden>
+            <div class="anexos-paso__cabecera anexos-paso__cabecera--simple">
+                <div><span class="anexos-paso__numero">PASO 2</span><h2>Complete los datos necesarios</h2><p data-seleccion-resumen></p></div>
+            </div>
+
+            <div class="anexo-especial-aviso" data-especial-aviso hidden>
+                <div><strong>Este anexo tiene captura especializada</strong><p>SICODE conservará el formulario existente para no perder los metadatos específicos de este documento.</p></div>
+                <a class="boton" href="#" data-especial-continuar>Continuar al formulario especializado →</a>
+            </div>
+
+            <div data-formulario-generico>
+                <div class="anexos-form-grid anexos-form-grid--sp">
+                    <label class="campo-anexo campo-anexo--principal"><span>No. de SP <b>*</b></span><input name="no_sp" list="lista-sp-anexos" autocomplete="off" data-no-sp placeholder="Ej. SP011"></label>
+                    <datalist id="lista-sp-anexos">{% for expediente in expedientes %}<option value="{{ expediente.no_sp }}">{% endfor %}</datalist>
+                    <div class="estado-sp-anexo" data-estado-sp><span class="estado-sp-anexo__punto"></span><div><strong>Seleccione un SP</strong><small>SICODE verificará la secuencia documental.</small></div></div>
+                    <label class="campo-anexo"><span>Anexo No. <b>*</b></span><input type="number" min="1" max="200" name="numero_anexo" data-numero-anexo inputmode="numeric"></label>
+                </div>
+
+                <section class="anexos-dinamicos" data-panel-componentes hidden>
+                    <header><h3>¿Qué componentes fueron reemplazados?</h3><p>Marque todos los que correspondan. SICODE generará el título automáticamente.</p></header>
+                    <div class="componentes-grid">
+                        {% for codigo, etiqueta in componentes %}
+                        <label class="componente-check"><input type="checkbox" name="componentes" value="{{ codigo }}" data-componente data-etiqueta="{{ etiqueta }}"><span><b>✓</b>{{ etiqueta }}</span></label>
+                        {% endfor %}
+                    </div>
+                    <div class="titulo-generado"><span>Título que se guardará</span><strong data-titulo-generado>Seleccione al menos un componente</strong></div>
+                </section>
+
+                <section class="anexos-dinamicos" data-panel-otro hidden>
+                    <label class="campo-anexo campo-anexo--ancho"><span>Nombre del tipo de anexo <b>*</b></span><input type="text" name="titulo_otro" maxlength="180" data-titulo-otro placeholder="Escriba la denominación que aparece en el documento"></label>
+                    <p class="ayuda-anexo">NEXO podrá comparar esta denominación con futuras capturas y proponer su incorporación al catálogo si se vuelve recurrente.</p>
+                </section>
+
+                <div class="anexos-form-grid">
+                    <label class="campo-anexo"><span>Tipo de referencia</span><select name="tipo_referencia"><option value="RC">RC</option><option value="RE">RE</option></select></label>
+                    <label class="campo-anexo"><span>Número RC / RE</span><input type="text" name="rc" maxlength="80"></label>
+                    <label class="campo-anexo"><span>Providencia</span><input type="text" name="providencia" maxlength="120"></label>
+                    <label class="campo-anexo"><span>Fecha recibido</span><input type="date" name="fecha_recepcion"></label>
+                    <label class="campo-anexo"><span>Quién entrega / remite</span><input type="text" name="persona_entrega" maxlength="180"></label>
+                    <label class="campo-anexo"><span>Folios recibidos</span><input type="text" name="folios" maxlength="80" placeholder="Ej. 1-4 o 4 folios"></label>
+                </div>
+
+                <div class="anexos-opciones-control">
+                    <label class="switch-anexo"><input type="checkbox" name="anexo_vencido" value="1" data-anexo-vencido><span class="switch-anexo__control"></span><span><strong>Anexo vencido / histórico</strong><small>Úselo únicamente para incorporar un anexo anterior sin avanzar la secuencia vigente.</small></span></label>
+                    <label class="confirmacion-anexo"><input type="checkbox" name="confirmacion_file_server" value="1" data-confirmacion-file-server><span>Confirmé en <strong>File Server</strong> el número de anexo que corresponde.</span></label>
+                </div>
+
+                <label class="campo-anexo campo-anexo--ancho"><span>Observaciones</span><textarea name="observaciones" rows="3" placeholder="Solo observaciones administrativas necesarias para el control del expediente."></textarea></label>
+            </div>
+
+            <div class="anexos-acciones">
+                <button type="button" class="boton-secundario" data-ir-paso="1">← Cambiar tipo</button>
+                <button type="button" class="boton" data-ir-paso="3" data-revisar-anexo>Revisar registro →</button>
+            </div>
+        </section>
+
+        <section class="anexos-paso" data-paso="3" hidden>
+            <div class="anexos-paso__cabecera anexos-paso__cabecera--simple">
+                <div><span class="anexos-paso__numero">PASO 3</span><h2>Revise antes de guardar</h2><p>Confirme que el tipo y la secuencia coinciden con el expediente físico/digital.</p></div>
+            </div>
+            <div class="anexos-resumen-final" data-resumen-final></div>
+            <div class="anexos-privacidad"><strong>Control documental:</strong> este registro conserva metadatos administrativos del anexo; no carga ni almacena el documento sensible.</div>
+            <div class="anexos-acciones">
+                <button type="button" class="boton-secundario" data-ir-paso="2">← Corregir datos</button>
+                <button type="submit" class="boton anexos-guardar" data-guardar-anexo><span>Guardar anexo</span><i aria-hidden="true"></i></button>
+            </div>
+        </section>
+    </form>
+</section>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/anexos_inteligentes.js') }}" defer></script>
+{% endblock %}
