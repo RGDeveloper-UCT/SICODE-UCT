@@ -61,7 +61,7 @@
         <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-top:24px;">
             <div>
                 <h2 style="margin-bottom:4px;">Índice de documentos a incorporar</h2>
-                <p style="margin:0; color:#64748b; font-size:12px;">Cada fila se guardará como un documento individual del SP, con su propio nombre, tipo, folio inicial, folio final e identificador en el sistema.</p>
+                <p style="margin:0; color:#64748b; font-size:12px;">Cada fila se guardará como un documento individual del SP, con su propio nombre, tipo, folio inicial, folio final e identificador en el sistema. Puede eliminar las filas que no correspondan; debe conservar al menos un documento.</p>
             </div>
             <span class="badge" id="contador-documentos">{{ documentos|length }} documentos independientes</span>
         </div>
@@ -74,12 +74,13 @@
                         <th>Documento independiente</th>
                         <th style="width:150px;">Folio inicial</th>
                         <th style="width:150px;">Folio final</th>
+                        <th style="width:120px; text-align:center;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="documentos-body">
                     {% for numero, nombre, tipo_documento, folio_inicio, folio_fin in documentos %}
                     <tr data-documento-fila="{{ numero }}">
-                        <td><strong>{{ numero }}</strong></td>
+                        <td><strong data-numero-visible>{{ numero }}</strong></td>
                         <td>
                             <input
                                 type="text"
@@ -115,6 +116,15 @@
                                 aria-label="Folio final documento {{ numero }}"
                             >
                         </td>
+                        <td style="text-align:center; white-space:nowrap;">
+                            <button
+                                type="button"
+                                class="boton-cancelar boton-eliminar-documento"
+                                data-eliminar-documento
+                                style="margin-left:0; border:0; cursor:pointer; padding:7px 10px;"
+                                aria-label="Eliminar documento {{ numero }}"
+                            >Eliminar</button>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -149,6 +159,7 @@
     const contador = document.getElementById('contador-documentos');
     const resultadoCantidad = document.getElementById('resultado-cantidad');
     const maximoFilas = 200;
+    const minimoFilas = 1;
 
     if (!cuerpo || !boton) return;
 
@@ -156,8 +167,17 @@
         return Array.from(cuerpo.querySelectorAll('tr[data-documento-fila]'));
     }
 
+    function actualizarNumeracionVisible() {
+        filasActuales().forEach(function (fila, indice) {
+            const numeroVisible = fila.querySelector('[data-numero-visible]');
+            if (numeroVisible) numeroVisible.textContent = String(indice + 1);
+        });
+    }
+
     function actualizarContador() {
-        const total = filasActuales().length;
+        const filas = filasActuales();
+        const total = filas.length;
+        actualizarNumeracionVisible();
         contador.textContent = total + (total === 1 ? ' documento independiente' : ' documentos independientes');
         resultadoCantidad.textContent = total;
         boton.disabled = total >= maximoFilas;
@@ -166,6 +186,17 @@
         } else {
             boton.removeAttribute('title');
         }
+
+        filas.forEach(function (fila) {
+            const eliminar = fila.querySelector('[data-eliminar-documento]');
+            if (!eliminar) return;
+            eliminar.disabled = total <= minimoFilas;
+            if (eliminar.disabled) {
+                eliminar.title = 'Debe conservar al menos un documento para registrar el expediente.';
+            } else {
+                eliminar.removeAttribute('title');
+            }
+        });
     }
 
     function siguienteNumero() {
@@ -184,6 +215,19 @@
         return Number.isFinite(ultimoFin) && ultimoFin >= 1 ? ultimoFin + 1 : 1;
     }
 
+    cuerpo.addEventListener('click', function (event) {
+        const eliminar = event.target.closest('[data-eliminar-documento]');
+        if (!eliminar) return;
+
+        const filas = filasActuales();
+        if (filas.length <= minimoFilas) return;
+
+        const fila = eliminar.closest('tr[data-documento-fila]');
+        if (!fila) return;
+        fila.remove();
+        actualizarContador();
+    });
+
     boton.addEventListener('click', function () {
         const total = filasActuales().length;
         if (total >= maximoFilas) return;
@@ -193,7 +237,7 @@
         const fila = document.createElement('tr');
         fila.dataset.documentoFila = String(numero);
         fila.innerHTML = `
-            <td><strong>${numero}</strong></td>
+            <td><strong data-numero-visible>${total + 1}</strong></td>
             <td>
                 <input
                     type="text"
@@ -229,6 +273,15 @@
                     style="width:100%; min-width:95px;"
                     aria-label="Folio final documento ${numero}"
                 >
+            </td>
+            <td style="text-align:center; white-space:nowrap;">
+                <button
+                    type="button"
+                    class="boton-cancelar boton-eliminar-documento"
+                    data-eliminar-documento
+                    style="margin-left:0; border:0; cursor:pointer; padding:7px 10px;"
+                    aria-label="Eliminar documento ${numero}"
+                >Eliminar</button>
             </td>
         `;
         cuerpo.appendChild(fila);
