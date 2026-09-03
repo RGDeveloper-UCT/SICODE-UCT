@@ -34,6 +34,7 @@ from app.routes.cerebro_sicode import cerebro_sicode_bp
 from app.routes.nexo_ia import nexo_ia_bp
 from app.routes import nexo_admin_guard as _nexo_admin_guard
 from app.routes.monitoreo_anexos import monitoreo_anexos_bp, instalar_registro_monitoreo
+from app.routes.anexos_inteligentes import anexos_inteligentes_bp
 from app.routes import coordinacion_monitoreo_masivo as _coordinacion_monitoreo_masivo
 from app.routes import coordinacion_monitoreo_masivo_fisico as _coordinacion_monitoreo_masivo_fisico
 from app.routes import aprendizaje_documental as _aprendizaje_documental
