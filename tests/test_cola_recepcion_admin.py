@@ -32,7 +32,16 @@ def app_cola():
             rol="usuario_autorizado",
             activo=True,
         )
-        db.session.add_all([admin, usuario])
+        otro_admin = Usuario(
+            nombre="Otro Administrador",
+            usuario="otro-admin-cola",
+            correo="otro-admin-cola@uct.local",
+            password_hash=generate_password_hash("Password123", method="pbkdf2:sha256"),
+            debe_cambiar_password=False,
+            rol="administrador",
+            activo=True,
+        )
+        db.session.add_all([admin, usuario, otro_admin])
         db.session.commit()
     yield app
     with app.app_context():
@@ -143,3 +152,32 @@ def test_admin_actualiza_estado_y_genera_pdf(app_cola):
 
     with app_cola.app_context():
         assert Bitacora.query.filter_by(accion="GENERAR_PDF_COLA_RECEPCION").count() == 1
+
+
+def test_otro_administrador_no_puede_ver_control_personal(app_cola):
+    propietario = app_cola.test_client()
+    _login(propietario, "admin-cola")
+    propietario.post(
+        "/admin/cola-recepcion",
+        data={
+            "recibido_en": "2026-09-03T15:00",
+            "recibido_de": "Entrega privada",
+            "descripcion": "Material de control personal",
+            "acciones": ["ARCHIVAR"],
+        },
+    )
+
+    with app_cola.app_context():
+        item = ColaRecepcionDocumental.query.one()
+        item_id = item.id
+        correlativo = item.correlativo
+
+    otro_admin = app_cola.test_client()
+    _login(otro_admin, "otro-admin-cola")
+
+    listado = otro_admin.get("/admin/cola-recepcion")
+    assert listado.status_code == 200
+    assert correlativo not in listado.get_data(as_text=True)
+
+    assert otro_admin.get(f"/admin/cola-recepcion/{item_id}/editar").status_code == 404
+    assert otro_admin.get(f"/admin/cola-recepcion/{item_id}/pdf").status_code == 404
