@@ -5,7 +5,7 @@ import re
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
-from wtforms import SelectField, StringField, SubmitField
+from wtforms import DateField, SelectField, StringField, SubmitField
 from wtforms.validators import DataRequired, Length
 
 from app import db
@@ -17,6 +17,12 @@ from app.services.bitacora_service import registrar_bitacora
 
 
 GUATEMALA_TZ = ZoneInfo("America/Guatemala")
+
+
+def _fecha_hoy_guatemala():
+    """Devuelve la fecha institucional actual para precargar la recepción."""
+    return datetime.now(GUATEMALA_TZ).date()
+
 
 DOCUMENTOS_BASE = [
     (1, "Solicitud de Informe de Factibilidad", "SOLICITUD", 1, 4),
@@ -46,6 +52,12 @@ TIPOS_REGISTRO["expediente-completo"] = {
 class RecepcionExpedienteCompletoForm(FlaskForm):
     expediente_id = SelectField("SP al que se adjuntará", coerce=int, validators=[DataRequired()])
     forma_registro = SelectField("Forma de registro", validators=[DataRequired()])
+    fecha_recepcion = DateField(
+        "Fecha de recepción",
+        default=_fecha_hoy_guatemala,
+        validators=[DataRequired()],
+        format="%Y-%m-%d",
+    )
     tipo_referencia = SelectField(
         "Tipo de referencia",
         choices=[("RC", "RC"), ("RE", "RE")],
@@ -271,6 +283,8 @@ def registrar_expediente_completo():
         ahora_gt = datetime.now(GUATEMALA_TZ)
         ahora_utc = ahora_gt.astimezone(timezone.utc).replace(tzinfo=None)
         fecha_hora_legible = ahora_gt.strftime("%d/%m/%Y %H:%M:%S")
+        fecha_recepcion = form.fecha_recepcion.data
+        fecha_recepcion_legible = fecha_recepcion.strftime("%d/%m/%Y")
 
         referencia = f"{form.tipo_referencia.data} {form.numero_referencia.data.strip()}"
         folio_min = min(item[3] for item in documentos)
@@ -283,7 +297,7 @@ def registrar_expediente_completo():
             expediente_id=expediente.id,
             no_sp_referencia=expediente.no_sp,
             rc=referencia,
-            fecha_recepcion=ahora_gt.date(),
+            fecha_recepcion=fecha_recepcion,
             persona_entrega=form.persona_entrega.data.strip(),
             folios_recepcion=(
                 f"{len(documentos)} documentos individuales; rango general {folio_min}-{folio_max}; "
@@ -293,9 +307,10 @@ def registrar_expediente_completo():
             usuario_origen=current_user.nombre,
             estado="Completo",
             observaciones=(
-                f"Recepción de expediente completo. Fecha y hora automática: {fecha_hora_legible} "
-                f"(America/Guatemala). Forma de registro: {forma_legible}. "
-                f"Cada una de las {len(documentos)} filas del índice se creó como un documento independiente del SP."
+                f"Recepción de expediente completo. Fecha de recepción indicada: {fecha_recepcion_legible}. "
+                f"Registro realizado: {fecha_hora_legible} (America/Guatemala). "
+                f"Forma de registro: {forma_legible}. Cada una de las {len(documentos)} filas del índice "
+                f"se creó como un documento independiente del SP."
             ),
             origen_registro="MANUAL",
             creado_en=ahora_utc,
@@ -310,9 +325,10 @@ def registrar_expediente_completo():
             accion="REGISTRAR_EXPEDIENTE_COMPLETO",
             modulo="Coordinación",
             descripcion=(
-                f"Se recibió expediente completo del SP {expediente.no_sp} el {fecha_hora_legible} "
-                f"(Guatemala); referencia {referencia}; se crearon {len(documentos_creados)} documentos "
-                f"independientes en el índice documental."
+                f"Se recibió expediente completo del SP {expediente.no_sp} con fecha de recepción "
+                f"{fecha_recepcion_legible}; registro realizado el {fecha_hora_legible} (Guatemala); "
+                f"referencia {referencia}; se crearon {len(documentos_creados)} documentos independientes "
+                f"en el índice documental."
             ),
             usuario_id=current_user.id,
             expediente_id=expediente.id,
@@ -322,10 +338,10 @@ def registrar_expediente_completo():
                 "tipo": registro.tipo,
                 "sp": expediente.no_sp,
                 "referencia": referencia,
-                "fecha_recepcion": ahora_gt.strftime("%Y-%m-%d"),
-                "hora_recepcion": ahora_gt.strftime("%H:%M:%S"),
-                "fecha_hora_recepcion": ahora_gt.isoformat(),
-                "zona_horaria": "America/Guatemala",
+                "fecha_recepcion": fecha_recepcion.isoformat(),
+                "hora_registro": ahora_gt.strftime("%H:%M:%S"),
+                "fecha_hora_registro": ahora_gt.isoformat(),
+                "zona_horaria_registro": "America/Guatemala",
                 "forma_registro": form.forma_registro.data,
                 "documentos_independientes": len(documentos_creados),
                 "documentos_creados": [
@@ -351,7 +367,8 @@ def registrar_expediente_completo():
             raise
 
         flash(
-            f"Expediente completo recibido el {fecha_hora_legible}. Se crearon {len(documentos_creados)} "
+            f"Expediente completo recibido con fecha {fecha_recepcion_legible}. "
+            f"Registro realizado el {fecha_hora_legible}. Se crearon {len(documentos_creados)} "
             f"documentos independientes en el SP {expediente.no_sp} con referencia {referencia}.",
             "success",
         )
