@@ -114,6 +114,13 @@ def _validar_campos():
     }, errores
 
 
+def _item_personal_or_404(item_id):
+    return ColaRecepcionDocumental.query.filter_by(
+        id=item_id,
+        usuario_id=current_user.id,
+    ).first_or_404()
+
+
 @admin_bp.route("/cola-recepcion", methods=["GET", "POST"])
 @login_required
 @admin_required
@@ -158,7 +165,7 @@ def cola_recepcion():
     estado = (request.args.get("estado") or "ACTIVOS").strip().upper()
     pagina = max(request.args.get("page", 1, type=int), 1)
 
-    consulta = ColaRecepcionDocumental.query
+    consulta = ColaRecepcionDocumental.query.filter_by(usuario_id=current_user.id)
     if q:
         patron = f"%{q}%"
         consulta = consulta.filter(or_(
@@ -182,9 +189,18 @@ def cola_recepcion():
         ColaRecepcionDocumental.id.asc(),
     ).paginate(page=pagina, per_page=40, error_out=False)
 
-    pendientes = ColaRecepcionDocumental.query.filter_by(estado="PENDIENTE").count()
-    en_proceso = ColaRecepcionDocumental.query.filter_by(estado="EN_PROCESO").count()
-    completados = ColaRecepcionDocumental.query.filter_by(estado="COMPLETADO").count()
+    pendientes = ColaRecepcionDocumental.query.filter_by(
+        usuario_id=current_user.id,
+        estado="PENDIENTE",
+    ).count()
+    en_proceso = ColaRecepcionDocumental.query.filter_by(
+        usuario_id=current_user.id,
+        estado="EN_PROCESO",
+    ).count()
+    completados = ColaRecepcionDocumental.query.filter_by(
+        usuario_id=current_user.id,
+        estado="COMPLETADO",
+    ).count()
     ahora = datetime.now()
 
     return render_template(
@@ -208,7 +224,7 @@ def cola_recepcion():
 @login_required
 @admin_required
 def editar_cola_recepcion(item_id):
-    item = ColaRecepcionDocumental.query.get_or_404(item_id)
+    item = _item_personal_or_404(item_id)
 
     if request.method == "POST":
         datos, errores = _validar_campos()
@@ -245,7 +261,7 @@ def editar_cola_recepcion(item_id):
 @login_required
 @admin_required
 def cambiar_estado_cola_recepcion(item_id):
-    item = ColaRecepcionDocumental.query.get_or_404(item_id)
+    item = _item_personal_or_404(item_id)
     nuevo_estado = (request.form.get("estado") or "").strip().upper()
 
     if nuevo_estado not in ColaRecepcionDocumental.ESTADOS:
@@ -275,7 +291,7 @@ def _p(texto, estilo):
 @login_required
 @admin_required
 def pdf_cola_recepcion(item_id):
-    item = ColaRecepcionDocumental.query.get_or_404(item_id)
+    item = _item_personal_or_404(item_id)
 
     archivo = BytesIO()
     doc = SimpleDocTemplate(
