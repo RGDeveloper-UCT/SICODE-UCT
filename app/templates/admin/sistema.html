@@ -5,13 +5,14 @@
     <div class="encabezado-modulo">
         <div><h1>Estado del sistema</h1><p>Salud técnica, respaldos y acceso al control de integridad de SICODE-UCT.</p></div>
         <div class="acciones-detalle">
+            <a class="boton-exito" href="{{ url_for('admin.cola_recepcion') }}">Cola de recepción</a>
             <a class="boton-exito" href="{{ url_for('integridad.inicio') }}">Control de Integridad</a>
             <a class="boton-secundario" href="{{ url_for('admin.backups') }}">Backups</a>
             <a class="boton-cancelar" href="{{ url_for('dashboard.inicio') }}">Dashboard</a>
         </div>
     </div>
 
-    <div class="aviso"><strong>Control separado:</strong> esta pantalla muestra salud técnica. El botón <em>Control de Integridad</em> revisa coherencia de expedientes, folios, préstamos, Coordinación, usuarios y respaldos sin autocorregir datos.</div>
+    <div class="aviso"><strong>Control separado:</strong> esta pantalla muestra salud técnica. El botón <em>Control de Integridad</em> revisa coherencia de expedientes, folios, préstamos, Coordinación, usuarios y respaldos sin autocorregir datos. La <em>Cola de recepción</em> es un control administrativo temporal para material recibido pendiente de procesamiento.</div>
 
     <h2>Estado general</h2>
     <div class="grid">
@@ -28,6 +29,16 @@
         <div class="tarjeta indicador"><h2>Alertas</h2><p class="numero-indicador indicador-alerta">{{ indicadores.alertas }}</p><p>Abiertas: {{ indicadores.alertas_abiertas }}</p></div>
         <div class="tarjeta indicador"><h2>Préstamos</h2><p class="numero-indicador">{{ indicadores.prestamos }}</p><p>Activos: {{ indicadores.prestamos_activos }}</p></div>
         <div class="tarjeta indicador"><h2>Bitácora</h2><p class="numero-indicador">{{ indicadores.eventos_bitacora }}</p><a href="{{ url_for('bitacora.listado') }}">Ver eventos</a></div>
+    </div>
+
+    <h2>Herramientas administrativas</h2>
+    <div class="grid">
+        <div class="tarjeta indicador">
+            <h2>Cola de recepción</h2>
+            <p class="numero-indicador">CRD</p>
+            <p>Material recibido pendiente de registrar, ordenar, foliar, escanear, corroborar, rectificar o archivar.</p>
+            <a href="{{ url_for('admin.cola_recepcion') }}">Abrir control personal</a>
+        </div>
     </div>
 
     <h2>Último respaldo</h2>

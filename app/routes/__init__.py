@@ -10,6 +10,7 @@ from app.routes.alertas import alertas_bp
 from app.routes.prestamos import prestamos_bp
 from app.routes.prestamos_grupales import prestamos_grupales_bp
 from app.routes.admin import admin_bp
+from app.routes import admin_cola_recepcion as _admin_cola_recepcion
 from app.routes.integridad import integridad_bp
 from app.routes.busqueda import busqueda_bp
 from app.routes.cuenta import cuenta_bp

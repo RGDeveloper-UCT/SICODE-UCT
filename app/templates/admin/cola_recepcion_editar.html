@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Editar {{ item.correlativo }} · SICODE-UCT{% endblock %}
+{% block body_class %}cola-recepcion-page{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cola_recepcion.css') }}">
+
+<section class="cola-recepcion crd-edit-wrap">
+    <header class="crd-hero">
+        <div>
+            <div class="crd-eyebrow">ADMINISTRACIÓN · {{ item.correlativo }}</div>
+            <h1>Editar control de recepción</h1>
+            <p>Actualice los metadatos del ingreso sin eliminar su correlativo ni su historial de auditoría.</p>
+        </div>
+        <span class="crd-state crd-state--{{ item.estado }}">{{ item.estado_legible }}</span>
+    </header>
+
+    <section class="crd-card">
+        <div class="crd-card__head">
+            <h2>Datos del ingreso</h2>
+            <p>La fecha de recepción representa cuándo el material quedó bajo su control, no cuándo será procesado.</p>
+        </div>
+        <form class="crd-form" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="crd-field">
+                <label for="recibido_en">Fecha y hora de recepción *</label>
+                <input id="recibido_en" name="recibido_en" type="datetime-local" value="{{ request.form.get('recibido_en', item.recibido_en.strftime('%Y-%m-%dT%H:%M')) }}" required>
+            </div>
+            <div class="crd-field">
+                <label for="recibido_de">Recibido de *</label>
+                <input id="recibido_de" name="recibido_de" maxlength="180" value="{{ request.form.get('recibido_de', item.recibido_de) }}" required>
+            </div>
+            <div class="crd-field">
+                <label for="descripcion">¿Qué se recibió? *</label>
+                <textarea id="descripcion" name="descripcion" required>{{ request.form.get('descripcion', item.descripcion) }}</textarea>
+            </div>
+            <div class="crd-field">
+                <label for="ubicacion_temporal">Ubicación temporal</label>
+                <input id="ubicacion_temporal" name="ubicacion_temporal" maxlength="180" value="{{ request.form.get('ubicacion_temporal', item.ubicacion_temporal or '') }}">
+            </div>
+
+            <div>
+                <div class="crd-label">¿Qué hay que hacer? *</div>
+                <div class="crd-actions">
+                    {% set seleccionadas = request.form.getlist('acciones') if request.method == 'POST' else (item.acciones or []) %}
+                    {% for codigo, etiqueta in acciones %}
+                    <label class="crd-check">
+                        <input type="checkbox" name="acciones" value="{{ codigo }}" {% if codigo in seleccionadas %}checked{% endif %}>
+                        <span>{{ etiqueta }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="crd-field">
+                <label for="observaciones">Observaciones</label>
+                <textarea id="observaciones" name="observaciones">{{ request.form.get('observaciones', item.observaciones or '') }}</textarea>
+            </div>
+            <div class="crd-edit-actions">
+                <a class="crd-btn" href="{{ url_for('admin.cola_recepcion') }}">Cancelar</a>
+                <button class="crd-submit" type="submit">Guardar cambios</button>
+            </div>
+        </form>
+    </section>
+</section>
+{% endblock %}

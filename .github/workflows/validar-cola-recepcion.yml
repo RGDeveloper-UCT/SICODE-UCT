@@ -1,0 +1,93 @@
+name: Validar Cola de Recepción
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'app/models/cola_recepcion.py'
+      - 'app/routes/admin_cola_recepcion.py'
+      - 'app/models/__init__.py'
+      - 'app/routes/__init__.py'
+      - 'app/templates/admin/cola_recepcion.html'
+      - 'app/templates/admin/cola_recepcion_editar.html'
+      - 'app/templates/admin/sistema.html'
+      - 'app/static/css/cola_recepcion.css'
+      - 'migrations/versions/z7o1j4k9l730_cola_recepcion_documental.py'
+      - 'tests/test_cola_recepcion_admin.py'
+      - '.github/workflows/validar-cola-recepcion.yml'
+
+jobs:
+  validar-cola-recepcion:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: sicode_ci
+          POSTGRES_PASSWORD: sicode_ci_password
+          POSTGRES_DB: sicode_cola_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sicode_ci -d sicode_cola_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      SECRET_KEY: "ci-cola-sicode-segura"
+      PYTHONPATH: "."
+      PGPASSWORD: "sicode_ci_password"
+      DATABASE_URL: "postgresql://sicode_ci:sicode_ci_password@localhost:5432/sicode_cola_test"
+
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Compilar módulo
+        run: python -m compileall -q app/models/cola_recepcion.py app/routes/admin_cola_recepcion.py migrations/versions/z7o1j4k9l730_cola_recepcion_documental.py tests/test_cola_recepcion_admin.py
+
+      - name: Probar cola administrativa
+        run: pytest -q tests/test_cola_recepcion_admin.py tests/test_navegacion_modulos.py
+
+      - name: Crear base exclusiva para migraciones
+        run: createdb -h localhost -U sicode_ci sicode_cola_migration
+
+      - name: Aplicar cadena completa de migraciones
+        env:
+          DATABASE_URL: "postgresql://sicode_ci:sicode_ci_password@localhost:5432/sicode_cola_migration"
+        run: |
+          python -m flask --app run.py db heads
+          python -m flask --app run.py db upgrade
+          python -m flask --app run.py db current
+
+      - name: Verificar tabla de la cola
+        env:
+          DATABASE_URL: "postgresql://sicode_ci:sicode_ci_password@localhost:5432/sicode_cola_migration"
+        run: |
+          python - <<'PY'
+          import os
+          from sqlalchemy import create_engine, inspect
+
+          engine = create_engine(os.environ['DATABASE_URL'])
+          inspector = inspect(engine)
+          assert 'cola_recepcion_documental' in inspector.get_table_names()
+          columnas = {item['name'] for item in inspector.get_columns('cola_recepcion_documental')}
+          esperadas = {
+              'id', 'correlativo', 'recibido_en', 'recibido_de', 'descripcion',
+              'ubicacion_temporal', 'acciones', 'observaciones', 'estado',
+              'completado_en', 'usuario_id', 'creado_en', 'actualizado_en'
+          }
+          assert esperadas <= columnas, f'Columnas faltantes: {sorted(esperadas - columnas)}'
+          print('Cola de recepción documental validada correctamente en PostgreSQL.')
+          PY

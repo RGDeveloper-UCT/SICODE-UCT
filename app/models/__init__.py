@@ -16,6 +16,7 @@ from app.models.control_acceso import AccesoCCT
 from app.models.favorito_usuario import FavoritoUsuario
 from app.models.analisis_documental import AnalisisDocumental
 from app.models.lote_documental import SegmentoDocumental, AprendizajeDocumental, PatronAprendizajeDocumental
+from app.models.cola_recepcion import ColaRecepcionDocumental
 from app.models.coordinacion import (
     RegistroCoordinacion,
     PagoCoordinacion,
