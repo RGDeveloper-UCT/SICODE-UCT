@@ -62,8 +62,10 @@ def test_cola_es_exclusiva_de_administracion(app_cola):
     cliente = app_cola.test_client()
     _login(cliente, "operativo-cola")
 
-    respuesta = cliente.get("/admin/cola-recepcion")
-    assert respuesta.status_code == 403
+    respuesta = cliente.get("/admin/cola-recepcion", follow_redirects=False)
+    assert respuesta.status_code == 302
+    assert respuesta.headers["Location"].endswith("/dashboard")
+    assert "Cola de recepción documental" not in respuesta.get_data(as_text=True)
 
 
 def test_admin_registra_pendiente_con_correlativo_y_tareas(app_cola):
