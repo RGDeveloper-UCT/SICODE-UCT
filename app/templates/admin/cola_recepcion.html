@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Cola de recepción · SICODE-UCT{% endblock %}
+{% block body_class %}cola-recepcion-page{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cola_recepcion.css') }}">
+
+<section class="cola-recepcion">
+    <header class="crd-hero">
+        <div>
+            <div class="crd-eyebrow">ADMINISTRACIÓN · CONTROL PERSONAL</div>
+            <h1>Cola de recepción documental</h1>
+            <p>Registro rápido de material recibido que todavía no ha sido procesado. Mantiene fecha de recepción, procedencia, ubicación temporal, tareas pendientes y trazabilidad sin convertir el ingreso en un expediente formal.</p>
+        </div>
+        <div class="crd-kpis" aria-label="Resumen de la cola">
+            <div class="crd-kpi"><strong>{{ pendientes }}</strong><span>Pendientes</span></div>
+            <div class="crd-kpi"><strong>{{ en_proceso }}</strong><span>En proceso</span></div>
+            <div class="crd-kpi"><strong>{{ completados }}</strong><span>Completados</span></div>
+        </div>
+    </header>
+
+    <div class="crd-layout">
+        <section class="crd-card">
+            <div class="crd-card__head">
+                <h2>Registrar recepción</h2>
+                <p>Capture únicamente lo indispensable para no perder el control del material.</p>
+            </div>
+            <form class="crd-form" method="post" action="{{ url_for('admin.cola_recepcion') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="crd-field">
+                    <label for="recibido_en">Fecha y hora de recepción *</label>
+                    <input id="recibido_en" name="recibido_en" type="datetime-local" value="{{ request.form.get('recibido_en', fecha_hora_default) }}" required>
+                </div>
+                <div class="crd-field">
+                    <label for="recibido_de">Recibido de *</label>
+                    <input id="recibido_de" name="recibido_de" maxlength="180" value="{{ request.form.get('recibido_de', '') }}" placeholder="Nombre, área o persona que entrega" required>
+                </div>
+                <div class="crd-field">
+                    <label for="descripcion">¿Qué se recibió? *</label>
+                    <textarea id="descripcion" name="descripcion" placeholder="Ej.: 300 folders para revisión y archivo" required>{{ request.form.get('descripcion', '') }}</textarea>
+                    <p class="crd-help">No registre folios ni detalle documental exhaustivo; esta es una cola previa al procesamiento.</p>
+                </div>
+                <div class="crd-field">
+                    <label for="ubicacion_temporal">Ubicación temporal</label>
+                    <input id="ubicacion_temporal" name="ubicacion_temporal" maxlength="180" value="{{ request.form.get('ubicacion_temporal', '') }}" placeholder="Ej.: Archivo personal · estante superior">
+                </div>
+
+                <div>
+                    <div class="crd-label">¿Qué hay que hacer? *</div>
+                    <div class="crd-actions">
+                        {% set seleccionadas = request.form.getlist('acciones') %}
+                        {% for codigo, etiqueta in acciones %}
+                        <label class="crd-check">
+                            <input type="checkbox" name="acciones" value="{{ codigo }}" {% if codigo in seleccionadas %}checked{% endif %}>
+                            <span>{{ etiqueta }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="crd-field">
+                    <label for="observaciones">Observaciones</label>
+                    <textarea id="observaciones" name="observaciones" placeholder="Instrucciones, contexto o detalle adicional">{{ request.form.get('observaciones', '') }}</textarea>
+                </div>
+                <button class="crd-submit" type="submit">Agregar a la cola</button>
+            </form>
+        </section>
+
+        <section class="crd-card crd-board">
+            <div class="crd-card__head">
+                <h2>Pendientes de procesamiento</h2>
+                <p>Los ingresos activos se muestran del más antiguo al más reciente para favorecer el orden de atención.</p>
+            </div>
+            <form class="crd-toolbar" method="get">
+                <div class="crd-filter">
+                    <input name="q" value="{{ q }}" placeholder="Buscar correlativo, procedencia, descripción o ubicación">
+                    <select name="estado">
+                        <option value="ACTIVOS" {% if estado == 'ACTIVOS' %}selected{% endif %}>Activos</option>
+                        {% for codigo, etiqueta in estados %}
+                        <option value="{{ codigo }}" {% if estado == codigo %}selected{% endif %}>{{ etiqueta }}</option>
+                        {% endfor %}
+                        <option value="TODOS" {% if estado == 'TODOS' %}selected{% endif %}>Todos</option>
+                    </select>
+                    <button class="crd-btn crd-btn--primary" type="submit">Filtrar</button>
+                </div>
+            </form>
+
+            {% if items %}
+            <div class="crd-table-wrap">
+                <table class="crd-table">
+                    <thead>
+                        <tr>
+                            <th>Control</th>
+                            <th>Recepción</th>
+                            <th>Recibido de</th>
+                            <th>Descripción / ubicación</th>
+                            <th>Tareas</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        {% set horas = ((ahora - item.recibido_en).total_seconds() / 3600)|int %}
+                        <tr>
+                            <td>
+                                <div class="crd-code">{{ item.correlativo }}</div>
+                                {% if horas < 24 %}
+                                <div class="crd-muted">Recibido hace {{ horas if horas >= 0 else 0 }} h</div>
+                                {% else %}
+                                <div class="crd-muted">Pendiente desde hace {{ (horas / 24)|int }} día(s)</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ item.recibido_en.strftime('%d/%m/%Y') }}<br>
+                                <span class="crd-muted">{{ item.recibido_en.strftime('%H:%M') }}</span>
+                            </td>
+                            <td>{{ item.recibido_de }}</td>
+                            <td class="crd-desc">
+                                {{ item.descripcion }}
+                                {% if item.ubicacion_temporal %}<div class="crd-muted">Ubicación: {{ item.ubicacion_temporal }}</div>{% endif %}
+                                {% if item.observaciones %}<div class="crd-muted">Obs.: {{ item.observaciones }}</div>{% endif %}
+                            </td>
+                            <td>
+                                <div class="crd-tags">
+                                    {% for codigo in item.acciones or [] %}
+                                    <span class="crd-tag">{{ acciones_mapa.get(codigo, codigo) }}</span>
+                                    {% endfor %}
+                                </div>
+                            </td>
+                            <td><span class="crd-state crd-state--{{ item.estado }}">{{ item.estado_legible }}</span></td>
+                            <td>
+                                <div class="crd-row-actions">
+                                    <a class="crd-btn" href="{{ url_for('admin.pdf_cola_recepcion', item_id=item.id) }}">PDF</a>
+                                    <a class="crd-btn" href="{{ url_for('admin.editar_cola_recepcion', item_id=item.id) }}">Editar</a>
+                                    {% if item.estado == 'PENDIENTE' %}
+                                    <form method="post" action="{{ url_for('admin.cambiar_estado_cola_recepcion', item_id=item.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="estado" value="EN_PROCESO">
+                                        <button class="crd-btn crd-btn--warn" type="submit">Iniciar</button>
+                                    </form>
+                                    {% elif item.estado == 'EN_PROCESO' %}
+                                    <form method="post" action="{{ url_for('admin.cambiar_estado_cola_recepcion', item_id=item.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="estado" value="COMPLETADO">
+                                        <button class="crd-btn crd-btn--success" type="submit">Completar</button>
+                                    </form>
+                                    {% else %}
+                                    <form method="post" action="{{ url_for('admin.cambiar_estado_cola_recepcion', item_id=item.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="estado" value="PENDIENTE">
+                                        <button class="crd-btn" type="submit">Reabrir</button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="crd-empty">
+                <strong>No hay registros para este filtro.</strong>
+                <div>Cuando reciba material pendiente, agréguelo desde el formulario de la izquierda.</div>
+            </div>
+            {% endif %}
+
+            {% if paginacion.pages > 1 %}
+            <nav class="crd-pagination" aria-label="Paginación">
+                {% if paginacion.has_prev %}
+                <a href="{{ url_for('admin.cola_recepcion', page=paginacion.prev_num, q=q, estado=estado) }}">← Anterior</a>
+                {% endif %}
+                <span>{{ paginacion.page }} / {{ paginacion.pages }}</span>
+                {% if paginacion.has_next %}
+                <a href="{{ url_for('admin.cola_recepcion', page=paginacion.next_num, q=q, estado=estado) }}">Siguiente →</a>
+                {% endif %}
+            </nav>
+            {% endif %}
+        </section>
+    </div>
+</section>
+{% endblock %}
