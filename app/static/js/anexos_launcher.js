@@ -15,8 +15,11 @@
         if (evento) {
             evento.preventDefault();
             evento.stopPropagation();
+            if (typeof evento.stopImmediatePropagation === 'function') {
+                evento.stopImmediatePropagation();
+            }
         }
-        window.location.assign(destino);
+        window.location.href = destino;
     };
 
     const subpanel = tarjeta.querySelector('.subpanel-anexos');
@@ -28,15 +31,41 @@
         enlace.className = 'boton-tarjeta-registro boton-tarjeta-registro-principal';
         enlace.href = destino;
         enlace.textContent = 'Registrar anexo';
+        enlace.draggable = false;
+        enlace.style.cursor = 'pointer';
+        enlace.style.pointerEvents = 'auto';
+        enlace.style.position = 'relative';
+        enlace.style.zIndex = '50';
+
+        // El inicio de Coordinación usa un carrusel horizontal con eventos de
+        // puntero. Este botón se crea dinámicamente después de inicializar dicho
+        // carrusel, por lo que debemos detener el pointerdown aquí para que nunca
+        // se interprete como gesto de arrastre.
+        enlace.addEventListener('pointerdown', (evento) => {
+            evento.stopPropagation();
+            evento.stopImmediatePropagation();
+        }, true);
+        enlace.addEventListener('mousedown', (evento) => {
+            evento.stopPropagation();
+            evento.stopImmediatePropagation();
+        }, true);
+        enlace.addEventListener('dragstart', (evento) => evento.preventDefault(), true);
         enlace.addEventListener('click', abrirRegistro, true);
 
         acciones.appendChild(enlace);
         subpanel.replaceWith(acciones);
     }
 
-    // Respaldo defensivo: si el navegador conserva HTML anterior o algún script
-    // vuelve a dibujar el botón original, cualquier clic en la acción principal
-    // de la tarjeta de Anexos abre directamente el nuevo módulo.
+    // Respaldo defensivo para HTML cacheado: cualquier activador anterior de
+    // Anexos se transforma en navegación directa, incluso si el carrusel intenta
+    // capturar el puntero.
+    tarjeta.addEventListener('pointerdown', (evento) => {
+        const objetivo = evento.target.closest('.boton-tarjeta-registro-principal, .subpanel-anexos summary');
+        if (!objetivo || !tarjeta.contains(objetivo)) return;
+        evento.stopPropagation();
+        evento.stopImmediatePropagation();
+    }, true);
+
     tarjeta.addEventListener('click', (evento) => {
         const objetivo = evento.target.closest('.boton-tarjeta-registro-principal, .subpanel-anexos summary');
         if (!objetivo || !tarjeta.contains(objetivo)) return;
