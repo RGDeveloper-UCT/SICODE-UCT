@@ -5,6 +5,7 @@ import re
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
+from sqlalchemy import or_
 from wtforms import DateField, SelectField, StringField, SubmitField
 from wtforms.validators import DataRequired, Length
 
@@ -171,6 +172,13 @@ def _documentos_para_vista():
 
 
 def _buscar_conflictos(expediente_id, documentos):
+    """Busca traslapes solo dentro de la foliación general del expediente.
+
+    Los anexos usan una foliación independiente, por lo que un anexo 1-3 no
+    debe bloquear el registro de los folios 1-3 (o cualquier otro rango) del
+    expediente principal. Los registros históricos con ``es_anexo`` NULL se
+    conservan como parte del cuerpo principal para mantener compatibilidad.
+    """
     if not documentos:
         return []
     inicio = min(item[3] for item in documentos)
@@ -179,6 +187,10 @@ def _buscar_conflictos(expediente_id, documentos):
         DocumentoExpediente.query
         .filter_by(expediente_id=expediente_id, activo=True)
         .filter(
+            or_(
+                DocumentoExpediente.es_anexo.is_(False),
+                DocumentoExpediente.es_anexo.is_(None),
+            ),
             DocumentoExpediente.folio_inicio <= fin,
             DocumentoExpediente.folio_fin >= inicio,
         )
@@ -275,7 +287,8 @@ def registrar_expediente_completo():
             )
             flash(
                 f"No se adjuntó la documentación porque el SP {expediente.no_sp} ya tiene "
-                f"documentos activos en los folios {rangos}. Revise primero su índice documental.",
+                f"documentos activos del expediente principal en los folios {rangos}. "
+                "Revise primero la foliación general de su índice documental.",
                 "warning",
             )
             return render_template("coordinacion/expediente_completo.html", form=form, documentos=documentos_vista)
