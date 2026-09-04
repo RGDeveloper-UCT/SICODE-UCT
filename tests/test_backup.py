@@ -1,3 +1,4 @@
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -69,3 +70,10 @@ def test_resolver_backup_impide_escape_de_directorio(app_backup, tmp_path, monke
     with app_backup.app_context():
         with pytest.raises(backup_service.BackupError):
             backup_service.resolver_backup("../backup_sicode_uct_robo.sql")
+
+
+def test_servicio_systemd_define_pythonpath_del_proyecto():
+    plantilla = Path("deploy/systemd/sicode-backup.service.template").read_text(encoding="utf-8")
+    assert "WorkingDirectory=__SICODE_APPDIR__" in plantilla
+    assert "Environment=PYTHONPATH=__SICODE_APPDIR__" in plantilla
+    assert "ExecStart=__SICODE_PYTHON__ __SICODE_APPDIR__/scripts/backup_programado.py" in plantilla
