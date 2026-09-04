@@ -19,7 +19,7 @@ csrf = CSRFProtect()
 _ACCIONES_ESCRITURA_VISOR = {
     "nuevo", "registrar", "editar", "eliminar", "importar", "exportar", "generar", "devolver",
     "desactivar", "reactivar", "actualizar", "crear", "agregar", "quitar", "cambiar_estado",
-    "rectificar", "analizar", "confirmar", "descartar", "verificar", "cargar",
+    "rectificar", "analizar", "confirmar", "descartar", "verificar", "cargar", "resolver",
 }
 
 
@@ -45,6 +45,7 @@ def create_app():
         VerificacionExpediente, PresenciaUsuario, AnexoRectificado, ServicioSoporteTecnico, AccesoCCT,
         FavoritoUsuario, AnalisisDocumental, SegmentoDocumental, AprendizajeDocumental, PatronAprendizajeDocumental,
     )
+    from app.services.anexos_integridad_service import AnexoDuplicadoError
     from app.services.integridad_events import registrar_eventos_integridad
     from app.services.version_service import obtener_version
     registrar_eventos_integridad()
@@ -163,6 +164,19 @@ def create_app():
             if traslado_id: return redirect(url_for("rectificaciones.constancia_virtual_pdf", traslado_id=traslado_id))
         return None
 
+    @app.after_request
+    def cabeceras_seguridad(respuesta):
+        respuesta.headers.setdefault("X-Content-Type-Options", "nosniff")
+        respuesta.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+        respuesta.headers.setdefault("Referrer-Policy", "no-referrer")
+        respuesta.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        if request.is_secure:
+            respuesta.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        if current_user.is_authenticated and request.endpoint != "static":
+            respuesta.headers.setdefault("Cache-Control", "no-store, private")
+            respuesta.headers.setdefault("Pragma", "no-cache")
+        return respuesta
+
     @app.context_processor
     def contexto_version():
         return {"sicode_version": obtener_version(), "modo_solo_lectura": bool(current_user.is_authenticated and getattr(current_user, "es_visor", False))}
@@ -171,7 +185,7 @@ def create_app():
     def inicio(): return redirect(url_for("auth.login"))
 
     @app.route("/health")
-    def health(): return {"status": "ok", "version": obtener_version()}
+    def health(): return {"status": "ok"}
 
     @app.route("/health/db")
     def health_db():
@@ -179,6 +193,15 @@ def create_app():
             db.session.execute(text("SELECT 1")).scalar(); return "Conexion a PostgreSQL correcta"
         except Exception:
             db.session.rollback(); return "Base de datos no disponible", 503
+
+    @app.errorhandler(AnexoDuplicadoError)
+    def conflicto_anexo(error):
+        from app.security import es_url_interna
+
+        db.session.rollback()
+        flash(str(error), "warning")
+        destino = request.referrer if request.referrer and es_url_interna(request.referrer) else url_for("coordinacion.inicio")
+        return redirect(destino, code=303)
 
     @app.errorhandler(403)
     def prohibido(_error): return render_template("errores/403.html"), 403
