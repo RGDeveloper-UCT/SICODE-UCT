@@ -33,7 +33,9 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Compilar Python
-        run: python -m compileall -q app migrations tests
+        run: |
+          python -m compileall -q app migrations tests
+          python -m py_compile scripts/backup_programado.py
 
       - name: Validar cadena de migraciones
         run: python -m flask --app run.py db heads
@@ -43,6 +45,7 @@ jobs:
           bash -n scripts/configurar_runtime_analisis_documental.sh
           bash -n scripts/auditoria_previa.sh
           bash -n scripts/actualizar_servidor_seguro.sh
+          bash -n scripts/instalar_backup_systemd.sh
 
       - name: Validar aplicacion, modelos y plantillas
         run: |
