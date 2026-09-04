@@ -11,6 +11,7 @@ from app.models.coordinacion import (
     PagoCoordinacion,
     RegistroCoordinacion,
 )
+from app.models.documento_expediente import DocumentoExpediente
 from app.models.expediente import Expediente
 from app.models.usuario import Usuario
 from app.models.verificacion import VerificacionExpediente
@@ -61,6 +62,20 @@ def cliente(app_operacion):
     return cliente
 
 
+def _agregar_documento_principal(expediente_id=1, inicio=1, fin=25):
+    db.session.add(DocumentoExpediente(
+        expediente_id=expediente_id,
+        nombre_documento="Cuerpo principal",
+        tipo_documento="DOCUMENTO",
+        folio_inicio=inicio,
+        folio_fin=fin,
+        total_folios=fin - inicio + 1,
+        estado_revision="Verificado",
+        es_anexo=False,
+        activo=True,
+    ))
+
+
 def test_recepcion_integra_quien_entrega_folios_y_quien_recibe(app_operacion, cliente):
     # Monitoreo forma parte de la secuencia de anexos: antes de registrar se
     # rectifica el total actual y el formulario confirma el número en File Server.
@@ -92,7 +107,9 @@ def test_recepcion_integra_quien_entrega_folios_y_quien_recibe(app_operacion, cl
     assert respuesta.status_code == 302
 
     with app_operacion.app_context():
-        registro = RegistroCoordinacion.query.filter_by(rc="RC-100").one()
+        # La referencia se guarda en formato canónico aunque el usuario pegue
+        # el prefijo con guion.
+        registro = RegistroCoordinacion.query.filter_by(rc="RC 100").one()
         assert registro.persona_entrega == "Centro de Control y Monitoreo"
         assert registro.folios_recepcion == "1-8"
         assert registro.usuario.nombre == "Admin Operación"
@@ -100,6 +117,11 @@ def test_recepcion_integra_quien_entrega_folios_y_quien_recibe(app_operacion, cl
 
 
 def test_verificacion_con_observaciones_actualiza_estado_y_alerta(app_operacion, cliente):
+    # Una verificación documental válida presupone que ya existe índice.
+    with app_operacion.app_context():
+        _agregar_documento_principal()
+        db.session.commit()
+
     respuesta = cliente.post(
         "/expedientes/1/verificaciones",
         data={
@@ -122,6 +144,7 @@ def test_verificacion_con_observaciones_actualiza_estado_y_alerta(app_operacion,
 
 def test_verificacion_correcta_resuelve_alertas_de_revision(app_operacion, cliente):
     with app_operacion.app_context():
+        _agregar_documento_principal()
         db.session.add(Alerta(
             expediente_id=1,
             tipo_alerta="REVISION_EXPEDIENTE",
