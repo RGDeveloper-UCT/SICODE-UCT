@@ -2,6 +2,7 @@ from collections import defaultdict
 
 from app.checks import HallazgoIntegridad
 from app.models.documento_expediente import DocumentoExpediente
+from app.services.foliacion_service import analizar_secuencia_principal
 
 
 def ejecutar():
@@ -38,32 +39,35 @@ def ejecutar():
             ))
 
     for expediente_id, documentos in por_expediente.items():
-        anterior = None
-        for documento in documentos:
-            if anterior:
-                if documento.folio_inicio <= anterior.folio_fin:
-                    hallazgos.append(HallazgoIntegridad(
-                        codigo="FOL-TRASLAPE-001",
-                        severidad="error",
-                        modulo="Índice documental",
-                        entidad="Expediente",
-                        registro=f"Expediente ID {expediente_id}",
-                        descripcion=(
-                            f"Traslape entre '{anterior.nombre_documento}' ({anterior.folio_inicio}-{anterior.folio_fin}) "
-                            f"y '{documento.nombre_documento}' ({documento.folio_inicio}-{documento.folio_fin})."
-                        ),
-                        recomendacion="Verificar físicamente la foliación y corregir uno de los rangos.",
-                    ))
-                elif documento.folio_inicio > anterior.folio_fin + 1:
-                    hallazgos.append(HallazgoIntegridad(
-                        codigo="FOL-SALTO-001",
-                        severidad="advertencia",
-                        modulo="Índice documental",
-                        entidad="Expediente",
-                        registro=f"Expediente ID {expediente_id}",
-                        descripcion=f"Salto de foliación entre {anterior.folio_fin} y {documento.folio_inicio}.",
-                        recomendacion="Confirmar si el salto es válido o si falta registrar un documento/rango.",
-                    ))
-            anterior = documento
+        analisis = analizar_secuencia_principal(documentos)
+
+        for anterior, documento in analisis["traslapes"]:
+            hallazgos.append(HallazgoIntegridad(
+                codigo="FOL-TRASLAPE-001",
+                severidad="error",
+                modulo="Índice documental",
+                entidad="Expediente",
+                registro=f"Expediente ID {expediente_id}",
+                descripcion=(
+                    f"Traslape en la foliación general entre '{anterior.nombre_documento}' "
+                    f"({anterior.folio_inicio}-{anterior.folio_fin}) y '{documento.nombre_documento}' "
+                    f"({documento.folio_inicio}-{documento.folio_fin})."
+                ),
+                recomendacion=(
+                    "Verificar físicamente la foliación del cuerpo principal y corregir uno de los rangos. "
+                    "Los anexos no se comparan aquí porque poseen foliación independiente."
+                ),
+            ))
+
+        for inicio, fin in analisis["saltos"]:
+            hallazgos.append(HallazgoIntegridad(
+                codigo="FOL-SALTO-001",
+                severidad="advertencia",
+                modulo="Índice documental",
+                entidad="Expediente",
+                registro=f"Expediente ID {expediente_id}",
+                descripcion=f"Salto de foliación general entre los folios {inicio} y {fin}.",
+                recomendacion="Confirmar si el salto es válido o si falta registrar un documento/rango del cuerpo principal.",
+            ))
 
     return hallazgos
