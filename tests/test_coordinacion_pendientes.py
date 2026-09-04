@@ -162,7 +162,7 @@ def test_verificacion_sin_cambios_cierra_pendiente_y_deja_bitacora(app_pendiente
         evento = Bitacora.query.filter_by(
             accion="VERIFICAR_COORDINACION_FILE_SERVER",
             entidad="RegistroCoordinacion",
-            entidad_id=registro_id,
+            entidad_id=str(registro_id),
         ).one()
         assert evento.motivo == "Verificación humana contra File Server"
 
@@ -198,7 +198,7 @@ def test_rectificacion_exige_motivo_y_guarda_antes_despues(app_pendientes):
         evento = Bitacora.query.filter_by(
             accion="VERIFICAR_Y_RECTIFICAR_COORDINACION",
             entidad="RegistroCoordinacion",
-            entidad_id=registro_id,
+            entidad_id=str(registro_id),
         ).one()
         assert evento.datos_anteriores["rc"] == "RC 100"
         assert evento.datos_posteriores["rc"] == "RC 101"
