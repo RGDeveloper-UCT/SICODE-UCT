@@ -115,7 +115,8 @@ def test_inicio_coordinacion_muestra_layout_y_exportacion(cliente_admin):
         "registro-animacion--remision",
     ):
         assert clase in texto
-    assert "tarjeta-registro-coordinacion--monitoreo" not in texto
+    # Evita una coincidencia parcial con la tarjeta válida `--monitoreo_masivo`.
+    assert 'class="tarjeta-registro-coordinacion tarjeta-registro-coordinacion--monitoreo"' not in texto
     assert "subpanel-anexos" in texto
     assert "Reporte de monitoreo" in texto
     assert "Análisis de riesgo" in texto
