@@ -4,11 +4,16 @@ from app.routes.coordinacion import coordinacion_bp
 
 
 SCRIPT_PENDIENTES = "js/coordinacion_pendientes.js"
+ENDPOINTS_UI = {
+    "coordinacion.inicio",
+    "coordinacion.pendientes",
+    "coordinacion.verificar_pendiente",
+}
 
 
 @coordinacion_bp.after_request
 def cargar_enlace_bandeja_pendientes(response):
-    if request.endpoint != "coordinacion.inicio" or request.method != "GET":
+    if request.endpoint not in ENDPOINTS_UI or request.method != "GET":
         return response
     if response.status_code != 200 or response.mimetype != "text/html":
         return response
