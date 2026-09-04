@@ -43,30 +43,32 @@ git pull --ff-only origin "$BRANCH"
 NEW_COMMIT="$(git rev-parse HEAD)"
 echo "Nuevo commit: $NEW_COMMIT"
 
-echo "[4/9] Instalando dependencias"
+echo "[4/9] Instalando dependencias y compilando"
 python -m pip install --disable-pip-version-check -r requirements.txt
-
-echo "[5/9] Compilando código y verificando cadena Alembic"
 python -m compileall -q app migrations tests
 python -m flask --app run.py db heads
-python -m flask --app run.py db current
-
-echo "[6/9] Aplicando migraciones"
-python -m flask --app run.py db upgrade
-python -m flask --app run.py db current
 
 if [[ "$RUN_TESTS" == "1" ]]; then
-  echo "[7/9] Ejecutando pruebas de regresión seguras"
+  echo "[5/9] Ejecutando pruebas de regresión antes de migrar producción"
   # tests/conftest.py impide utilizar la DATABASE_URL productiva y deriva pytest a una BD de pruebas.
   pytest -q \
     tests/test_auditoria_hardening.py \
     tests/test_indice_documental_foliacion_anexos.py \
+    tests/test_estado_documental.py \
+    tests/test_security.py \
     tests/test_monitoreo_anexos.py \
     tests/test_control_integridad.py \
     tests/test_backup.py
 else
-  echo "[7/9] Pruebas omitidas por SICODE_RUN_TESTS=$RUN_TESTS"
+  echo "[5/9] Pruebas omitidas por SICODE_RUN_TESTS=$RUN_TESTS"
 fi
+
+echo "[6/9] Estado de migraciones antes del cambio"
+python -m flask --app run.py db current
+
+echo "[7/9] Aplicando migraciones"
+python -m flask --app run.py db upgrade
+python -m flask --app run.py db current
 
 echo "[8/9] Validando Nginx y reiniciando SICODE"
 sudo nginx -t
