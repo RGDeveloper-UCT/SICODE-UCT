@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}Verificar registro #{{ registro.id }} — SICODE-UCT{% endblock %}
+
+{% macro campo(nombre, etiqueta, valor='', tipo='text', readonly=false) -%}
+<label style="display:flex;flex-direction:column;gap:5px;">
+    <span>{{ etiqueta }}</span>
+    <input type="{{ tipo }}" name="{{ nombre }}" value="{{ valor or '' }}" {% if readonly %}readonly{% endif %}>
+</label>
+{%- endmacro %}
+
+{% block content %}
+<section class="panel panel-ancho">
+    <div class="encabezado-modulo">
+        <div>
+            <h1>Verificar registro #{{ registro.id }}</h1>
+            <p>{{ registro.tipo|replace('_', ' ') }} · SP {{ registro.no_sp_referencia or 'sin identificar' }} · {{ motivo_pendiente }}</p>
+        </div>
+        <div class="acciones-detalle">
+            <a class="boton-secundario" href="{{ url_for('coordinacion.pendientes') }}">Volver a pendientes</a>
+            <a class="boton-secundario" href="{{ url_for('coordinacion.detalle', registro_id=registro.id) }}">Ver registro original</a>
+        </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:minmax(0,2fr) minmax(280px,1fr);gap:18px;align-items:start;">
+        <form method="post" class="tarjeta" style="padding:18px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <h2>Información a contrastar</h2>
+            <p style="margin-top:0;">Compare estos datos con File Server. Corrija únicamente lo que haya comprobado contra la fuente institucional.</p>
+
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;">
+                {{ campo('no_sp', 'No. SP', datos.sp) }}
+                {{ campo('fecha_recepcion', 'Fecha de recepción', datos.fecha_recepcion, 'date') }}
+                {{ campo('rc', 'RC / RE', datos.rc) }}
+                {{ campo('providencia', 'Providencia', datos.providencia) }}
+                {{ campo('persona_entrega', 'Quién entrega / remite', datos.persona_entrega) }}
+                {{ campo('folios_recepcion', 'Folios de recepción', datos.folios_recepcion) }}
+            </div>
+
+            <label style="display:flex;flex-direction:column;gap:5px;margin-top:12px;">
+                <span>Observaciones</span>
+                <textarea name="observaciones" rows="3">{{ datos.observaciones or '' }}</textarea>
+            </label>
+
+            {% set detalle = datos.detalle %}
+            {% if detalle %}
+            <hr style="margin:20px 0;">
+            <h2>Datos específicos · {{ detalle.modelo|replace('_', ' ') }}</h2>
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;">
+                {% if detalle.modelo == 'PAGO' %}
+                    {{ campo('periodo_desde', 'Período desde', detalle.periodo_desde, 'date') }}
+                    {{ campo('periodo_hasta', 'Período hasta', detalle.periodo_hasta, 'date') }}
+                    {{ campo('periodo_texto', 'Período textual', detalle.periodo_texto) }}
+                    {{ campo('boleta', 'Boleta', detalle.boleta) }}
+                    {{ campo('banco', 'Banco', detalle.banco) }}
+                    {{ campo('total', 'Monto', detalle.total, 'number') }}
+                {% elif detalle.modelo == 'MOVIMIENTO' %}
+                    {{ campo('descripcion', 'Descripción', detalle.descripcion) }}
+                    {{ campo('folios_detalle', 'Folios', detalle.folios) }}
+                    {{ campo('movimiento', 'Movimiento', detalle.movimiento, 'text', true) }}
+                {% elif detalle.modelo == 'ANEXO' %}
+                    {{ campo('tipo_anexo', 'Tipo de anexo', detalle.tipo_anexo) }}
+                    {{ campo('titulo', 'Título', detalle.titulo) }}
+                    {{ campo('folios_detalle', 'Folios del anexo', detalle.folios) }}
+                    {{ campo('numero_anexo', 'Número de anexo', detalle.numero_anexo, 'text', true) }}
+                    {{ campo('fecha_escaneado', 'Fecha de escaneado institucional', detalle.fecha_escaneado, 'date') }}
+                    <label style="display:flex;gap:8px;align-items:center;margin-top:24px;">
+                        <input type="checkbox" name="escaneado" value="1" {% if detalle.escaneado %}checked{% endif %}>
+                        <span>Existe escaneo institucional confirmado</span>
+                    </label>
+                    <div style="grid-column:1/-1" class="aviso">
+                        <strong>Dato estructural protegido:</strong> el número de anexo y su vínculo al Índice se muestran como referencia, pero no se modifican desde esta bandeja porque alteran secuencia, rectificación e integridad documental.
+                    </div>
+                {% elif detalle.modelo == 'MONITOREO' %}
+                    {{ campo('tipo_documento', 'Tipo de documento', detalle.tipo_documento) }}
+                    {{ campo('numero_reporte', 'Número de reporte', detalle.numero_reporte) }}
+                    {{ campo('tipo_evento', 'Tipo de evento', detalle.tipo_evento) }}
+                {% elif detalle.modelo == 'ANALISIS_RIESGO' %}
+                    {{ campo('tipo_documento', 'Tipo de documento', detalle.tipo_documento) }}
+                    {{ campo('correlativo', 'Correlativo', detalle.correlativo) }}
+                    {{ campo('tipo_evento', 'Tipo de evento', detalle.tipo_evento) }}
+                {% elif detalle.modelo == 'DOCUMENTO_EMITIDO' %}
+                    {{ campo('numero_documento', 'Número de documento', detalle.numero_documento) }}
+                    {{ campo('destino', 'Destino', detalle.destino) }}
+                    {{ campo('descripcion', 'Descripción', detalle.descripcion) }}
+                {% elif detalle.modelo == 'ACTIVIDAD' %}
+                    {{ campo('tipo_actividad', 'Tipo de actividad', detalle.tipo_actividad) }}
+                    {{ campo('area_apoyo', 'Área de apoyo', detalle.area_apoyo) }}
+                    {{ campo('descripcion', 'Descripción', detalle.descripcion) }}
+                {% elif detalle.modelo == 'REMISION' %}
+                    {{ campo('destino', 'Destino', detalle.destino) }}
+                    {{ campo('numero_control', 'Número de control', detalle.numero_control) }}
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if current_user.puede_modificar %}
+            <hr style="margin:20px 0;">
+            <h2>Confirmación de verificación</h2>
+            <div class="aviso" style="margin-bottom:14px;">
+                <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;">
+                    <input type="checkbox" name="confirmacion_file_server" value="1" required style="margin-top:3px;">
+                    <span><strong>Confirmo que revisé este registro contra File Server.</strong><br>Esta confirmación representa una verificación humana; SICODE no afirma una integración automática con File Server.</span>
+                </label>
+            </div>
+
+            <label style="display:flex;flex-direction:column;gap:5px;">
+                <span>Motivo de rectificación</span>
+                <textarea name="motivo_rectificacion" rows="3" placeholder="Obligatorio si cambió cualquier dato. Ej.: RC digitada incorrectamente; se corrigió según File Server."></textarea>
+            </label>
+
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">
+                <button class="boton-principal" type="submit">Guardar verificación</button>
+                {% if siguiente %}
+                <button class="boton-exito" type="submit" name="continuar" value="1">Guardar e ir al siguiente pendiente</button>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="aviso" style="margin-top:18px;">Modo consulta: este usuario puede revisar la información, pero no modificarla ni cerrar la verificación.</div>
+            {% endif %}
+        </form>
+
+        <aside class="tarjeta" style="padding:18px;position:sticky;top:76px;">
+            <h2>Control del registro</h2>
+            <dl style="display:grid;grid-template-columns:1fr 1.2fr;gap:8px 12px;">
+                <dt>Estado</dt><dd><strong>{{ registro.estado }}</strong></dd>
+                <dt>Pendiente</dt><dd>{{ motivo_pendiente }}</dd>
+                <dt>Origen</dt><dd>{{ (registro.origen_registro or '—')|replace('_', ' ') }}</dd>
+                <dt>Registrado por</dt><dd>{{ registro.usuario_origen or (registro.usuario.nombre if registro.usuario else '—') }}</dd>
+                <dt>Creado</dt><dd>{{ registro.creado_en.strftime('%d/%m/%Y %H:%M') if registro.creado_en else '—' }}</dd>
+                <dt>SP vinculado</dt><dd>{% if registro.expediente_id %}Sí{% else %}<strong>No</strong>{% endif %}</dd>
+            </dl>
+
+            {% if registro.expediente %}
+            <hr>
+            <h3>SP {{ registro.expediente.no_sp }}</h3>
+            <p>{{ registro.expediente.nombre_referencia or 'Sin nombre de referencia' }}</p>
+            <dl style="display:grid;grid-template-columns:1fr 1fr;gap:7px 10px;">
+                <dt>Expediente físico</dt><dd>{{ 'Sí' if registro.expediente.expediente_fisico_registrado else 'No' }}</dd>
+                <dt>Estado documental</dt><dd>{{ registro.expediente.estado_fisico_documental }}</dd>
+                <dt>Folios rectificados</dt><dd>{{ registro.expediente.folios_rectificados if registro.expediente.folios_rectificados is not none else '—' }}</dd>
+                <dt>Anexos rectificados</dt><dd>{{ registro.expediente.anexos_rectificados if registro.expediente.anexos_rectificados is not none else '—' }}</dd>
+                <dt>Alertas abiertas</dt><dd>{{ registro.expediente.alertas_pendientes|length }}</dd>
+            </dl>
+            <a class="boton-secundario" href="{{ url_for('expedientes.detalle', expediente_id=registro.expediente.id) }}">Abrir ficha del SP</a>
+            {% endif %}
+
+            {% if siguiente %}
+            <hr>
+            <p><strong>Siguiente pendiente:</strong> #{{ siguiente.id }} · {{ siguiente.tipo|replace('_', ' ') }} · SP {{ siguiente.no_sp_referencia or '—' }}</p>
+            {% endif %}
+        </aside>
+    </div>
+</section>
+{% endblock %}

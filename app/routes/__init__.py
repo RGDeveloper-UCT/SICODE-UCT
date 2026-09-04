@@ -17,6 +17,8 @@ from app.routes.cuenta import cuenta_bp
 from app.routes.pagos import pagos_bp
 from app.routes.coordinacion import coordinacion_bp
 from app.routes import coordinacion_expediente_completo as _coordinacion_expediente_completo
+from app.routes import coordinacion_pendientes as _coordinacion_pendientes
+from app.routes import coordinacion_pendientes_ui as _coordinacion_pendientes_ui
 from app.routes.coordinacion_export import coordinacion_export_bp
 from app.routes.portadores import portadores_bp
 from app.routes.uo import uo_bp

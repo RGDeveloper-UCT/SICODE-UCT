@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Pendientes de Coordinación — SICODE-UCT{% endblock %}
+
+{% block content %}
+<section class="panel panel-ancho">
+    <div class="encabezado-modulo">
+        <div>
+            <h1>Verificación de información pendiente</h1>
+            <p>Revise cada registro contra File Server, corrija los datos que no coincidan y deje trazabilidad de la verificación.</p>
+        </div>
+        <div class="acciones-detalle">
+            <a class="boton-secundario" href="{{ url_for('coordinacion.inicio') }}">Volver a Coordinación</a>
+        </div>
+    </div>
+
+    <div class="aviso">
+        <strong>Control de verificación:</strong> ningún registro se marca como completo desde esta bandeja sin confirmar expresamente la revisión contra File Server. Toda corrección exige motivo y queda registrada en Bitácora con valores anteriores y posteriores.
+    </div>
+
+    <form method="get" class="filtros" style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;align-items:end;margin:16px 0;">
+        <label>
+            <span>Buscar</span>
+            <input type="search" name="q" value="{{ q }}" placeholder="SP, RC/RE, providencia, remitente...">
+        </label>
+        <label>
+            <span>Tipo</span>
+            <select name="tipo">
+                <option value="">Todos</option>
+                {% for item in tipos %}
+                <option value="{{ item }}" {% if tipo == item %}selected{% endif %}>{{ item|replace('_', ' ') }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <span>Origen</span>
+            <select name="origen">
+                <option value="">Todos</option>
+                {% for item in origenes %}
+                <option value="{{ item }}" {% if origen == item %}selected{% endif %}>{{ item|replace('_', ' ') }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <button class="boton-principal" type="submit">Filtrar</button>
+    </form>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0 8px;gap:12px;">
+        <div>
+            <strong>{{ paginacion.total }} pendiente{% if paginacion.total != 1 %}s{% endif %}</strong>
+            <span style="margin-left:8px;color:var(--texto-secundario, #64748b);">Ordenados del más antiguo al más reciente.</span>
+        </div>
+        {% if q or tipo or origen %}<a href="{{ url_for('coordinacion.pendientes') }}">Limpiar filtros</a>{% endif %}
+    </div>
+
+    <div class="tabla-contenedor">
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Tipo</th>
+                    <th>SP</th>
+                    <th>RC / RE</th>
+                    <th>Providencia</th>
+                    <th>Origen</th>
+                    <th>Motivo pendiente</th>
+                    <th>Estado</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for registro in registros %}
+                <tr>
+                    <td>{{ registro.fecha_recepcion.strftime('%d/%m/%Y') if registro.fecha_recepcion else 'Sin fecha' }}</td>
+                    <td><strong>{{ registro.tipo|replace('_', ' ') }}</strong></td>
+                    <td>{{ registro.no_sp_referencia or '—' }}</td>
+                    <td>{{ registro.rc or '—' }}</td>
+                    <td>{{ registro.providencia or '—' }}</td>
+                    <td>{{ (registro.origen_registro or '—')|replace('_', ' ') }}</td>
+                    <td><span class="badge badge-advertencia">{{ motivo_pendiente(registro) }}</span></td>
+                    <td>{{ registro.estado }}</td>
+                    <td>
+                        <a class="boton-secundario" href="{{ url_for('coordinacion.verificar_pendiente', registro_id=registro.id) }}">
+                            {% if current_user.puede_modificar %}Verificar{% else %}Ver detalle{% endif %}
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="9">No hay registros pendientes con los filtros seleccionados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if paginacion.pages > 1 %}
+    <nav aria-label="Paginación de pendientes" style="display:flex;justify-content:center;gap:10px;margin-top:16px;">
+        {% if paginacion.has_prev %}
+        <a class="boton-secundario" href="{{ url_for('coordinacion.pendientes', page=paginacion.prev_num, q=q, tipo=tipo, origen=origen) }}">← Anterior</a>
+        {% endif %}
+        <span style="align-self:center;">Página {{ paginacion.page }} de {{ paginacion.pages }}</span>
+        {% if paginacion.has_next %}
+        <a class="boton-secundario" href="{{ url_for('coordinacion.pendientes', page=paginacion.next_num, q=q, tipo=tipo, origen=origen) }}">Siguiente →</a>
+        {% endif %}
+    </nav>
+    {% endif %}
+</section>
+{% endblock %}
