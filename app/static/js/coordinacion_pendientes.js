@@ -1,4 +1,10 @@
 document.addEventListener("DOMContentLoaded", () => {
+    const monto = document.querySelector('input[name="total"]');
+    if (monto) {
+        monto.setAttribute("step", "0.01");
+        monto.setAttribute("min", "0");
+    }
+
     const tarjetas = Array.from(document.querySelectorAll(".resumen-coordinacion-inicio .tarjeta.indicador"));
     const tarjeta = tarjetas.find((item) => {
         const titulo = item.querySelector("h2");
