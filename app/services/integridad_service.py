@@ -1,9 +1,10 @@
-from app.checks import backups, coordinacion, expedientes, folios, prestamos, usuarios
+from app.checks import anexos, backups, coordinacion, expedientes, folios, prestamos, usuarios
 
 
 REGLAS = (
     ("Expedientes", expedientes.ejecutar),
     ("Foliación", folios.ejecutar),
+    ("Anexos", anexos.ejecutar),
     ("Préstamos", prestamos.ejecutar),
     ("Coordinación", coordinacion.ejecutar),
     ("Usuarios", usuarios.ejecutar),
