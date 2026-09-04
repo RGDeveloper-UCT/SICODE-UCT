@@ -12,6 +12,7 @@ from app.models.documento_expediente import DocumentoExpediente
 from app.models.expediente import Expediente
 from app.models.prestamo import PrestamoExpediente
 from app.models.ubicacion import UbicacionFisica
+from app.services.anexos_integridad_service import bloquear_y_validar_anexo_nuevo
 
 
 _REGISTRADO = False
@@ -108,7 +109,10 @@ def _antes_de_flush(session, _flush_context, _instances):
             _validar_prestamo_nuevo(session, objeto)
         elif isinstance(objeto, DocumentoExpediente):
             _validar_documento_nuevo(session, objeto)
-        elif isinstance(objeto, (PagoCoordinacion, MovimientoDispositivo, AnexoCoordinacion)):
+        elif isinstance(objeto, AnexoCoordinacion):
+            bloquear_y_validar_anexo_nuevo(session, objeto)
+            _sincronizar_folios_recepcion(objeto)
+        elif isinstance(objeto, (PagoCoordinacion, MovimientoDispositivo)):
             _sincronizar_folios_recepcion(objeto)
 
     for objeto in list(session.dirty):
