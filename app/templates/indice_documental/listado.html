@@ -1,5 +1,32 @@
 {% extends "base.html" %}
 {% block title %}Índice documental — SICODE-UCT{% endblock %}
+
+{% macro acciones_documento(documento, es_anexo=False) %}
+<div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+    {% if documento.estado_revision == 'Pendiente de revisión' %}
+    <form method="POST" action="{{ url_for('indice_documental.verificar_documento', expediente_id=expediente.id, documento_id=documento.id) }}" class="form-inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="boton-tabla" onclick="return confirm('¿Marcar este registro pendiente como Verificado?');">Verificar</button>
+    </form>
+    {% elif documento.estado_revision in estados_incidencia %}
+    <form method="POST" action="{{ url_for('indice_documental.resolver_incidencia', expediente_id=expediente.id, documento_id=documento.id) }}" class="form-inline" style="display:flex; gap:5px; flex-wrap:wrap;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="text" name="motivo_resolucion" minlength="8" maxlength="300" required placeholder="Cómo se corrigió / verificó" aria-label="Motivo de resolución de incidencia">
+        <button type="submit" class="boton-tabla" onclick="return confirm('¿Confirma que la incidencia fue corregida o verificada físicamente? La resolución quedará registrada en bitácora.');">Resolver incidencia</button>
+    </form>
+    {% elif documento.estado_revision == 'Verificado' %}
+    <span aria-label="Registro verificado">✓ Verificado</span>
+    {% else %}
+    <span title="Estado no habilitado para verificación rápida">Revisión requerida</span>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('indice_documental.anular', expediente_id=expediente.id, documento_id=documento.id) }}" class="form-inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="boton-peligro" onclick="return confirm('{{ '¿Anular este anexo del índice? Volverá a quedar disponible para reincorporarlo y se conservará la trazabilidad.' if es_anexo else '¿Anular este registro? Se conservará para trazabilidad.' }}');">Anular</button>
+    </form>
+</div>
+{% endmacro %}
+
 {% block content %}
 <section class="panel panel-ancho">
     <div class="encabezado-modulo">
@@ -53,17 +80,11 @@
     </form>
 
     <div class="aviso" style="margin-top: 18px;">
-        <strong>Verificación rápida:</strong> puede verificar cada registro por separado o usar <strong>Verificar todos</strong>.
-        La acción masiva únicamente cambia documentos con estado <strong>Pendiente de revisión</strong>; no sobrescribe
-        <strong>Con observaciones</strong>, <strong>Mal foliado</strong> ni <strong>Anexo pendiente</strong>.
+        <strong>Verificación controlada:</strong> <strong>Verificar todos</strong> únicamente confirma registros en <strong>Pendiente de revisión</strong>. Los estados <strong>Con observaciones</strong>, <strong>Mal foliado</strong> y <strong>Anexo pendiente</strong> requieren resolver la incidencia y dejar un motivo auditable.
         <div class="acciones" style="margin-top: 10px;">
             <form method="POST" action="{{ url_for('indice_documental.verificar_todos', expediente_id=expediente.id) }}" class="form-inline">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button
-                    type="submit"
-                    class="boton"
-                    onclick="return confirm('¿Verificar todos los documentos pendientes de revisión de este expediente? Los registros con observaciones o incidencias conservarán su estado.');"
-                >✓ Verificar todos</button>
+                <button type="submit" class="boton" onclick="return confirm('¿Verificar todos los documentos pendientes de revisión de este expediente? Las incidencias conservarán su estado.');">✓ Verificar todos</button>
             </form>
         </div>
     </div>
@@ -83,26 +104,7 @@
                     <td>{{ documento.total_folios }}</td>
                     <td>{{ documento.estado_revision }}</td>
                     <td>{% if documento.anexo_recepcion %}<a href="{{ url_for('coordinacion.detalle', registro_id=documento.anexo_recepcion.registro.id) }}">Coordinación</a>{% else %}Manual{% endif %}</td>
-                    <td>
-                        <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
-                            {% if documento.estado_revision != 'Verificado' %}
-                            <form method="POST" action="{{ url_for('indice_documental.verificar_documento', expediente_id=expediente.id, documento_id=documento.id) }}" class="form-inline">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button
-                                    type="submit"
-                                    class="boton-tabla"
-                                    onclick="return confirm('¿Marcar este documento como Verificado? Si tiene un estado de incidencia, será reemplazado por Verificado.');"
-                                >Verificar</button>
-                            </form>
-                            {% else %}
-                            <span aria-label="Documento verificado">✓ Verificado</span>
-                            {% endif %}
-                            <form method="POST" action="{{ url_for('indice_documental.anular', expediente_id=expediente.id, documento_id=documento.id) }}" class="form-inline">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="boton-peligro" onclick="return confirm('¿Anular este registro? Se conservará para trazabilidad.');">Anular</button>
-                            </form>
-                        </div>
-                    </td>
+                    <td>{{ acciones_documento(documento, False) }}</td>
                 </tr>
             {% else %}<tr><td colspan="8">No hay documentos registrados en la foliación general del expediente.</td></tr>{% endfor %}
             </tbody>
@@ -124,26 +126,7 @@
                     <td>{{ documento.total_folios }}</td>
                     <td>{{ documento.estado_revision }}</td>
                     <td>{% if documento.anexo_recepcion %}<a href="{{ url_for('coordinacion.detalle', registro_id=documento.anexo_recepcion.registro.id) }}">Coordinación</a>{% else %}Manual{% endif %}</td>
-                    <td>
-                        <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
-                            {% if documento.estado_revision != 'Verificado' %}
-                            <form method="POST" action="{{ url_for('indice_documental.verificar_documento', expediente_id=expediente.id, documento_id=documento.id) }}" class="form-inline">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button
-                                    type="submit"
-                                    class="boton-tabla"
-                                    onclick="return confirm('¿Marcar este anexo como Verificado? Si tiene un estado de incidencia, será reemplazado por Verificado.');"
-                                >Verificar</button>
-                            </form>
-                            {% else %}
-                            <span aria-label="Anexo verificado">✓ Verificado</span>
-                            {% endif %}
-                            <form method="POST" action="{{ url_for('indice_documental.anular', expediente_id=expediente.id, documento_id=documento.id) }}" class="form-inline">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="boton-peligro" onclick="return confirm('¿Anular este anexo del índice? Se conservará para trazabilidad.');">Anular</button>
-                            </form>
-                        </div>
-                    </td>
+                    <td>{{ acciones_documento(documento, True) }}</td>
                 </tr>
             {% else %}<tr><td colspan="8">No hay anexos incorporados al índice documental.</td></tr>{% endfor %}
             </tbody>
