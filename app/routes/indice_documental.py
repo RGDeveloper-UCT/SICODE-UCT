@@ -243,6 +243,109 @@ def listado(expediente_id):
     )
 
 
+@indice_documental_bp.route(
+    "/expedientes/<int:expediente_id>/indice-documental/<int:documento_id>/verificar",
+    methods=["POST"],
+)
+@login_required
+def verificar_documento(expediente_id, documento_id):
+    expediente = Expediente.query.get_or_404(expediente_id)
+    documento = DocumentoExpediente.query.filter_by(
+        id=documento_id,
+        expediente_id=expediente.id,
+        activo=True,
+    ).first_or_404()
+
+    if documento.estado_revision == "Verificado":
+        flash(f"'{documento.nombre_documento}' ya se encuentra verificado.", "info")
+        return redirect(url_for("indice_documental.listado", expediente_id=expediente.id))
+
+    estado_anterior = documento.estado_revision
+    documento.estado_revision = "Verificado"
+
+    registrar_bitacora(
+        accion="VERIFICAR_DOCUMENTO_INDICE",
+        modulo="Índice documental",
+        descripcion=(
+            f"Se verificó '{documento.nombre_documento}' del índice del SP {expediente.no_sp}, "
+            f"folios {documento.folio_inicio}-{documento.folio_fin}."
+        ),
+        usuario_id=current_user.id,
+        expediente_id=expediente.id,
+        entidad="DocumentoExpediente",
+        entidad_id=documento.id,
+        datos_anteriores={"estado_revision": estado_anterior},
+        datos_posteriores={"estado_revision": "Verificado"},
+        commit=False,
+    )
+    db.session.commit()
+
+    flash(f"Documento verificado: {documento.nombre_documento}.", "success")
+    return redirect(url_for("indice_documental.listado", expediente_id=expediente.id))
+
+
+@indice_documental_bp.route(
+    "/expedientes/<int:expediente_id>/indice-documental/verificar-todos",
+    methods=["POST"],
+)
+@login_required
+def verificar_todos(expediente_id):
+    expediente = Expediente.query.get_or_404(expediente_id)
+
+    # La acción masiva es deliberadamente conservadora: solo confirma registros
+    # pendientes y nunca borra estados que representan una incidencia documental.
+    pendientes = (
+        DocumentoExpediente.query
+        .filter(
+            DocumentoExpediente.expediente_id == expediente.id,
+            DocumentoExpediente.activo.is_(True),
+            DocumentoExpediente.estado_revision == "Pendiente de revisión",
+        )
+        .order_by(DocumentoExpediente.id.asc())
+        .all()
+    )
+
+    if not pendientes:
+        flash("No hay documentos pendientes de revisión para verificar.", "info")
+        return redirect(url_for("indice_documental.listado", expediente_id=expediente.id))
+
+    ids_verificados = []
+    for documento in pendientes:
+        documento.estado_revision = "Verificado"
+        ids_verificados.append(documento.id)
+
+    registrar_bitacora(
+        accion="VERIFICAR_TODOS_DOCUMENTOS_INDICE",
+        modulo="Índice documental",
+        descripcion=(
+            f"Se verificaron {len(pendientes)} documentos pendientes del índice del SP {expediente.no_sp}. "
+            "Los documentos con observaciones o incidencias conservaron su estado."
+        ),
+        usuario_id=current_user.id,
+        expediente_id=expediente.id,
+        entidad="Expediente",
+        entidad_id=expediente.id,
+        datos_anteriores={
+            "estado_revision": "Pendiente de revisión",
+            "documentos": ids_verificados,
+        },
+        datos_posteriores={
+            "estado_revision": "Verificado",
+            "cantidad": len(ids_verificados),
+            "documentos": ids_verificados,
+        },
+        commit=False,
+    )
+    db.session.commit()
+
+    flash(
+        f"Se verificaron {len(ids_verificados)} documentos pendientes. "
+        "Los registros con observaciones o incidencias no fueron modificados.",
+        "success",
+    )
+    return redirect(url_for("indice_documental.listado", expediente_id=expediente.id))
+
+
 @indice_documental_bp.route("/expedientes/<int:expediente_id>/indice-documental/<int:documento_id>/anular", methods=["POST"])
 @login_required
 def anular(expediente_id, documento_id):
