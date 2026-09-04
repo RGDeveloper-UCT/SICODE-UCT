@@ -8,6 +8,7 @@ on:
       - feature/coordinacion-operativa
       - feature/analisis-documental-pdf
       - feature/lote-documental-inteligente
+      - audit/hardening-integridad-2026-09-04
   pull_request:
     branches:
       - main
@@ -32,13 +33,19 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Compilar Python
-        run: python -m compileall -q app migrations
+        run: |
+          python -m compileall -q app migrations tests
+          python -m py_compile scripts/backup_programado.py
 
       - name: Validar cadena de migraciones
         run: python -m flask --app run.py db heads
 
-      - name: Validar scripts de despliegue
-        run: bash -n scripts/configurar_runtime_analisis_documental.sh
+      - name: Validar scripts de despliegue y auditoria
+        run: |
+          bash -n scripts/configurar_runtime_analisis_documental.sh
+          bash -n scripts/auditoria_previa.sh
+          bash -n scripts/actualizar_servidor_seguro.sh
+          bash -n scripts/instalar_backup_systemd.sh
 
       - name: Validar aplicacion, modelos y plantillas
         run: |
@@ -95,6 +102,7 @@ jobs:
           assert '/pagos/sp/<int:expediente_id>' in rutas
           assert '/ca-cct/' in rutas
           assert '/ca-cct/<int:acceso_id>/pdf' in rutas
+          assert '/expedientes/<int:expediente_id>/indice-documental/<int:documento_id>/resolver-incidencia' in rutas
 
           plantillas = [
               'coordinacion/inicio.html',
@@ -105,6 +113,8 @@ jobs:
               'coordinacion/detalle.html',
               'coordinacion/remision_detalle.html',
               'coordinacion/importar.html',
+              'coordinacion/anexos_inteligentes.html',
+              'indice_documental/listado.html',
               'analisis_documental/inicio.html',
               'analisis_documental/resultado.html',
               'analisis_documental/lote_resultado.html',
@@ -116,11 +126,27 @@ jobs:
           for nombre in plantillas:
               app.jinja_env.get_template(nombre)
 
-          print('Validacion de Coordinacion, Pagos y C.A CCT completada correctamente.')
+          print('Validacion de Coordinacion, hardening documental, Pagos y C.A CCT completada correctamente.')
           PY
 
-      - name: Probar Coordinacion, Pagos, C.A CCT y extractores documentales
-        run: pytest -q tests/test_rectificacion_produccion_coordinacion.py tests/test_coordinacion_carrusel_ui.py tests/test_monitoreo_anexos.py tests/test_monitoreo_masivo.py tests/test_monitoreo_masivo_sin_fisico.py tests/test_analisis_riesgo_anexos.py tests/test_recepcion_expediente_completo_fecha.py tests/test_pagos_service.py tests/test_control_accesos_cct.py tests/test_analisis_documental_service.py tests/test_lote_documental_service.py tests/test_indice_documental_foliacion_anexos.py
+      - name: Probar Coordinacion, seguridad e integridad documental
+        run: >-
+          pytest -q
+          tests/test_auditoria_hardening.py
+          tests/test_rectificacion_produccion_coordinacion.py
+          tests/test_coordinacion_carrusel_ui.py
+          tests/test_monitoreo_anexos.py
+          tests/test_monitoreo_masivo.py
+          tests/test_monitoreo_masivo_sin_fisico.py
+          tests/test_analisis_riesgo_anexos.py
+          tests/test_recepcion_expediente_completo_fecha.py
+          tests/test_pagos_service.py
+          tests/test_control_accesos_cct.py
+          tests/test_analisis_documental_service.py
+          tests/test_lote_documental_service.py
+          tests/test_indice_documental_foliacion_anexos.py
+          tests/test_control_integridad.py
+          tests/test_backup.py
 
   postgres-anexos:
     runs-on: ubuntu-latest
@@ -164,5 +190,14 @@ jobs:
           python -m flask --app run.py db current
           python -m flask --app run.py db heads
 
-      - name: Probar Monitoreo y Analisis de riesgo en PostgreSQL
-        run: pytest -q tests/test_monitoreo_anexos.py tests/test_monitoreo_masivo.py tests/test_monitoreo_masivo_sin_fisico.py tests/test_analisis_riesgo_anexos.py tests/test_rectificacion_produccion_coordinacion.py tests/test_recepcion_expediente_completo_fecha.py
+      - name: Probar concurrencia, Monitoreo y Analisis de riesgo en PostgreSQL
+        run: >-
+          pytest -q
+          tests/test_auditoria_hardening.py
+          tests/test_monitoreo_anexos.py
+          tests/test_monitoreo_masivo.py
+          tests/test_monitoreo_masivo_sin_fisico.py
+          tests/test_analisis_riesgo_anexos.py
+          tests/test_rectificacion_produccion_coordinacion.py
+          tests/test_recepcion_expediente_completo_fecha.py
+          tests/test_indice_documental_foliacion_anexos.py

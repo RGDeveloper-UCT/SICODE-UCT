@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from app.services.foliacion_service import analizar_secuencia_principal, separar_ambitos
+
 
 TIPOS_VERIFICACION_DOCUMENTAL = {"DOCUMENTAL", "INTEGRAL"}
 ESTADOS_DOCUMENTO_CON_INCIDENCIA = {"Mal foliado", "Anexo pendiente", "Con observaciones"}
@@ -30,55 +32,49 @@ def calcular_estado_documental(expediente):
       Expediente -> existencia física -> Índice documental -> rectificación ->
       verificación -> estado documental derivado.
 
-    La columna histórica ``estado_fisico_documental`` se conserva en base de
-    datos únicamente por compatibilidad y auditoría; no decide el estado
-    vigente devuelto por este servicio.
+    La foliación general se calcula únicamente con el cuerpo principal. Cada
+    anexo posee una foliación independiente y puede repetir números del cuerpo
+    principal o de otro anexo sin constituir un traslape.
     """
     documentos = sorted(
         [doc for doc in expediente.documentos_indice if doc.activo],
         key=lambda doc: (doc.folio_inicio, doc.folio_fin, doc.id),
     )
-    anexos_indice = [doc for doc in documentos if doc.es_anexo]
+    documentos_principales, anexos_indice = separar_ambitos(documentos)
+    analisis_principal = analizar_secuencia_principal(documentos_principales)
 
     total_documentos = len(documentos)
-    total_folios_documentados = sum(doc.total_folios or 0 for doc in documentos)
-    ultimo_folio_indice = max((doc.folio_fin for doc in documentos), default=0)
+    total_folios_documentados = analisis_principal["total_folios_registrados"]
+    ultimo_folio_indice = analisis_principal["ultimo_folio"]
 
     incidencias = []
-    saltos = []
-    traslapes = []
-    anterior = None
     for documento in documentos:
         if documento.estado_revision in ESTADOS_DOCUMENTO_CON_INCIDENCIA:
+            ambito = "anexo" if documento.es_anexo else "expediente principal"
             incidencias.append(
-                f"{documento.nombre_documento}: {documento.estado_revision}"
+                f"{documento.nombre_documento} ({ambito}): {documento.estado_revision}"
             )
-        if anterior:
-            if documento.folio_inicio <= anterior.folio_fin:
-                traslapes.append(
-                    f"{anterior.folio_inicio}-{anterior.folio_fin} / "
-                    f"{documento.folio_inicio}-{documento.folio_fin}"
-                )
-            elif documento.folio_inicio > anterior.folio_fin + 1:
-                saltos.append(f"{anterior.folio_fin + 1}-{documento.folio_inicio - 1}")
-        anterior = documento
+
+    traslapes = [
+        f"{anterior.folio_inicio}-{anterior.folio_fin} / {documento.folio_inicio}-{documento.folio_fin}"
+        for anterior, documento in analisis_principal["traslapes"]
+    ]
+    saltos = [f"{inicio}-{fin}" for inicio, fin in analisis_principal["saltos"]]
 
     if traslapes:
-        incidencias.append("Índice con rangos traslapados")
+        incidencias.append("Índice principal con rangos traslapados")
     if saltos:
-        incidencias.append("Índice con saltos de foliación")
+        incidencias.append("Índice principal con saltos de foliación")
 
     folios_rectificados = expediente.folios_rectificados
     anexos_rectificados = expediente.anexos_rectificados
     coincide_foliacion = None
-    if folios_rectificados is not None and documentos:
-        # La rectificación expresa la cantidad física total del expediente;
-        # el último número foliado es la comparación documental más estable.
+    if folios_rectificados is not None and documentos_principales:
         coincide_foliacion = folios_rectificados == ultimo_folio_indice
         if not coincide_foliacion:
             incidencias.append(
                 f"Rectificación física ({folios_rectificados}) no coincide con "
-                f"último folio del índice ({ultimo_folio_indice})"
+                f"último folio del índice principal ({ultimo_folio_indice})"
             )
 
     coincide_anexos = None
@@ -142,6 +138,7 @@ def calcular_estado_documental(expediente):
         "origen_estado": origen_estado,
         "expediente_fisico": bool(expediente.expediente_fisico_registrado),
         "documentos": total_documentos,
+        "documentos_principales": len(documentos_principales),
         "folios_documentados": total_folios_documentados,
         "ultimo_folio_indice": ultimo_folio_indice,
         "folios_rectificados": folios_rectificados,

@@ -129,7 +129,9 @@ def test_logout_elimina_presencia_inmediatamente(app_uo):
     with app_uo.app_context():
         assert PresenciaUsuario.query.count() == 1
 
-    respuesta = cliente.get("/logout", follow_redirects=False)
+    # Logout es deliberadamente una mutación POST; CSRF se desactiva en este
+    # fixture para aislar la semántica de presencia.
+    respuesta = cliente.post("/logout", follow_redirects=False)
     assert respuesta.status_code == 302
 
     with app_uo.app_context():

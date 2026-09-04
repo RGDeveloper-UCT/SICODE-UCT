@@ -1,4 +1,5 @@
 from datetime import date
+import re
 
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField, FileRequired
@@ -10,15 +11,17 @@ REFERENCIAS_CHOICES = [("RC", "RC"), ("RE", "RE")]
 
 
 def _normalizar_referencia(tipo, numero):
-    """Guarda la referencia completa en la columna histórica `rc` sin cambiar el esquema de BD."""
+    """Guarda la referencia completa en la columna histórica `rc` sin cambiar el esquema de BD.
+
+    El selector RC/RE es la autoridad del tipo. Si el usuario pega el prefijo
+    dentro del número (``RC 123``, ``RC-123``, ``RE:123``...), se elimina antes
+    de construir el valor canónico para impedir duplicados como ``RC RC-123``.
+    """
     numero = (numero or "").strip()
     if not numero:
         return None
 
-    # Evita valores duplicados como "RC RC 2026..." cuando alguien pega el prefijo.
-    partes = numero.split(maxsplit=1)
-    if partes and partes[0].upper() in {"RC", "RE"}:
-        numero = partes[1].strip() if len(partes) > 1 else ""
+    numero = re.sub(r"^(?:RC|RE)\s*[-:/]?\s*", "", numero, flags=re.IGNORECASE).strip()
     if not numero:
         return None
 

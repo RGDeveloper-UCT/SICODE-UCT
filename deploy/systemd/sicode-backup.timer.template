@@ -1,0 +1,11 @@
+[Unit]
+Description=SICODE-UCT - Programación diaria de backup PostgreSQL
+
+[Timer]
+OnCalendar=*-*-* 02:15:00
+RandomizedDelaySec=15m
+Persistent=true
+Unit=sicode-backup.service
+
+[Install]
+WantedBy=timers.target

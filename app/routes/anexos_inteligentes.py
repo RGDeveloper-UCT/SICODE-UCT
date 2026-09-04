@@ -10,7 +10,6 @@ from app.routes.coordinacion import _crear_base, _sp_opciones
 from app.routes.monitoreo_anexos import (
     _actualizar_secuencia_vigente,
     _entero_anexo,
-    _estado_anexos,
     _validar_numero,
 )
 from app.services.bitacora_service import registrar_bitacora
@@ -38,6 +37,15 @@ def _fecha(valor):
         return datetime.strptime(texto, "%Y-%m-%d").date()
     except ValueError:
         return None
+
+
+def _texto_limitado(nombre, maximo, *, requerido=False):
+    valor = (request.form.get(nombre) or "").strip()
+    if requerido and not valor:
+        return None, f"El campo {nombre} es obligatorio."
+    if len(valor) > maximo:
+        return None, f"El campo {nombre} supera el máximo permitido de {maximo} caracteres."
+    return valor or None, None
 
 
 def _sugerencias_nexo_seguras():
@@ -108,7 +116,11 @@ def guardar():
         destino = "monitoreo" if codigo == "REPORTE_MONITOREO" else "analisis-riesgo"
         return redirect(url_for("coordinacion.registrar", tipo=destino))
 
-    no_sp = (request.form.get("no_sp") or "").strip()
+    no_sp, error = _texto_limitado("no_sp", 50, requerido=True)
+    if error:
+        flash(error, "warning")
+        return redirect(url_for("anexos_inteligentes.nuevo"))
+
     expediente, _ = resolver_expediente(no_sp)
     if not expediente:
         flash("El SP debe existir y estar activo para registrar el anexo.", "warning")
@@ -138,18 +150,29 @@ def guardar():
             flash("Seleccione al menos un componente reemplazado.", "warning")
             return redirect(url_for("anexos_inteligentes.nuevo"))
     elif definicion["modo"] == "libre":
-        titulo = (request.form.get("titulo_otro") or "").strip()
-        if not titulo:
-            flash("Escriba el nombre del tipo de anexo.", "warning")
+        titulo, error = _texto_limitado("titulo_otro", 180, requerido=True)
+        if error:
+            flash("Escriba un nombre válido para el tipo de anexo (máximo 180 caracteres).", "warning")
             return redirect(url_for("anexos_inteligentes.nuevo"))
-        titulo = titulo[:180]
 
     tipo_referencia = (request.form.get("tipo_referencia") or "RC").strip().upper()
-    rc = _normalizar_referencia(tipo_referencia, request.form.get("rc"))
-    providencia = (request.form.get("providencia") or "").strip() or None
-    fecha_recepcion = _fecha(request.form.get("fecha_recepcion"))
+    rc_crudo, error_rc = _texto_limitado("rc", 80)
+    providencia, error_prov = _texto_limitado("providencia", 120)
+    persona_entrega, error_entrega = _texto_limitado("persona_entrega", 180)
+    folios, error_folios = _texto_limitado("folios", 80)
+    for mensaje in (error_rc, error_prov, error_entrega, error_folios):
+        if mensaje:
+            flash(mensaje, "warning")
+            return redirect(url_for("anexos_inteligentes.nuevo"))
+
+    rc = _normalizar_referencia(tipo_referencia, rc_crudo)
+    fecha_texto = (request.form.get("fecha_recepcion") or "").strip()
+    fecha_recepcion = _fecha(fecha_texto)
+    if fecha_texto and fecha_recepcion is None:
+        flash("La fecha de recepción no tiene un formato válido.", "warning")
+        return redirect(url_for("anexos_inteligentes.nuevo"))
+
     observaciones = (request.form.get("observaciones") or "").strip() or None
-    folios = (request.form.get("folios") or "").strip() or None
 
     registro = _crear_base(
         "ANEXO",
@@ -160,6 +183,9 @@ def guardar():
         observaciones,
         [no_sp, rc, providencia, titulo, fecha_recepcion, numero],
     )
+    # _crear_base obtiene persona_entrega/folios desde request.form; las variables
+    # anteriores se validan aquí para que un POST manipulado no salte los límites.
+    _ = persona_entrega
 
     anexo = AnexoCoordinacion(
         registro_id=registro.id,
@@ -197,6 +223,7 @@ def guardar():
             "sp": expediente.no_sp,
             "numero_anexo": numero,
             "es_vencido": es_vencido,
+            "confirmacion_file_server_declarada": True,
             "anexos_rectificados": expediente.anexos_rectificados,
         },
         commit=False,

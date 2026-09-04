@@ -1,7 +1,7 @@
 from io import BytesIO
 from datetime import datetime
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
+from flask import Blueprint, abort, flash, redirect, render_template, request, url_for, send_file
 from flask_login import login_required, current_user
 from sqlalchemy import or_
 from openpyxl import Workbook
@@ -14,6 +14,7 @@ from app.models.documento_expediente import DocumentoExpediente
 from app.services.bitacora_service import registrar_bitacora
 
 alertas_bp = Blueprint("alertas", __name__)
+
 
 @alertas_bp.route("/alertas")
 @login_required
@@ -44,18 +45,14 @@ def listado():
 
     if filtro_estado:
         consulta = consulta.filter(Alerta.estado == filtro_estado)
-
     if filtro_gravedad:
         consulta = consulta.filter(Alerta.gravedad == filtro_gravedad)
-
     if filtro_tipo:
         consulta = consulta.filter(Alerta.tipo_alerta == filtro_tipo)
 
     alertas = consulta.order_by(Alerta.creado_en.desc()).limit(150).all()
-
     estados = ["Abierta", "En revisión", "Corregida", "Cerrada"]
     gravedades = ["Alta", "Media", "Baja"]
-
     tipos = [
         tipo[0]
         for tipo in Alerta.query.with_entities(Alerta.tipo_alerta)
@@ -76,11 +73,14 @@ def listado():
         tipos=tipos,
     )
 
+
 @alertas_bp.route("/alertas/<int:alerta_id>/estado/<nuevo_estado>", methods=["POST"])
 @login_required
 def cambiar_estado(alerta_id, nuevo_estado):
-    alerta = Alerta.query.get_or_404(alerta_id)
+    if not getattr(current_user, "puede_modificar", False):
+        abort(403)
 
+    alerta = Alerta.query.get_or_404(alerta_id)
     estados_permitidos = ["Abierta", "En revisión", "Corregida", "Cerrada"]
 
     if nuevo_estado not in estados_permitidos:
@@ -97,15 +97,19 @@ def cambiar_estado(alerta_id, nuevo_estado):
         alerta.cerrado_en = None
         alerta.cerrada_por_id = None
 
-    db.session.commit()
-
     registrar_bitacora(
         accion="CAMBIAR_ESTADO_ALERTA",
         modulo="Alertas",
         descripcion=f"Se cambió la alerta '{alerta.titulo}' de '{estado_anterior}' a '{nuevo_estado}'.",
         usuario_id=current_user.id,
         expediente_id=alerta.expediente_id,
+        entidad="Alerta",
+        entidad_id=alerta.id,
+        datos_anteriores={"estado": estado_anterior},
+        datos_posteriores={"estado": nuevo_estado},
+        commit=False,
     )
+    db.session.commit()
 
     flash("Estado de alerta actualizado correctamente.", "success")
     return redirect(url_for("alertas.listado"))
@@ -133,13 +137,10 @@ def exportar_excel():
                 DocumentoExpediente.nombre_documento.ilike(filtro),
             )
         )
-
     if filtro_estado:
         consulta = consulta.filter(Alerta.estado == filtro_estado)
-
     if filtro_gravedad:
         consulta = consulta.filter(Alerta.gravedad == filtro_gravedad)
-
     if filtro_tipo:
         consulta = consulta.filter(Alerta.tipo_alerta == filtro_tipo)
 
@@ -148,26 +149,12 @@ def exportar_excel():
     wb = Workbook()
     ws = wb.active
     ws.title = "Alertas"
-
     encabezados = [
-        "ID",
-        "Fecha creación",
-        "Expediente No. SP",
-        "Código interno",
-        "Documento relacionado",
-        "Tipo alerta",
-        "Título",
-        "Descripción",
-        "Gravedad",
-        "Estado",
-        "Origen",
-        "Fecha cierre",
-        "Creada por",
-        "Cerrada por",
+        "ID", "Fecha creación", "Expediente No. SP", "Código interno", "Documento relacionado",
+        "Tipo alerta", "Título", "Descripción", "Gravedad", "Estado", "Origen", "Fecha cierre",
+        "Creada por", "Cerrada por",
     ]
-
     ws.append(encabezados)
-
     for celda in ws[1]:
         celda.font = Font(bold=True)
         celda.alignment = Alignment(horizontal="center")
@@ -177,7 +164,6 @@ def exportar_excel():
         documento = alerta.documento if alerta.documento else None
         creada_por = alerta.creada_por if alerta.creada_por else None
         cerrada_por = alerta.cerrada_por if alerta.cerrada_por else None
-
         ws.append([
             alerta.id,
             alerta.creado_en.strftime("%d/%m/%Y %H:%M:%S") if alerta.creado_en else "",
@@ -195,26 +181,9 @@ def exportar_excel():
             cerrada_por.usuario if cerrada_por else "",
         ])
 
-    anchos = {
-        "A": 8,
-        "B": 22,
-        "C": 18,
-        "D": 24,
-        "E": 32,
-        "F": 28,
-        "G": 40,
-        "H": 70,
-        "I": 14,
-        "J": 16,
-        "K": 18,
-        "L": 22,
-        "M": 18,
-        "N": 18,
-    }
-
+    anchos = {"A": 8, "B": 22, "C": 18, "D": 24, "E": 32, "F": 28, "G": 40, "H": 70, "I": 14, "J": 16, "K": 18, "L": 22, "M": 18, "N": 18}
     for columna, ancho in anchos.items():
         ws.column_dimensions[columna].width = ancho
-
     ws.freeze_panes = "A2"
     ws.auto_filter.ref = ws.dimensions
 
@@ -228,7 +197,6 @@ def exportar_excel():
     archivo_excel = BytesIO()
     wb.save(archivo_excel)
     archivo_excel.seek(0)
-
     return send_file(
         archivo_excel,
         as_attachment=True,

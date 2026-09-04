@@ -92,7 +92,8 @@ def test_rectificacion_permite_total_de_19_anexos_sin_describirlos(app_rectifica
         assert expediente.folios_rectificados == 286
         assert expediente.anexos_rectificados == 19
         assert expediente.rectificacion_completa is True
-        assert expediente.estado_fisico_documental == "Verificado"
+        # Rectificar habilita el préstamo, pero no sustituye el índice documental.
+        assert expediente.estado_fisico_documental == "Pendiente de indexación"
         assert expediente.rectificado_por_id is not None
         assert AnexoRectificado.query.filter_by(expediente_id=1, activo=True).count() == 0
 

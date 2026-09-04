@@ -1,19 +1,30 @@
 import re
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import or_
 
 from app import db
 from app.forms.indice_documental_form import IndiceDocumentalForm
+from app.models.alerta import Alerta
 from app.models.coordinacion import AnexoCoordinacion, RegistroCoordinacion
 from app.models.documento_expediente import DocumentoExpediente
 from app.models.expediente import Expediente
 from app.services.alertas_service import crear_alerta_si_no_existe
 from app.services.bitacora_service import registrar_bitacora
+from app.services.foliacion_service import es_foliacion_principal
 
 
 indice_documental_bp = Blueprint("indice_documental", __name__)
+
+ESTADOS_INCIDENCIA = {"Mal foliado", "Anexo pendiente", "Con observaciones"}
+ESTADO_PENDIENTE = "Pendiente de revisión"
+ESTADO_VERIFICADO = "Verificado"
+
+
+def _exigir_modificacion():
+    if not getattr(current_user, "puede_modificar", False):
+        abort(403)
 
 
 def _anexo_pendiente(expediente_id, anexo_id):
@@ -37,12 +48,7 @@ def _anexo_pendiente(expediente_id, anexo_id):
 
 
 def _rango_folios_recepcion(valor):
-    """Convierte el dato de recepción en una sugerencia para la foliación del anexo.
-
-    Si Coordinación registró un total simple (por ejemplo ``3``), el anexo se
-    propone como 1-3. Si registró un rango (por ejemplo ``325-330``), se
-    conserva ese rango. Valores libres o ambiguos no se fuerzan.
-    """
+    """Convierte el dato de recepción en una sugerencia para la foliación del anexo."""
     if valor is None:
         return None, None
 
@@ -64,9 +70,26 @@ def _rango_folios_recepcion(valor):
     return None, None
 
 
-def _es_foliacion_principal(documento):
-    """Los registros históricos con es_anexo NULL pertenecen al cuerpo principal."""
-    return not bool(documento.es_anexo)
+def _alertas_revision_abiertas(documento):
+    return (
+        Alerta.query
+        .filter(
+            Alerta.documento_id == documento.id,
+            Alerta.tipo_alerta == "REVISION_INDICE_DOCUMENTAL",
+            Alerta.estado.in_(["Abierta", "En revisión"]),
+        )
+        .order_by(Alerta.id.asc())
+        .all()
+    )
+
+
+def _corregir_alertas_documento(documento):
+    alertas = _alertas_revision_abiertas(documento)
+    for alerta in alertas:
+        alerta.estado = "Corregida"
+        alerta.cerrado_en = None
+        alerta.cerrada_por_id = None
+    return [alerta.id for alerta in alertas]
 
 
 @indice_documental_bp.route("/expedientes/<int:expediente_id>/indice-documental", methods=["GET", "POST"])
@@ -98,6 +121,7 @@ def listado(expediente_id):
                 form.folio_fin.data = folio_fin_sugerido
 
     if form.validate_on_submit():
+        _exigir_modificacion()
         folio_inicio = form.folio_inicio.data
         folio_fin = form.folio_fin.data
         es_anexo = form.tipo_documento.data == "Anexo"
@@ -106,10 +130,6 @@ def listado(expediente_id):
             flash("El folio inicial no puede ser mayor que el folio final.", "danger")
             return redirect(url_for("indice_documental.listado", expediente_id=expediente.id))
 
-        # Regla institucional de foliación:
-        # - el cuerpo principal del expediente comparte una foliación general;
-        # - cada anexo posee una foliación independiente.
-        # Por ello solo se buscan traslapes entre documentos del cuerpo principal.
         if not es_anexo:
             traslape = (
                 DocumentoExpediente.query
@@ -182,9 +202,8 @@ def listado(expediente_id):
             },
             commit=False,
         )
-        db.session.commit()
 
-        if documento.estado_revision in {"Mal foliado", "Anexo pendiente", "Con observaciones"}:
+        if documento.estado_revision in ESTADOS_INCIDENCIA:
             crear_alerta_si_no_existe(
                 expediente_id=expediente.id,
                 documento_id=documento.id,
@@ -196,7 +215,10 @@ def listado(expediente_id):
                 ),
                 gravedad="Alta" if documento.estado_revision == "Mal foliado" else "Media",
                 usuario_id=current_user.id,
+                commit=False,
             )
+
+        db.session.commit()
 
         if documento.es_anexo:
             flash("Anexo agregado correctamente con foliación independiente.", "success")
@@ -227,7 +249,7 @@ def listado(expediente_id):
         .all()
     )
 
-    documentos_principales = [documento for documento in documentos if _es_foliacion_principal(documento)]
+    documentos_principales = [documento for documento in documentos if es_foliacion_principal(documento)]
     anexos_documentales = [documento for documento in documentos if documento.es_anexo]
 
     return render_template(
@@ -239,6 +261,7 @@ def listado(expediente_id):
         anexos_documentales=anexos_documentales,
         documentos_inactivos=documentos_inactivos,
         anexos_pendientes=anexos_pendientes,
+        estados_incidencia=ESTADOS_INCIDENCIA,
         total_folios=sum(documento.total_folios or 0 for documento in documentos_principales),
     )
 
@@ -249,6 +272,7 @@ def listado(expediente_id):
 )
 @login_required
 def verificar_documento(expediente_id, documento_id):
+    _exigir_modificacion()
     expediente = Expediente.query.get_or_404(expediente_id)
     documento = DocumentoExpediente.query.filter_by(
         id=documento_id,
@@ -256,13 +280,25 @@ def verificar_documento(expediente_id, documento_id):
         activo=True,
     ).first_or_404()
 
-    if documento.estado_revision == "Verificado":
+    if documento.estado_revision == ESTADO_VERIFICADO:
         flash(f"'{documento.nombre_documento}' ya se encuentra verificado.", "info")
         return redirect(url_for("indice_documental.listado", expediente_id=expediente.id))
 
-    estado_anterior = documento.estado_revision
-    documento.estado_revision = "Verificado"
+    if documento.estado_revision in ESTADOS_INCIDENCIA:
+        flash(
+            "Este registro tiene una incidencia documental. Debe usar «Resolver incidencia» y dejar el motivo de la corrección; no puede sobrescribirse directamente como Verificado.",
+            "warning",
+        )
+        return redirect(url_for("indice_documental.listado", expediente_id=expediente.id))
 
+    if documento.estado_revision != ESTADO_PENDIENTE:
+        flash(
+            f"El estado '{documento.estado_revision}' no admite verificación rápida. Revise el registro antes de continuar.",
+            "warning",
+        )
+        return redirect(url_for("indice_documental.listado", expediente_id=expediente.id))
+
+    documento.estado_revision = ESTADO_VERIFICADO
     registrar_bitacora(
         accion="VERIFICAR_DOCUMENTO_INDICE",
         modulo="Índice documental",
@@ -274,8 +310,8 @@ def verificar_documento(expediente_id, documento_id):
         expediente_id=expediente.id,
         entidad="DocumentoExpediente",
         entidad_id=documento.id,
-        datos_anteriores={"estado_revision": estado_anterior},
-        datos_posteriores={"estado_revision": "Verificado"},
+        datos_anteriores={"estado_revision": ESTADO_PENDIENTE},
+        datos_posteriores={"estado_revision": ESTADO_VERIFICADO},
         commit=False,
     )
     db.session.commit()
@@ -285,21 +321,75 @@ def verificar_documento(expediente_id, documento_id):
 
 
 @indice_documental_bp.route(
+    "/expedientes/<int:expediente_id>/indice-documental/<int:documento_id>/resolver-incidencia",
+    methods=["POST"],
+)
+@login_required
+def resolver_incidencia(expediente_id, documento_id):
+    _exigir_modificacion()
+    expediente = Expediente.query.get_or_404(expediente_id)
+    documento = DocumentoExpediente.query.filter_by(
+        id=documento_id,
+        expediente_id=expediente.id,
+        activo=True,
+    ).first_or_404()
+
+    if documento.estado_revision not in ESTADOS_INCIDENCIA:
+        flash("El registro no tiene una incidencia documental pendiente de resolución.", "info")
+        return redirect(url_for("indice_documental.listado", expediente_id=expediente.id))
+
+    motivo = (request.form.get("motivo_resolucion") or "").strip()
+    if len(motivo) < 8:
+        flash("Explique brevemente cómo se corrigió o verificó la incidencia (mínimo 8 caracteres).", "warning")
+        return redirect(url_for("indice_documental.listado", expediente_id=expediente.id))
+
+    estado_anterior = documento.estado_revision
+    documento.estado_revision = ESTADO_VERIFICADO
+    alertas_corregidas = _corregir_alertas_documento(documento)
+
+    registrar_bitacora(
+        accion="RESOLVER_INCIDENCIA_INDICE",
+        modulo="Índice documental",
+        descripcion=(
+            f"Se resolvió la incidencia '{estado_anterior}' de '{documento.nombre_documento}' "
+            f"del SP {expediente.no_sp}; el registro quedó Verificado."
+        ),
+        usuario_id=current_user.id,
+        expediente_id=expediente.id,
+        entidad="DocumentoExpediente",
+        entidad_id=documento.id,
+        datos_anteriores={
+            "estado_revision": estado_anterior,
+            "alertas_abiertas": alertas_corregidas,
+        },
+        datos_posteriores={
+            "estado_revision": ESTADO_VERIFICADO,
+            "alertas_corregidas": alertas_corregidas,
+        },
+        motivo=motivo,
+        commit=False,
+    )
+    db.session.commit()
+
+    flash(f"Incidencia resuelta y trazada para: {documento.nombre_documento}.", "success")
+    return redirect(url_for("indice_documental.listado", expediente_id=expediente.id))
+
+
+@indice_documental_bp.route(
     "/expedientes/<int:expediente_id>/indice-documental/verificar-todos",
     methods=["POST"],
 )
 @login_required
 def verificar_todos(expediente_id):
+    _exigir_modificacion()
     expediente = Expediente.query.get_or_404(expediente_id)
 
-    # La acción masiva es deliberadamente conservadora: solo confirma registros
-    # pendientes y nunca borra estados que representan una incidencia documental.
     pendientes = (
         DocumentoExpediente.query
         .filter(
             DocumentoExpediente.expediente_id == expediente.id,
             DocumentoExpediente.activo.is_(True),
-            DocumentoExpediente.estado_revision == "Pendiente de revisión",
+            DocumentoExpediente.estado_revision == ESTADO_PENDIENTE,
         )
         .order_by(DocumentoExpediente.id.asc())
         .all()
@@ -311,7 +401,7 @@ def verificar_todos(expediente_id):
 
     ids_verificados = []
     for documento in pendientes:
-        documento.estado_revision = "Verificado"
+        documento.estado_revision = ESTADO_VERIFICADO
         ids_verificados.append(documento.id)
 
     registrar_bitacora(
@@ -326,11 +416,11 @@ def verificar_todos(expediente_id):
         entidad="Expediente",
         entidad_id=expediente.id,
         datos_anteriores={
-            "estado_revision": "Pendiente de revisión",
+            "estado_revision": ESTADO_PENDIENTE,
             "documentos": ids_verificados,
         },
         datos_posteriores={
-            "estado_revision": "Verificado",
+            "estado_revision": ESTADO_VERIFICADO,
             "cantidad": len(ids_verificados),
             "documentos": ids_verificados,
         },
@@ -349,6 +439,7 @@ def verificar_todos(expediente_id):
 @indice_documental_bp.route("/expedientes/<int:expediente_id>/indice-documental/<int:documento_id>/anular", methods=["POST"])
 @login_required
 def anular(expediente_id, documento_id):
+    _exigir_modificacion()
     expediente = Expediente.query.get_or_404(expediente_id)
     documento = DocumentoExpediente.query.filter_by(id=documento_id, expediente_id=expediente.id).first_or_404()
 
@@ -356,20 +447,41 @@ def anular(expediente_id, documento_id):
         flash("El registro documental ya se encuentra anulado.", "warning")
         return redirect(url_for("indice_documental.listado", expediente_id=expediente.id))
 
+    anexo = documento.anexo_recepcion
+    anexo_id = anexo.id if anexo else None
+    alertas_corregidas = _corregir_alertas_documento(documento)
+
     documento.activo = False
+    if anexo:
+        anexo.documento_expediente_id = None
+
     registrar_bitacora(
         accion="ANULAR_INDICE_DOCUMENTAL",
         modulo="Índice documental",
-        descripcion=f"Se anuló '{documento.nombre_documento}' del índice del SP {expediente.no_sp}.",
+        descripcion=(
+            f"Se anuló '{documento.nombre_documento}' del índice del SP {expediente.no_sp}."
+            + (" El anexo de Coordinación quedó disponible para reincorporación." if anexo else "")
+        ),
         usuario_id=current_user.id,
         expediente_id=expediente.id,
         entidad="DocumentoExpediente",
         entidad_id=documento.id,
-        datos_anteriores={"activo": True},
-        datos_posteriores={"activo": False},
+        datos_anteriores={
+            "activo": True,
+            "anexo_coordinacion_id": anexo_id,
+            "alertas_abiertas": alertas_corregidas,
+        },
+        datos_posteriores={
+            "activo": False,
+            "anexo_reincorporable": bool(anexo),
+            "alertas_corregidas": alertas_corregidas,
+        },
         commit=False,
     )
     db.session.commit()
 
-    flash("Registro documental anulado. Se conserva para trazabilidad.", "info")
+    if anexo:
+        flash("Registro anulado. El anexo volvió a quedar disponible para incorporarlo correctamente al índice.", "info")
+    else:
+        flash("Registro documental anulado. Se conserva para trazabilidad.", "info")
     return redirect(url_for("indice_documental.listado", expediente_id=expediente.id))
