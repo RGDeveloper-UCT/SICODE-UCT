@@ -58,15 +58,10 @@
                 <div><strong>Mis favoritos</strong><span>Hasta 6 accesos personales</span></div>
                 <span class="nav-panel__badge nav-panel__badge--favoritos" data-favoritos-badge>0 de 6</span>
             </div>
-            <div class="favoritos-lista" data-favoritos-lista aria-live="polite">
-                <div class="favoritos-vacio">Cargando favoritos…</div>
-            </div>
+            <div class="favoritos-lista" data-favoritos-lista aria-live="polite"><div class="favoritos-vacio">Cargando favoritos…</div></div>
             <div class="favoritos-acciones">
                 <p>Abra cualquier módulo, expediente, registro o pantalla y guárdelo aquí para volver con un clic.</p>
-                <button class="favorito-agregar" type="button" data-favorito-agregar>
-                    <svg aria-hidden="true"><use href="#nav-icon-star"></use></svg>
-                    <span>Agregar página actual</span>
-                </button>
+                <button class="favorito-agregar" type="button" data-favorito-agregar><svg aria-hidden="true"><use href="#nav-icon-star"></use></svg><span>Agregar página actual</span></button>
                 <div class="favoritos-aviso" data-favoritos-aviso aria-live="polite"></div>
             </div>
         </div>
@@ -75,14 +70,11 @@
     {% if current_user.rol == "administrador" %}
     <div class="nav-seccion nav-seccion--admin" data-nav-dropdown>
         <button class="nav-seccion__toggle" type="button" aria-expanded="false" aria-controls="nav-administracion-sicode" data-nav-toggle>
-            <svg aria-hidden="true"><use href="#nav-icon-system"></use></svg>
-            <span>Administración</span>
-            <svg class="nav-seccion__chevron" aria-hidden="true"><use href="#nav-icon-chevron"></use></svg>
+            <svg aria-hidden="true"><use href="#nav-icon-system"></use></svg><span>Administración</span><svg class="nav-seccion__chevron" aria-hidden="true"><use href="#nav-icon-chevron"></use></svg>
         </button>
         <div class="nav-panel nav-panel--admin" id="nav-administracion-sicode" data-nav-panel>
             <div class="nav-panel__encabezado">
-                <div><strong>Administración</strong><span>Herramientas exclusivas del administrador</span></div>
-                <span class="nav-panel__badge nav-panel__badge--admin">ADMIN</span>
+                <div><strong>Administración</strong><span>Herramientas exclusivas del administrador</span></div><span class="nav-panel__badge nav-panel__badge--admin">ADMIN</span>
             </div>
             <div class="nav-panel__grid nav-panel__grid--admin">
                 <a class="nav-modulo nav-modulo--admin" href="{{ url_for('nexo_ia.inicio') }}"><span class="nav-modulo__icono"><svg aria-hidden="true"><use href="#nav-icon-nexo"></use></svg></span><span><strong>NEXO</strong><small>Evolución y diagnóstico</small></span></a>
@@ -97,6 +89,9 @@
 
     <div class="nav-utilidades" aria-label="Cuenta y sesión">
         <a class="nav-utilidad" href="{{ url_for('cuenta.detalle') }}" title="Mi cuenta"><svg aria-hidden="true"><use href="#nav-icon-account"></use></svg><span>Mi cuenta</span></a>
-        <a class="nav-utilidad nav-utilidad--salir" href="{{ url_for('auth.logout') }}" title="Salir de SICODE"><svg aria-hidden="true"><use href="#nav-icon-logout"></use></svg><span>Salir</span></a>
+        <form method="POST" action="{{ url_for('auth.logout') }}" class="form-inline" style="margin:0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="nav-utilidad nav-utilidad--salir" title="Salir de SICODE"><svg aria-hidden="true"><use href="#nav-icon-logout"></use></svg><span>Salir</span></button>
+        </form>
     </div>
 </nav>
