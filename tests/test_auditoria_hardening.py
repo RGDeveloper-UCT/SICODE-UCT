@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+import threading
 
 import pytest
 from werkzeug.security import generate_password_hash
@@ -227,6 +227,55 @@ def test_evento_integridad_rechaza_anexo_duplicado(app_auditoria):
             db.session.commit()
         db.session.rollback()
         assert AnexoCoordinacion.query.filter_by(numero_anexo="1").count() == 1
+
+
+def test_postgresql_serializa_dos_altas_simultaneas_del_mismo_anexo(app_auditoria):
+    with app_auditoria.app_context():
+        if db.engine.dialect.name != "postgresql":
+            pytest.skip("La prueba de advisory lock requiere PostgreSQL")
+
+    barrera = threading.Barrier(2)
+    resultados = []
+    lock_resultados = threading.Lock()
+
+    def guardar(etiqueta):
+        resultado = None
+        with app_auditoria.app_context():
+            try:
+                registro = RegistroCoordinacion(
+                    tipo="ANEXO",
+                    expediente_id=1,
+                    no_sp_referencia="901",
+                    usuario_id=1,
+                    estado="Completo",
+                )
+                db.session.add(registro)
+                db.session.flush()
+                barrera.wait(timeout=5)
+                db.session.add(AnexoCoordinacion(
+                    registro_id=registro.id,
+                    numero_anexo="9",
+                    titulo=f"Concurrente {etiqueta}",
+                ))
+                db.session.commit()
+                resultado = "ok"
+            except AnexoDuplicadoError:
+                db.session.rollback()
+                resultado = "duplicado"
+            finally:
+                db.session.remove()
+        with lock_resultados:
+            resultados.append(resultado)
+
+    hilos = [threading.Thread(target=guardar, args=("A",)), threading.Thread(target=guardar, args=("B",))]
+    for hilo in hilos:
+        hilo.start()
+    for hilo in hilos:
+        hilo.join(timeout=15)
+
+    assert sorted(resultados) == ["duplicado", "ok"]
+    with app_auditoria.app_context():
+        assert AnexoCoordinacion.query.filter_by(numero_anexo="9").count() == 1
 
 
 def test_cabeceras_de_seguridad_en_respuesta_autenticada(cliente_auditoria):
