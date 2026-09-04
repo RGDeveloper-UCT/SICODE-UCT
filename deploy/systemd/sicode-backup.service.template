@@ -7,6 +7,7 @@ Type=oneshot
 User=__SICODE_USER__
 WorkingDirectory=__SICODE_APPDIR__
 EnvironmentFile=__SICODE_APPDIR__/.env
+Environment=PYTHONPATH=__SICODE_APPDIR__
 ExecStart=__SICODE_PYTHON__ __SICODE_APPDIR__/scripts/backup_programado.py
 Nice=10
 IOSchedulingClass=best-effort
