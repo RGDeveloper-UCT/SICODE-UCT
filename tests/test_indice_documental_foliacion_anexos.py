@@ -4,6 +4,7 @@ import pytest
 from werkzeug.security import generate_password_hash
 
 from app import create_app, db
+from app.models.bitacora import Bitacora
 from app.models.coordinacion import AnexoCoordinacion, RegistroCoordinacion
 from app.models.documento_expediente import DocumentoExpediente
 from app.models.expediente import Expediente
@@ -60,7 +61,15 @@ def cliente_indice(app_indice_folios):
     return cliente
 
 
-def _registrar(cliente, nombre, tipo, inicio, fin, anexo_coordinacion_id=""):
+def _registrar(
+    cliente,
+    nombre,
+    tipo,
+    inicio,
+    fin,
+    anexo_coordinacion_id="",
+    estado_revision="Verificado",
+):
     return cliente.post(
         "/expedientes/1/indice-documental",
         data={
@@ -69,7 +78,7 @@ def _registrar(cliente, nombre, tipo, inicio, fin, anexo_coordinacion_id=""):
             "tipo_documento": tipo,
             "folio_inicio": inicio,
             "folio_fin": fin,
-            "estado_revision": "Verificado",
+            "estado_revision": estado_revision,
             "observaciones": "",
         },
         follow_redirects=True,
@@ -167,6 +176,109 @@ def test_incorporacion_desde_coordinacion_usa_foliacion_propia_y_vincula_anexo(a
         assert documento is not None
         assert documento.es_anexo is True
         assert (documento.folio_inicio, documento.folio_fin) == (1, 3)
+
+
+def test_verificacion_individual_marca_documento_y_deja_trazabilidad(app_indice_folios, cliente_indice):
+    _registrar(
+        cliente_indice,
+        "Solicitud de informe",
+        "Documento",
+        1,
+        2,
+        estado_revision="Pendiente de revisión",
+    )
+
+    respuesta = cliente_indice.post(
+        "/expedientes/1/indice-documental/1/verificar",
+        follow_redirects=True,
+    )
+    texto = respuesta.get_data(as_text=True)
+
+    assert respuesta.status_code == 200
+    assert "Documento verificado: Solicitud de informe." in texto
+
+    with app_indice_folios.app_context():
+        documento = db.session.get(DocumentoExpediente, 1)
+        assert documento.estado_revision == "Verificado"
+
+        evento = Bitacora.query.filter_by(
+            accion="VERIFICAR_DOCUMENTO_INDICE",
+            expediente_id=1,
+        ).one()
+        assert evento.entidad == "DocumentoExpediente"
+        assert evento.datos_anteriores["estado_revision"] == "Pendiente de revisión"
+        assert evento.datos_posteriores["estado_revision"] == "Verificado"
+
+
+def test_verificar_todos_solo_confirma_pendientes_y_respeta_incidencias(app_indice_folios, cliente_indice):
+    _registrar(
+        cliente_indice,
+        "Documento pendiente",
+        "Documento",
+        1,
+        2,
+        estado_revision="Pendiente de revisión",
+    )
+    _registrar(
+        cliente_indice,
+        "Documento con observaciones",
+        "Oficio",
+        3,
+        4,
+        estado_revision="Con observaciones",
+    )
+    _registrar(
+        cliente_indice,
+        "Anexo pendiente de revisión",
+        "Anexo",
+        1,
+        2,
+        estado_revision="Pendiente de revisión",
+    )
+
+    respuesta = cliente_indice.post(
+        "/expedientes/1/indice-documental/verificar-todos",
+        follow_redirects=True,
+    )
+    texto = respuesta.get_data(as_text=True)
+
+    assert respuesta.status_code == 200
+    assert "Se verificaron 2 documentos pendientes" in texto
+    assert "observaciones o incidencias no fueron modificados" in texto
+
+    with app_indice_folios.app_context():
+        documentos = {
+            documento.nombre_documento: documento.estado_revision
+            for documento in DocumentoExpediente.query.order_by(DocumentoExpediente.id.asc()).all()
+        }
+        assert documentos["Documento pendiente"] == "Verificado"
+        assert documentos["Documento con observaciones"] == "Con observaciones"
+        assert documentos["Anexo pendiente de revisión"] == "Verificado"
+
+        evento = Bitacora.query.filter_by(
+            accion="VERIFICAR_TODOS_DOCUMENTOS_INDICE",
+            expediente_id=1,
+        ).one()
+        assert evento.datos_posteriores["cantidad"] == 2
+
+
+def test_panel_muestra_verificacion_masiva_e_individual(app_indice_folios, cliente_indice):
+    _registrar(
+        cliente_indice,
+        "Documento pendiente UI",
+        "Documento",
+        1,
+        1,
+        estado_revision="Pendiente de revisión",
+    )
+
+    respuesta = cliente_indice.get("/expedientes/1/indice-documental")
+    texto = respuesta.get_data(as_text=True)
+
+    assert respuesta.status_code == 200
+    assert "Verificar todos" in texto
+    assert "/expedientes/1/indice-documental/verificar-todos" in texto
+    assert "/expedientes/1/indice-documental/1/verificar" in texto
 
 
 def test_sugerencia_de_folios_interpreta_total_y_rango():
