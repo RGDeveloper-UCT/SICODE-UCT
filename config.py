@@ -46,7 +46,9 @@ class Config:
 
     DOCUMENT_ANALYSIS_AI_ENABLED = os.getenv("DOCUMENT_ANALYSIS_AI_ENABLED", "true").lower() in {"1", "true", "yes", "si"}
     DOCUMENT_ANALYSIS_AI_MODEL = os.getenv("DOCUMENT_ANALYSIS_AI_MODEL", OLLAMA_MODEL)
-    DOCUMENT_ANALYSIS_AI_TIMEOUT = float(os.getenv("DOCUMENT_ANALYSIS_AI_TIMEOUT", "180"))
+    # El llamado puntual a IA debe tener un límite conservador. El worker RQ
+    # conserva su timeout largo e independiente para OCR/procesamiento integral.
+    DOCUMENT_ANALYSIS_AI_TIMEOUT = float(os.getenv("DOCUMENT_ANALYSIS_AI_TIMEOUT", "75"))
     DOCUMENT_ANALYSIS_AI_MAX_CHARS = int(os.getenv("DOCUMENT_ANALYSIS_AI_MAX_CHARS", "12000"))
 
     UO_ONLINE_TTL_SECONDS = int(os.getenv("UO_ONLINE_TTL_SECONDS", "75"))
