@@ -154,6 +154,4 @@ def test_health_no_expone_detalles(client):
     respuesta = client.get("/health")
     assert respuesta.status_code == 200
     cuerpo = respuesta.get_json()
-    assert cuerpo["status"] == "ok"
-    assert "version" in cuerpo
-    assert set(cuerpo) == {"status", "version"}
+    assert cuerpo == {"status": "ok"}
