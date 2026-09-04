@@ -89,7 +89,7 @@ def test_marcar_sin_expediente_conserva_anexos_y_bloquea_prestamo(
         assert expediente.rectificado_en is None
         assert expediente.rectificado_por_id is None
         assert expediente.rectificacion_completa is False
-        assert expediente.estado_fisico_documental == "Pendiente de verificación"
+        assert expediente.estado_fisico_documental == "Sin expediente físico"
         assert AnexoRectificado.query.filter_by(expediente_id=1, activo=True).count() == 1
 
     prestamo = cliente_sin_expediente.get(
