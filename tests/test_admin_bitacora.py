@@ -1,4 +1,8 @@
+from datetime import datetime
+from io import BytesIO
+
 import pytest
+from openpyxl import load_workbook
 from werkzeug.security import generate_password_hash
 
 from app import create_app, db
@@ -60,6 +64,24 @@ def test_no_se_puede_degradar_al_ultimo_administrador(app_admin, cliente_admin):
         assert db.session.get(Usuario, 1).rol == "administrador"
 
 
+def test_bitacora_convierte_utc_a_hora_guatemala(app_admin, cliente_admin):
+    with app_admin.app_context():
+        db.session.add(Bitacora(
+            usuario_id=1,
+            accion="PRUEBA_HORA",
+            modulo="QA",
+            descripcion="Conversión UTC a Guatemala",
+            creado_en=datetime(2026, 9, 8, 16, 29, 43),
+        ))
+        db.session.commit()
+
+    respuesta = cliente_admin.get("/bitacora")
+    assert respuesta.status_code == 200
+    contenido = respuesta.get_data(as_text=True)
+    assert "08/09/2026 10:29:43" in contenido
+    assert "08/09/2026 16:29:43" not in contenido
+
+
 def test_exportacion_bitacora_no_falla_y_se_audita(app_admin, cliente_admin):
     with app_admin.app_context():
         db.session.add(Bitacora(
@@ -67,6 +89,7 @@ def test_exportacion_bitacora_no_falla_y_se_audita(app_admin, cliente_admin):
             accion="PRUEBA",
             modulo="QA",
             descripcion="Evento de prueba",
+            creado_en=datetime(2026, 9, 8, 16, 29, 43),
         ))
         db.session.commit()
 
@@ -74,6 +97,11 @@ def test_exportacion_bitacora_no_falla_y_se_audita(app_admin, cliente_admin):
     assert respuesta.status_code == 200
     assert respuesta.mimetype == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     assert len(respuesta.data) > 100
+
+    libro = load_workbook(BytesIO(respuesta.data), read_only=True)
+    hoja = libro["Bitacora"]
+    fechas = [fila[1] for fila in hoja.iter_rows(min_row=2, values_only=True) if fila[1]]
+    assert "08/09/2026 10:29:43" in fechas
 
     with app_admin.app_context():
         assert Bitacora.query.filter_by(accion="EXPORTAR_BITACORA_EXCEL").count() == 1
