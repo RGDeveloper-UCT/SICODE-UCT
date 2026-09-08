@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Centro de reportes — SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+    <div class="encabezado-modulo">
+        <div>
+            <h1>Centro de reportes</h1>
+            <p>Consulta y exportación de metadatos administrativos con filtros, columnas configurables y permisos por rol.</p>
+        </div>
+        <div class="acciones-detalle">
+            <a class="boton-cancelar" href="{{ url_for('dashboard.inicio') }}">Dashboard</a>
+        </div>
+    </div>
+
+    <form method="GET" action="{{ url_for('dashboard.reportes_centro') }}">
+        <div class="filtros-expedientes">
+            <div class="campo-filtro campo-filtro-grande">
+                <label>Reporte</label>
+                <select name="dataset">
+                    {% for clave, nombre in datasets.items() %}
+                        {% if clave != 'consolidado' or es_admin %}
+                            <option value="{{ clave }}" {% if dataset == clave %}selected{% endif %}>{{ nombre }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="campo-filtro campo-filtro-grande">
+                <label>Buscar</label>
+                <input type="text" name="q" value="{{ request.args.get('q', '') }}" placeholder="SP, control, título, acción o referencia">
+            </div>
+            <div class="campo-filtro">
+                <label>Estado / módulo</label>
+                <input type="text" name="estado" value="{{ request.args.get('estado', '') }}" placeholder="Opcional">
+            </div>
+            <div class="campo-filtro">
+                <label>Desde</label>
+                <input type="date" name="desde" value="{{ request.args.get('desde', '') }}">
+            </div>
+            <div class="campo-filtro">
+                <label>Hasta</label>
+                <input type="date" name="hasta" value="{{ request.args.get('hasta', '') }}">
+            </div>
+        </div>
+
+        <div class="panel-secundario" style="margin-top: 1rem;">
+            <h2>Columnas</h2>
+            <p class="texto-ayuda">Seleccione únicamente los campos necesarios. Para PDF se permiten hasta 10 columnas.</p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:.55rem 1rem;">
+                {% for clave, etiqueta in columnas_disponibles %}
+                    <label style="display:flex;align-items:center;gap:.5rem;">
+                        <input type="checkbox" name="columnas" value="{{ clave }}" {% if clave in columnas %}checked{% endif %}>
+                        <span>{{ etiqueta }}</span>
+                    </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="acciones-filtro" style="margin-top:1rem;">
+            <button type="submit">Actualizar vista previa</button>
+            <a href="{{ url_for('dashboard.reportes_centro', dataset=dataset) }}">Limpiar filtros</a>
+            {% if puede_exportar %}
+                <button class="boton-exito" type="submit" formaction="{{ url_for('dashboard.reportes_exportar') }}" name="formato" value="xlsx">Excel</button>
+                <button class="boton-secundario" type="submit" formaction="{{ url_for('dashboard.reportes_exportar') }}" name="formato" value="csv">CSV</button>
+                <button class="boton-secundario" type="submit" formaction="{{ url_for('dashboard.reportes_exportar') }}" name="formato" value="pdf">PDF</button>
+            {% else %}
+                <span class="texto-ayuda">El rol Visor puede consultar, pero no descargar reportes.</span>
+            {% endif %}
+        </div>
+    </form>
+
+    <p class="contador-resultados" style="margin-top:1.25rem;">
+        <strong>{{ total }}</strong> registro(s) con los filtros actuales.
+        {% if total > limite_vista %} La vista previa muestra los primeros {{ limite_vista }}.{% endif %}
+    </p>
+
+    <div class="tabla-contenedor">
+        <table>
+            <thead>
+                <tr>{% for clave in columnas %}<th>{{ etiquetas[clave] }}</th>{% endfor %}</tr>
+            </thead>
+            <tbody>
+                {% for fila in filas %}
+                    <tr>{% for clave in columnas %}<td>{{ fila.get(clave, '') }}</td>{% endfor %}</tr>
+                {% else %}
+                    <tr><td colspan="{{ columnas|length or 1 }}">No hay registros con los filtros seleccionados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
