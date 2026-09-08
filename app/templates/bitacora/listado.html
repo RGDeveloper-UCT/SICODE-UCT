@@ -21,7 +21,7 @@
         <tbody>
         {% for evento in eventos %}
             <tr>
-                <td>{{ evento.creado_en.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+                <td>{{ evento.creado_en_guatemala.strftime('%d/%m/%Y %H:%M:%S') if evento.creado_en_guatemala else '' }}</td>
                 <td>{% if evento.usuario %}{{ evento.usuario.nombre }}<br><small>{{ evento.usuario.usuario }}</small>{% else %}Sistema / sin usuario{% endif %}</td>
                 <td><span class="badge badge-neutral">{{ evento.accion }}</span></td>
                 <td>{{ evento.modulo }}{% if evento.entidad %}<br><small>{{ evento.entidad }}{% if evento.entidad_id %} #{{ evento.entidad_id }}{% endif %}</small>{% endif %}</td>
