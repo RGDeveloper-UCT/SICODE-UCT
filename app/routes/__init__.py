@@ -41,3 +41,11 @@ from app.routes.anexos_inteligentes import anexos_inteligentes_bp
 from app.routes import coordinacion_monitoreo_masivo as _coordinacion_monitoreo_masivo
 from app.routes import coordinacion_monitoreo_masivo_fisico as _coordinacion_monitoreo_masivo_fisico
 from app.routes import aprendizaje_documental as _aprendizaje_documental
+from app.routes import reportes as _reportes
+
+# Regla única para foliación asistida y compatibilidad de archivos temporales.
+# Se instala después de cargar los módulos históricos para que todos compartan
+# la misma definición sin duplicar lógica entre análisis individual, lotes e IA.
+from app.services.integridad_transversal_service import instalar_integridad_transversal
+
+instalar_integridad_transversal()
