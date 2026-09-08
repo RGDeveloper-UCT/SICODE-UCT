@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}GEMINIASSIST — SICODE-UCT{% endblock %}
+
+{% block content %}
+<section class="panel panel-ancho geminiassist">
+    <div class="encabezado-modulo">
+        <div>
+            <p class="eyebrow">SICODE-UCT · ADMINISTRACIÓN · INGRESO ASISTIDO</p>
+            <h1>GEMINIASSIST</h1>
+            <p>Pegue la respuesta estructurada de Gemini. SICODE separará cada expediente, identificará su clase, validará los datos y solo guardará los registros que usted confirme.</p>
+        </div>
+        <span class="badge badge-neutral">Solo administradores</span>
+    </div>
+
+    <div class="ga-principios">
+        <div><strong>Gemini lee.</strong><span>Drive y los documentos fuente permanecen fuera de SICODE.</span></div>
+        <div><strong>SICODE valida.</strong><span>SP, catálogo, duplicados, campos y secuencia se revisan antes de guardar.</span></div>
+        <div><strong>Usted confirma.</strong><span>Los números de anexo continúan verificándose contra File Server.</span></div>
+    </div>
+
+    <div class="ga-aviso">
+        <strong>GEMINIASSIST recibe metadatos, no documentos.</strong>
+        <p>Puede mezclar en un mismo lote anexos, pagos, reportes de monitoreo, análisis de riesgo, instalaciones y desinstalaciones. Una clase desconocida se bloqueará en lugar de guardarse en una tabla incorrecta.</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('admin.validar_geminiassist') }}" class="ga-importador">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="ga-campo-titulo">
+            <label for="payload_json"><strong>Respuesta de Gemini</strong></label>
+            <span>Contrato esperado: <code>sicode.geminiassist.v1</code></span>
+        </div>
+        <textarea id="payload_json" name="payload_json" rows="18" spellcheck="false" placeholder='{"schema":"sicode.geminiassist.v1","lote":"07092026","registros":[...]}' required>{{ payload_texto }}</textarea>
+        <div class="ga-acciones">
+            <button type="submit">Analizar y validar</button>
+            {% if filas %}<a class="boton-secundario" href="{{ url_for('admin.geminiassist') }}">Limpiar</a>{% endif %}
+        </div>
+    </form>
+
+    {% if filas %}
+    <div class="ga-resumen">
+        <div><span>Lote</span><strong>{{ lote }}</strong></div>
+        <div><span>Registros</span><strong>{{ filas|length }}</strong></div>
+        <div><span>Listos</span><strong>{{ filas|selectattr('estado', 'equalto', 'LISTO')|list|length }}</strong></div>
+        <div><span>Revisar</span><strong>{{ filas|selectattr('estado', 'equalto', 'REVISAR')|list|length }}</strong></div>
+        <div><span>Bloqueados</span><strong>{{ filas|selectattr('estado', 'equalto', 'BLOQUEADO')|list|length }}</strong></div>
+    </div>
+
+    <form method="POST" action="{{ url_for('admin.registrar_geminiassist') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <textarea name="payload_json" hidden>{{ payload_texto }}</textarea>
+
+        <div class="ga-toolbar">
+            <div>
+                <strong>Revisión individual</strong>
+                <span>Desmarque cualquier fila que no quiera registrar en este intento.</span>
+            </div>
+            <span class="ga-leyenda"><i class="ga-dot ga-dot-ok"></i> Listo <i class="ga-dot ga-dot-review"></i> Revisar <i class="ga-dot ga-dot-block"></i> Bloqueado</span>
+        </div>
+
+        <div class="tabla-contenedor ga-tabla-wrap">
+            <table class="ga-tabla">
+                <thead>
+                    <tr>
+                        <th>Importar</th>
+                        <th>Estado</th>
+                        <th>Clase</th>
+                        <th>SP</th>
+                        <th>Detalle</th>
+                        <th>Anexo No.</th>
+                        <th>RC / RE</th>
+                        <th>Providencia</th>
+                        <th>Fecha</th>
+                        <th>Entrega / remite</th>
+                        <th>Folios</th>
+                        <th>Fuente</th>
+                        <th>Validación SICODE</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fila in filas %}
+                    {% set indice = loop.index0 %}
+                    <tr class="fila-{{ fila.estado|lower }}">
+                        <td>
+                            <input type="checkbox" name="seleccionados" value="{{ indice }}"
+                                {% if fila.estado != 'BLOQUEADO' and (seleccionados_previos is not defined or indice in seleccionados_previos) %}checked{% endif %}
+                                {% if fila.estado == 'BLOQUEADO' %}disabled{% endif %}>
+                        </td>
+                        <td><span class="ga-estado ga-estado-{{ fila.estado|lower }}">{{ fila.estado }}</span></td>
+                        <td><span class="ga-clase ga-clase-{{ fila.clase|lower }}">{{ fila.clase_etiqueta }}</span></td>
+                        <td><strong>{{ fila.no_sp or '—' }}</strong></td>
+                        <td class="ga-detalle"><strong>{{ fila.resumen_detalle or fila.titulo or '—' }}</strong>{% if fila.es_vencido %}<small>Histórico / vencido</small>{% endif %}</td>
+                        <td>
+                            {% if fila.clase in ['ANEXO', 'MONITOREO', 'ANALISIS_RIESGO'] %}
+                            <input class="ga-numero" type="number" min="1" max="200" name="numero_anexo_{{ indice }}" value="{{ fila.numero_anexo or '' }}" placeholder="File Server">
+                            {% else %}<span class="ga-no-aplica">No aplica</span>{% endif %}
+                        </td>
+                        <td>{{ fila.rc or '—' }}</td>
+                        <td>{{ fila.providencia or '—' }}</td>
+                        <td>{{ fila.fecha_recepcion.strftime('%d/%m/%Y') if fila.fecha_recepcion else '—' }}</td>
+                        <td>{{ fila.persona_entrega or '—' }}</td>
+                        <td>{{ fila.folios or '—' }}</td>
+                        <td class="ga-fuente"><strong>{{ fila.carpeta_fuente or 'Gemini / Drive' }}</strong><small>Fila {{ fila.fila }}</small></td>
+                        <td class="ga-validacion">
+                            {% for error in fila.errores %}<div class="ga-msg ga-msg-error">{{ error }}</div>{% endfor %}
+                            {% for aviso in fila.advertencias %}<div class="ga-msg ga-msg-aviso">{{ aviso }}</div>{% endfor %}
+                            {% if not fila.errores and not fila.advertencias %}<div class="ga-msg ga-msg-ok">Validación correcta.</div>{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="ga-confirmacion">
+            <label>
+                <input type="checkbox" name="confirmacion_file_server" value="1">
+                <span><strong>Confirmo que verifiqué en File Server los números de los anexos seleccionados.</strong><br>Solo es obligatorio cuando la selección contiene ANEXO, MONITOREO o ANALISIS_RIESGO. La confirmación queda en bitácora.</span>
+            </label>
+        </div>
+
+        <div class="ga-final">
+            <button type="submit" onclick="return confirm('¿Registrar los elementos seleccionados? SICODE volverá a validar duplicados y secuencias dentro de la transacción.');">Registrar seleccionados</button>
+            <p>El lote es transaccional: si un registro seleccionado falla durante la validación final, SICODE cancela todo el grupo para evitar datos parciales o secuencias inconsistentes.</p>
+        </div>
+    </form>
+    {% endif %}
+</section>
+
+<style>
+.geminiassist .eyebrow{font-size:.72rem;font-weight:850;letter-spacing:.14em;color:#24467d;margin:0 0 .35rem}
+.ga-principios{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin:1rem 0}.ga-principios>div{padding:.9rem 1rem;border:1px solid #d9e3f1;border-radius:12px;background:#fbfdff}.ga-principios strong{display:block;color:#1e3f73}.ga-principios span{display:block;margin-top:.25rem;color:#62718a;font-size:.82rem;line-height:1.35}
+.ga-aviso{padding:1rem 1.1rem;border:1px solid #b8cae5;border-radius:12px;background:#f3f7fc}.ga-aviso p{margin:.3rem 0 0;color:#53647d;line-height:1.45}
+.ga-importador{display:grid;gap:.65rem;margin:1.15rem 0 1.3rem}.ga-campo-titulo{display:flex;justify-content:space-between;align-items:end;gap:1rem}.ga-campo-titulo span{font-size:.78rem;color:#68778d}.ga-campo-titulo code{font-size:.76rem}.ga-importador textarea{width:100%;min-height:300px;box-sizing:border-box;padding:1rem;border:1px solid #afbed2;border-radius:12px;background:#fbfcfe;font:13px/1.48 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;resize:vertical}.ga-importador textarea:focus{outline:2px solid rgba(36,70,125,.18);border-color:#24467d}.ga-acciones{display:flex;gap:.75rem;align-items:center;flex-wrap:wrap}
+.ga-resumen{display:grid;grid-template-columns:1.3fr repeat(4,1fr);gap:.7rem;margin:1rem 0}.ga-resumen>div{padding:.8rem .95rem;border:1px solid #d7e0ed;border-radius:11px;background:#fff}.ga-resumen span{display:block;font-size:.69rem;text-transform:uppercase;letter-spacing:.08em;color:#64748b}.ga-resumen strong{display:block;margin-top:.18rem;font-size:1.06rem;overflow-wrap:anywhere}
+.ga-toolbar{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:.85rem 0 .55rem}.ga-toolbar>div span{display:block;color:#6b778b;font-size:.8rem}.ga-leyenda{font-size:.76rem;color:#5f6d80;white-space:nowrap}.ga-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin:0 .2rem 0 .6rem}.ga-dot-ok{background:#24905a}.ga-dot-review{background:#c58a08}.ga-dot-block{background:#c53a3a}
+.ga-tabla-wrap{overflow:auto;max-height:61vh;border:1px solid #d8e1ed;border-radius:12px}.ga-tabla{min-width:1950px;margin:0}.ga-tabla th{position:sticky;top:0;z-index:3;background:#f1f5fa;white-space:nowrap}.ga-tabla td{vertical-align:top;max-width:290px}.ga-tabla td small{display:block;color:#748196;margin-top:.25rem}.ga-numero{width:105px;padding:.45rem .5rem;border:1px solid #aebdd0;border-radius:7px}.ga-no-aplica{font-size:.76rem;color:#8591a2}.ga-fuente{max-width:190px}.ga-detalle{min-width:220px}
+.ga-estado,.ga-clase{display:inline-block;padding:.26rem .5rem;border-radius:999px;font-size:.68rem;font-weight:850;letter-spacing:.04em;white-space:nowrap}.ga-estado-listo{background:#e7f7ee;color:#17643a}.ga-estado-revisar{background:#fff4d6;color:#7a5700}.ga-estado-bloqueado{background:#fde8e8;color:#9b1c1c}.ga-clase{background:#edf3fb;color:#2c4e7f}.ga-clase-pago{background:#eef8f0;color:#28603b}.ga-clase-monitoreo,.ga-clase-analisis_riesgo{background:#f1edfb;color:#5b438b}.fila-bloqueado{background:#fffafa}.fila-revisar{background:#fffdf7}
+.ga-validacion{font-size:.76rem;line-height:1.35;min-width:280px}.ga-msg{margin-bottom:.3rem}.ga-msg-error{color:#a11b1b}.ga-msg-aviso{color:#7a5700}.ga-msg-ok{color:#17643a;font-weight:750}
+.ga-confirmacion{margin:1rem 0;padding:1rem;border:1px solid #c7d4e6;border-radius:11px;background:#f8fafc}.ga-confirmacion label{display:flex;gap:.7rem;align-items:flex-start;cursor:pointer}.ga-confirmacion input{margin-top:.2rem;transform:scale(1.15)}.ga-confirmacion span{line-height:1.4;color:#536174}
+.ga-final{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding-bottom:.5rem}.ga-final p{margin:0;max-width:760px;font-size:.8rem;color:#637083;line-height:1.4}
+@media(max-width:1000px){.ga-principios{grid-template-columns:1fr}.ga-resumen{grid-template-columns:repeat(2,1fr)}.ga-toolbar{align-items:flex-start;flex-direction:column}.ga-leyenda{white-space:normal}}
+</style>
+{% endblock %}
