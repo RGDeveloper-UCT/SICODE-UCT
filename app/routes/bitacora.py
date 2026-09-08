@@ -113,7 +113,7 @@ def exportar_excel():
         expediente_evento = evento.expediente
         ws.append([
             evento.id,
-            evento.creado_en.strftime("%d/%m/%Y %H:%M:%S") if evento.creado_en else "",
+            evento.creado_en_guatemala.strftime("%d/%m/%Y %H:%M:%S") if evento.creado_en_guatemala else "",
             usuario_evento.usuario if usuario_evento else "Sistema / Sin usuario",
             usuario_evento.nombre if usuario_evento else "",
             evento.accion,
