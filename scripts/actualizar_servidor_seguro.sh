@@ -54,7 +54,10 @@ if [[ "$RUN_TESTS" == "1" ]]; then
   pytest -q \
     tests/test_auditoria_hardening.py \
     tests/test_indice_documental_foliacion_anexos.py \
+    tests/test_integridad_transversal_auditoria.py \
     tests/test_estado_documental.py \
+    tests/test_centro_reportes.py \
+    tests/test_sicode_ia_jobs_seguridad.py \
     tests/test_security.py \
     tests/test_monitoreo_anexos.py \
     tests/test_control_integridad.py \
