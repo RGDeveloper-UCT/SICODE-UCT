@@ -57,6 +57,8 @@ if [[ "$RUN_TESTS" == "1" ]]; then
     tests/test_estado_documental.py \
     tests/test_security.py \
     tests/test_monitoreo_anexos.py \
+    tests/test_anexos_inteligentes.py \
+    tests/test_admin_anexos_asistidos.py \
     tests/test_control_integridad.py \
     tests/test_backup.py
 else
