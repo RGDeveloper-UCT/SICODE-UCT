@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}SICODEIAV3 — SICODE-UCT{% endblock %}
+
+{% block content %}
+<section class="panel panel-ancho siv3">
+    <div class="encabezado-modulo">
+        <div>
+            <p class="eyebrow">SICODE-UCT · ADMINISTRACIÓN · IMPORTACIÓN CONTROLADA</p>
+            <h1>SICODEIAV3</h1>
+            <p>Importe el archivo JSON que ChatGPT/SICODEIAV3 fabrica a partir de la lectura documental entregada por Gemini. SICODE no interpreta directamente la respuesta de Gemini.</p>
+        </div>
+        <span class="badge badge-neutral">Solo administradores</span>
+    </div>
+
+    <div class="siv3-flujo">
+        <div><strong>1 · Gemini lee</strong><span>Revisa los escaneos en Google Drive y entrega los datos observados.</span></div>
+        <div><strong>2 · SICODEIAV3 traduce</strong><span>ChatGPT normaliza, clasifica y fabrica el archivo <code>.json</code> final.</span></div>
+        <div><strong>3 · SICODE valida</strong><span>Comprueba SP, catálogos, duplicados, secuencias y estructura antes de guardar.</span></div>
+        <div><strong>4 · Usted confirma</strong><span>Revisa cada fila y confirma File Server cuando corresponde.</span></div>
+    </div>
+
+    <div class="siv3-aviso">
+        <strong>No suba PDFs ni pegue directamente la respuesta de Gemini.</strong>
+        <p>Este módulo acepta únicamente archivos con el contrato <code>{{ schema_sicodeiav3 }}</code> y <code>generado_por: SICODEIAV3</code>. El archivo se lee en memoria y no se conserva en el servidor.</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('admin.validar_sicodeiav3') }}" enctype="multipart/form-data" class="siv3-importador">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="siv3-upload">
+            <label for="archivo_json"><strong>Archivo fabricado por SICODEIAV3</strong><span>Ejemplo: <code>07092026_anexos_sicodeiav3.json</code> · máximo 4 MB</span></label>
+            <input id="archivo_json" name="archivo_json" type="file" accept="application/json,.json">
+        </div>
+        <details class="siv3-avanzado" {% if payload_texto and not filas %}open{% endif %}>
+            <summary>O pegar el JSON manualmente</summary>
+            <textarea id="payload_json" name="payload_json" rows="12" spellcheck="false" placeholder='{"schema":"sicode.iav3.import.v1","generado_por":"SICODEIAV3","lote":"07092026-ANEXOS-v1","control":{"total_registros":63},"registros":[...]}'>{% if not filas %}{{ payload_texto }}{% endif %}</textarea>
+        </details>
+        <div class="siv3-acciones">
+            <button type="submit">Abrir archivo y validar</button>
+            {% if filas %}<a class="boton-secundario" href="{{ url_for('admin.sicodeiav3') }}">Nuevo archivo</a>{% endif %}
+        </div>
+    </form>
+
+    {% if filas %}
+    <div class="siv3-identidad">
+        <div><span>Archivo</span><strong>{{ archivo_nombre or 'JSON validado' }}</strong></div>
+        <div><span>Lote</span><strong>{{ lote }}</strong></div>
+        <div><span>Huella</span><strong>{{ huella }}</strong></div>
+    </div>
+
+    <div class="siv3-resumen">
+        <div><span>Total</span><strong>{{ filas|length }}</strong></div>
+        <div><span>Listos</span><strong>{{ filas|selectattr('estado', 'equalto', 'LISTO')|list|length }}</strong></div>
+        <div><span>Revisar</span><strong>{{ filas|selectattr('estado', 'equalto', 'REVISAR')|list|length }}</strong></div>
+        <div><span>Bloqueados</span><strong>{{ filas|selectattr('estado', 'equalto', 'BLOQUEADO')|list|length }}</strong></div>
+    </div>
+
+    <form method="POST" action="{{ url_for('admin.registrar_sicodeiav3') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <textarea name="payload_json" hidden>{{ payload_texto }}</textarea>
+
+        <div class="siv3-toolbar">
+            <div>
+                <strong>Revisión individual</strong>
+                <span>Puede desmarcar filas. Las bloqueadas nunca pueden registrarse.</span>
+            </div>
+            <span class="siv3-leyenda"><i class="dot ok"></i> Listo <i class="dot review"></i> Revisar <i class="dot block"></i> Bloqueado</span>
+        </div>
+
+        <div class="tabla-contenedor siv3-tabla-wrap">
+            <table class="siv3-tabla">
+                <thead>
+                    <tr>
+                        <th>Importar</th>
+                        <th>Estado</th>
+                        <th>Clase</th>
+                        <th>SP</th>
+                        <th>Detalle</th>
+                        <th>Anexo No.</th>
+                        <th>RC / RE</th>
+                        <th>Providencia</th>
+                        <th>Fecha recibido</th>
+                        <th>Entrega / remite</th>
+                        <th>Folios</th>
+                        <th>Fuente</th>
+                        <th>Control SICODE</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fila in filas %}
+                    {% set indice = loop.index0 %}
+                    <tr class="fila-{{ fila.estado|lower }}">
+                        <td><input type="checkbox" name="seleccionados" value="{{ indice }}"
+                            {% if fila.estado != 'BLOQUEADO' and (seleccionados_previos is not defined or seleccionados_previos is none or indice in seleccionados_previos) %}checked{% endif %}
+                            {% if fila.estado == 'BLOQUEADO' %}disabled{% endif %}></td>
+                        <td><span class="estado estado-{{ fila.estado|lower }}">{{ fila.estado }}</span></td>
+                        <td><span class="clase">{{ fila.clase_etiqueta }}</span></td>
+                        <td><strong>{{ fila.no_sp or '—' }}</strong></td>
+                        <td class="detalle"><strong>{{ fila.resumen_detalle or fila.titulo or '—' }}</strong>{% if fila.es_vencido %}<small>Histórico / vencido</small>{% endif %}</td>
+                        <td>
+                            {% if fila.clase in ['ANEXO', 'MONITOREO', 'ANALISIS_RIESGO'] %}
+                            <input class="numero" type="number" min="1" max="200" name="numero_anexo_{{ indice }}" value="{{ fila.numero_anexo or '' }}" placeholder="File Server">
+                            {% else %}<span class="no-aplica">No aplica</span>{% endif %}
+                        </td>
+                        <td>{{ fila.rc or '—' }}</td>
+                        <td>{{ fila.providencia or '—' }}</td>
+                        <td>{{ fila.fecha_recepcion.strftime('%d/%m/%Y') if fila.fecha_recepcion else '—' }}</td>
+                        <td>{{ fila.persona_entrega or '—' }}</td>
+                        <td>{{ fila.folios or '—' }}</td>
+                        <td class="fuente"><strong>{{ fila.carpeta_fuente or 'Lectura Gemini' }}</strong><small>Fila {{ fila.fila }}</small></td>
+                        <td class="validacion">
+                            {% for error in fila.errores %}<div class="msg error">{{ error }}</div>{% endfor %}
+                            {% for aviso in fila.advertencias %}<div class="msg aviso">{{ aviso }}</div>{% endfor %}
+                            {% if not fila.errores and not fila.advertencias %}<div class="msg correcto">Validación correcta.</div>{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="siv3-confirmacion">
+            <label>
+                <input type="checkbox" name="confirmacion_file_server" value="1">
+                <span><strong>Confirmo que verifiqué en File Server los números de los anexos seleccionados.</strong><br>La confirmación se exige únicamente para registros que forman parte de la secuencia de anexos y queda asentada en bitácora.</span>
+            </label>
+        </div>
+
+        <div class="siv3-final">
+            <button type="submit" onclick="return confirm('¿Registrar los elementos seleccionados? SICODE volverá a validar todo dentro de la transacción.');">Registrar seleccionados</button>
+            <p>La operación es transaccional: si una fila seleccionada falla en el último control, no se guarda ninguna del grupo.</p>
+        </div>
+    </form>
+    {% endif %}
+</section>
+
+<script>
+document.querySelectorAll('a[href*="/admin/geminiassist"]').forEach(function(a){
+    var strong=a.querySelector('strong'); var small=a.querySelector('small');
+    if(strong){strong.textContent='SICODEIAV3';}
+    if(small){small.textContent='Importación asistida por IA';}
+});
+</script>
+
+<style>
+.siv3 .eyebrow{font-size:.72rem;font-weight:850;letter-spacing:.14em;color:#24467d;margin:0 0 .35rem}
+.siv3-flujo{display:grid;grid-template-columns:repeat(4,1fr);gap:.7rem;margin:1rem 0}.siv3-flujo>div{padding:.9rem 1rem;border:1px solid #d9e3f1;border-radius:12px;background:#fbfdff}.siv3-flujo strong{display:block;color:#1e3f73}.siv3-flujo span{display:block;margin-top:.25rem;color:#62718a;font-size:.8rem;line-height:1.35}
+.siv3-aviso{padding:1rem 1.1rem;border:1px solid #b8cae5;border-radius:12px;background:#f3f7fc}.siv3-aviso p{margin:.3rem 0 0;color:#53647d;line-height:1.45}
+.siv3-importador{display:grid;gap:.8rem;margin:1.15rem 0}.siv3-upload{display:grid;gap:.45rem}.siv3-upload label{display:flex;justify-content:space-between;gap:1rem;align-items:end}.siv3-upload label span{font-size:.78rem;color:#68778d}.siv3-upload input[type=file]{padding:.9rem;border:1px dashed #9fb1c9;border-radius:11px;background:#fbfcfe}.siv3-avanzado summary{cursor:pointer;font-weight:750;color:#52627a}.siv3-avanzado textarea{width:100%;min-height:190px;box-sizing:border-box;margin-top:.6rem;padding:1rem;border:1px solid #afbed2;border-radius:12px;background:#fbfcfe;font:13px/1.48 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;resize:vertical}.siv3-acciones{display:flex;gap:.75rem;align-items:center;flex-wrap:wrap}
+.siv3-identidad{display:grid;grid-template-columns:2fr 1fr 1fr;gap:.7rem;margin:1rem 0}.siv3-identidad>div,.siv3-resumen>div{padding:.8rem .95rem;border:1px solid #d7e0ed;border-radius:11px;background:#fff}.siv3-identidad span,.siv3-resumen span{display:block;font-size:.69rem;text-transform:uppercase;letter-spacing:.08em;color:#64748b}.siv3-identidad strong,.siv3-resumen strong{display:block;margin-top:.18rem;overflow-wrap:anywhere}.siv3-resumen{display:grid;grid-template-columns:repeat(4,1fr);gap:.7rem;margin:0 0 1rem}.siv3-resumen strong{font-size:1.08rem}
+.siv3-toolbar{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:.85rem 0 .55rem}.siv3-toolbar>div span{display:block;color:#6b778b;font-size:.8rem}.siv3-leyenda{font-size:.76rem;color:#5f6d80;white-space:nowrap}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin:0 .2rem 0 .6rem}.dot.ok{background:#24905a}.dot.review{background:#c58a08}.dot.block{background:#c53a3a}
+.siv3-tabla-wrap{overflow:auto;max-height:61vh;border:1px solid #d8e1ed;border-radius:12px}.siv3-tabla{min-width:1950px;margin:0}.siv3-tabla th{position:sticky;top:0;z-index:3;background:#f1f5fa;white-space:nowrap}.siv3-tabla td{vertical-align:top;max-width:290px}.siv3-tabla td small{display:block;color:#748196;margin-top:.25rem}.numero{width:105px;padding:.45rem .5rem;border:1px solid #aebdd0;border-radius:7px}.no-aplica{font-size:.76rem;color:#8591a2}.fuente{max-width:190px}.detalle{min-width:220px}
+.estado,.clase{display:inline-block;padding:.26rem .5rem;border-radius:999px;font-size:.68rem;font-weight:850;letter-spacing:.04em;white-space:nowrap}.estado-listo{background:#e7f7ee;color:#17643a}.estado-revisar{background:#fff4d6;color:#7a5700}.estado-bloqueado{background:#fde8e8;color:#9b1c1c}.clase{background:#edf3fb;color:#2c4e7f}.fila-bloqueado{background:#fffafa}.fila-revisar{background:#fffdf7}.validacion{font-size:.76rem;line-height:1.35;min-width:280px}.msg{margin-bottom:.3rem}.msg.error{color:#a11b1b}.msg.aviso{color:#7a5700}.msg.correcto{color:#17643a;font-weight:750}
+.siv3-confirmacion{margin:1rem 0;padding:1rem;border:1px solid #c7d4e6;border-radius:11px;background:#f8fafc}.siv3-confirmacion label{display:flex;gap:.7rem;align-items:flex-start;cursor:pointer}.siv3-confirmacion input{margin-top:.2rem;transform:scale(1.15)}.siv3-confirmacion span{line-height:1.4;color:#536174}.siv3-final{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding-bottom:.5rem}.siv3-final p{margin:0;max-width:760px;font-size:.8rem;color:#637083;line-height:1.4}
+@media(max-width:1100px){.siv3-flujo{grid-template-columns:repeat(2,1fr)}}@media(max-width:800px){.siv3-flujo,.siv3-identidad,.siv3-resumen{grid-template-columns:1fr}.siv3-toolbar{align-items:flex-start;flex-direction:column}.siv3-leyenda{white-space:normal}.siv3-upload label{align-items:flex-start;flex-direction:column}}
+</style>
+{% endblock %}
