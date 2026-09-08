@@ -1,7 +1,7 @@
 """Centro unificado de reportes de SICODE-UCT.
 
-Los reportes trabajan únicamente con metadatos administrativos ya existentes en
-SICODE. No almacenan ni exportan copias de expedientes o documentos sensibles.
+Trabaja únicamente con metadatos administrativos ya registrados en SICODE.
+No almacena ni exporta copias de expedientes o documentos sensibles.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from datetime import datetime, time
 from io import BytesIO, StringIO
 from xml.sax.saxutils import escape
 
-from flask import abort, make_response, redirect, render_template, request, send_file, url_for
+from flask import abort, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font
@@ -25,17 +25,16 @@ from app.models.alerta import Alerta
 from app.models.bitacora import Bitacora
 from app.models.expediente import Expediente
 from app.models.prestamo import PrestamoExpediente
+from app.models.usuario import Usuario
 from app.routes.dashboard import dashboard_bp
 from app.services.bitacora_service import registrar_bitacora
-
 
 MAX_EXPORTACION = 5000
 MAX_VISTA_PREVIA = 100
 
 COLUMNAS = {
     "expedientes": [
-        ("no_sp", "No. SP"),
-        ("codigo_interno", "Código interno"),
+        ("no_sp", "No. SP"), ("codigo_interno", "Código interno"),
         ("estado_administrativo", "Estado administrativo"),
         ("estado_documental", "Estado documental vigente"),
         ("disponibilidad", "Disponibilidad física"),
@@ -47,44 +46,28 @@ COLUMNAS = {
         ("actualizado_en", "Última actualización"),
     ],
     "prestamos": [
-        ("numero_control", "No. control"),
-        ("no_sp", "No. SP"),
-        ("estado", "Estado"),
-        ("solicitante", "Solicitante"),
+        ("numero_control", "No. control"), ("no_sp", "No. SP"),
+        ("estado", "Estado"), ("solicitante", "Solicitante"),
         ("persona_entrega", "Persona que entrega"),
         ("persona_recibe", "Persona que recibe"),
         ("fecha_prestamo", "Fecha préstamo"),
         ("fecha_estimada", "Devolución estimada"),
-        ("fecha_real", "Devolución real"),
-        ("observaciones", "Observaciones"),
+        ("fecha_real", "Devolución real"), ("observaciones", "Observaciones"),
     ],
     "alertas": [
-        ("id", "ID"),
-        ("no_sp", "No. SP"),
-        ("tipo_alerta", "Tipo de alerta"),
-        ("titulo", "Título"),
-        ("gravedad", "Gravedad"),
-        ("estado", "Estado"),
-        ("origen", "Origen"),
-        ("creado_en", "Creada"),
-        ("cerrado_en", "Cerrada"),
-        ("descripcion", "Descripción"),
+        ("id", "ID"), ("no_sp", "No. SP"), ("tipo_alerta", "Tipo de alerta"),
+        ("titulo", "Título"), ("gravedad", "Gravedad"), ("estado", "Estado"),
+        ("origen", "Origen"), ("creado_en", "Creada"),
+        ("cerrado_en", "Cerrada"), ("descripcion", "Descripción"),
     ],
     "bitacora": [
-        ("id", "ID"),
-        ("fecha", "Fecha Guatemala"),
-        ("usuario", "Usuario"),
-        ("accion", "Acción"),
-        ("modulo", "Módulo"),
-        ("entidad", "Entidad"),
-        ("entidad_id", "Entidad ID"),
-        ("no_sp", "No. SP"),
-        ("motivo", "Motivo"),
-        ("descripcion", "Descripción"),
+        ("id", "ID"), ("fecha", "Fecha Guatemala"), ("usuario", "Usuario"),
+        ("accion", "Acción"), ("modulo", "Módulo"), ("entidad", "Entidad"),
+        ("entidad_id", "Entidad ID"), ("no_sp", "No. SP"),
+        ("motivo", "Motivo"), ("descripcion", "Descripción"),
     ],
     "consolidado": [
-        ("no_sp", "No. SP"),
-        ("codigo_interno", "Código interno"),
+        ("no_sp", "No. SP"), ("codigo_interno", "Código interno"),
         ("estado_administrativo", "Estado administrativo"),
         ("estado_documental", "Estado documental vigente"),
         ("disponibilidad", "Disponibilidad física"),
@@ -124,32 +107,6 @@ def _parse_fecha(valor):
         return None
 
 
-def _ubicacion_expediente(expediente):
-    if not expediente.ubicaciones:
-        return ""
-    ubicacion = max(expediente.ubicaciones, key=lambda item: item.actualizado_en or item.creado_en or datetime.min)
-    partes = [
-        ("Archivador", ubicacion.archivador),
-        ("SICOIN", ubicacion.sicoin),
-        ("Estante", ubicacion.estante),
-        ("Caja", ubicacion.caja),
-        ("Módulo", ubicacion.modulo),
-        ("Posición", ubicacion.posicion),
-    ]
-    return " · ".join(f"{etiqueta}: {valor}" for etiqueta, valor in partes if valor)
-
-
-def _filtro_texto_expediente(consulta, busqueda):
-    if not busqueda:
-        return consulta
-    patron = f"%{busqueda}%"
-    return consulta.filter(or_(
-        Expediente.no_sp.ilike(patron),
-        Expediente.codigo_interno.ilike(patron),
-        Expediente.nombre_referencia.ilike(patron),
-    ))
-
-
 def _filtrar_fecha(consulta, columna, desde, hasta):
     if desde:
         consulta = consulta.filter(columna >= datetime.combine(desde, time.min))
@@ -158,41 +115,63 @@ def _filtrar_fecha(consulta, columna, desde, hasta):
     return consulta
 
 
+def _ubicacion(expediente):
+    if not expediente.ubicaciones:
+        return ""
+    actual = max(
+        expediente.ubicaciones,
+        key=lambda item: item.actualizado_en or item.creado_en or datetime.min,
+    )
+    partes = [
+        ("Archivador", actual.archivador), ("SICOIN", actual.sicoin),
+        ("Estante", actual.estante), ("Caja", actual.caja),
+        ("Módulo", actual.modulo), ("Posición", actual.posicion),
+    ]
+    return " · ".join(f"{nombre}: {valor}" for nombre, valor in partes if valor)
+
+
 def _filas_expedientes(busqueda, estado, desde, hasta, consolidado=False):
     consulta = Expediente.query.filter(Expediente.activo.is_(True))
-    consulta = _filtro_texto_expediente(consulta, busqueda)
+    if busqueda:
+        patron = f"%{busqueda}%"
+        consulta = consulta.filter(or_(
+            Expediente.no_sp.ilike(patron),
+            Expediente.codigo_interno.ilike(patron),
+            Expediente.nombre_referencia.ilike(patron),
+        ))
     consulta = _filtrar_fecha(consulta, Expediente.actualizado_en, desde, hasta)
     expedientes = consulta.order_by(Expediente.no_sp.asc()).limit(MAX_EXPORTACION).all()
 
     filas = []
     for expediente in expedientes:
-        estado_documental = expediente.estado_fisico_documental
-        if estado and estado not in {estado_documental, expediente.estado_administrativo, expediente.disponibilidad}:
+        # Usar la propiedad Python canónica evita mezclar el valor histórico de
+        # la columna con el estado documental calculado actualmente.
+        documental = expediente.estado_fisico_documental
+        if estado and estado not in {
+            documental, expediente.estado_administrativo, expediente.disponibilidad
+        }:
             continue
-
-        base = {
+        fila = {
             "no_sp": expediente.no_sp,
             "codigo_interno": expediente.codigo_interno,
             "estado_administrativo": expediente.estado_administrativo,
-            # Importante: usar la propiedad derivada vigente y no la expresión
-            # SQL histórica de estado_fisico_documental.
-            "estado_documental": estado_documental,
+            "estado_documental": documental,
             "disponibilidad": expediente.disponibilidad,
             "folios_rectificados": expediente.folios_rectificados if expediente.folios_rectificados is not None else "",
             "anexos_rectificados": expediente.anexos_rectificados if expediente.anexos_rectificados is not None else "",
-            "ubicacion": _ubicacion_expediente(expediente),
+            "ubicacion": _ubicacion(expediente),
             "alertas_pendientes": len(expediente.alertas_pendientes),
             "prestamo_activo": expediente.prestamo_activo.numero_control if expediente.prestamo_activo else "",
             "actualizado_en": _fecha_hora(expediente.actualizado_en),
         }
         if consolidado:
             activos = expediente.documentos_activos
-            base.update({
+            fila.update({
                 "expediente_fisico": "Sí" if expediente.expediente_fisico_registrado else "No",
-                "documentos_principales": sum(1 for documento in activos if not documento.es_anexo),
-                "anexos_indice": sum(1 for documento in activos if documento.es_anexo),
+                "documentos_principales": sum(not doc.es_anexo for doc in activos),
+                "anexos_indice": sum(doc.es_anexo for doc in activos),
             })
-        filas.append(base)
+        filas.append(fila)
     return filas
 
 
@@ -208,22 +187,18 @@ def _filas_prestamos(busqueda, estado, desde, hasta):
     if estado:
         consulta = consulta.filter(PrestamoExpediente.estado == estado)
     consulta = _filtrar_fecha(consulta, PrestamoExpediente.fecha_prestamo, desde, hasta)
-    prestamos = consulta.order_by(PrestamoExpediente.fecha_prestamo.desc()).limit(MAX_EXPORTACION).all()
-    return [
-        {
-            "numero_control": item.numero_control,
-            "no_sp": item.expediente.no_sp if item.expediente else "",
-            "estado": item.estado,
-            "solicitante": item.solicitante,
-            "persona_entrega": item.persona_entrega,
-            "persona_recibe": item.persona_recibe,
-            "fecha_prestamo": _fecha_hora(item.fecha_prestamo),
-            "fecha_estimada": _fecha(item.fecha_estimada_devolucion),
-            "fecha_real": _fecha_hora(item.fecha_real_devolucion),
-            "observaciones": item.observaciones or "",
-        }
-        for item in prestamos
-    ]
+    return [{
+        "numero_control": item.numero_control,
+        "no_sp": item.expediente.no_sp if item.expediente else "",
+        "estado": item.estado,
+        "solicitante": item.solicitante,
+        "persona_entrega": item.persona_entrega,
+        "persona_recibe": item.persona_recibe,
+        "fecha_prestamo": _fecha_hora(item.fecha_prestamo),
+        "fecha_estimada": _fecha(item.fecha_estimada_devolucion),
+        "fecha_real": _fecha_hora(item.fecha_real_devolucion),
+        "observaciones": item.observaciones or "",
+    } for item in consulta.order_by(PrestamoExpediente.fecha_prestamo.desc()).limit(MAX_EXPORTACION).all()]
 
 
 def _filas_alertas(busqueda, estado, desde, hasta):
@@ -231,30 +206,24 @@ def _filas_alertas(busqueda, estado, desde, hasta):
     if busqueda:
         patron = f"%{busqueda}%"
         consulta = consulta.filter(or_(
-            Expediente.no_sp.ilike(patron),
-            Alerta.tipo_alerta.ilike(patron),
-            Alerta.titulo.ilike(patron),
-            Alerta.descripcion.ilike(patron),
+            Expediente.no_sp.ilike(patron), Alerta.tipo_alerta.ilike(patron),
+            Alerta.titulo.ilike(patron), Alerta.descripcion.ilike(patron),
         ))
     if estado:
         consulta = consulta.filter(Alerta.estado == estado)
     consulta = _filtrar_fecha(consulta, Alerta.creado_en, desde, hasta)
-    alertas = consulta.order_by(Alerta.creado_en.desc()).limit(MAX_EXPORTACION).all()
-    return [
-        {
-            "id": item.id,
-            "no_sp": item.expediente.no_sp if item.expediente else "",
-            "tipo_alerta": item.tipo_alerta,
-            "titulo": item.titulo,
-            "gravedad": item.gravedad,
-            "estado": item.estado,
-            "origen": item.origen,
-            "creado_en": _fecha_hora(item.creado_en),
-            "cerrado_en": _fecha_hora(item.cerrado_en),
-            "descripcion": item.descripcion or "",
-        }
-        for item in alertas
-    ]
+    return [{
+        "id": item.id,
+        "no_sp": item.expediente.no_sp if item.expediente else "",
+        "tipo_alerta": item.tipo_alerta,
+        "titulo": item.titulo,
+        "gravedad": item.gravedad,
+        "estado": item.estado,
+        "origen": item.origen,
+        "creado_en": _fecha_hora(item.creado_en),
+        "cerrado_en": _fecha_hora(item.cerrado_en),
+        "descripcion": item.descripcion or "",
+    } for item in consulta.order_by(Alerta.creado_en.desc()).limit(MAX_EXPORTACION).all()]
 
 
 def _filas_bitacora(busqueda, estado, desde, hasta):
@@ -262,14 +231,11 @@ def _filas_bitacora(busqueda, estado, desde, hasta):
     accion = request.args.get("accion", "").strip()
     modulo = request.args.get("modulo", "").strip()
     usuario = request.args.get("usuario", "").strip()
-
     if busqueda:
         patron = f"%{busqueda}%"
         consulta = consulta.filter(or_(
-            Bitacora.accion.ilike(patron),
-            Bitacora.modulo.ilike(patron),
-            Bitacora.descripcion.ilike(patron),
-            Bitacora.entidad.ilike(patron),
+            Bitacora.accion.ilike(patron), Bitacora.modulo.ilike(patron),
+            Bitacora.descripcion.ilike(patron), Bitacora.entidad.ilike(patron),
             Bitacora.entidad_id.ilike(patron),
         ))
     if accion:
@@ -277,55 +243,45 @@ def _filas_bitacora(busqueda, estado, desde, hasta):
     if modulo:
         consulta = consulta.filter(Bitacora.modulo == modulo)
     if usuario:
-        consulta = consulta.join(Bitacora.usuario).filter_by(usuario=usuario)
+        consulta = consulta.join(Usuario, Bitacora.usuario_id == Usuario.id).filter(Usuario.usuario == usuario)
     if estado:
         consulta = consulta.filter(Bitacora.modulo == estado)
     consulta = _filtrar_fecha(consulta, Bitacora.creado_en, desde, hasta)
-    eventos = consulta.order_by(Bitacora.creado_en.desc()).limit(MAX_EXPORTACION).all()
-    return [
-        {
-            "id": evento.id,
-            "fecha": _fecha_hora(evento.creado_en_guatemala),
-            "usuario": evento.usuario.usuario if evento.usuario else "Sistema / Sin usuario",
-            "accion": evento.accion,
-            "modulo": evento.modulo,
-            "entidad": evento.entidad or "",
-            "entidad_id": evento.entidad_id or "",
-            "no_sp": evento.expediente.no_sp if evento.expediente else "",
-            "motivo": evento.motivo or "",
-            "descripcion": evento.descripcion or "",
-        }
-        for evento in eventos
-    ]
+    return [{
+        "id": evento.id,
+        "fecha": _fecha_hora(evento.creado_en_guatemala),
+        "usuario": evento.usuario.usuario if evento.usuario else "Sistema / Sin usuario",
+        "accion": evento.accion,
+        "modulo": evento.modulo,
+        "entidad": evento.entidad or "",
+        "entidad_id": evento.entidad_id or "",
+        "no_sp": evento.expediente.no_sp if evento.expediente else "",
+        "motivo": evento.motivo or "",
+        "descripcion": evento.descripcion or "",
+    } for evento in consulta.order_by(Bitacora.creado_en.desc()).limit(MAX_EXPORTACION).all()]
 
 
 def _validar_dataset(dataset):
-    if dataset not in COLUMNAS:
-        dataset = "expedientes"
+    dataset = dataset if dataset in COLUMNAS else "expedientes"
     if dataset == "consolidado" and current_user.rol != "administrador":
         abort(403)
     return dataset
 
 
-def _columnas_seleccionadas(dataset):
+def _columnas(dataset):
     permitidas = [clave for clave, _ in COLUMNAS[dataset]]
-    recibidas = request.args.getlist("columnas")
-    seleccion = [clave for clave in recibidas if clave in permitidas]
-    if not seleccion:
-        seleccion = permitidas[:8]
-    return seleccion
+    elegidas = [clave for clave in request.args.getlist("columnas") if clave in permitidas]
+    return elegidas or permitidas[:8]
 
 
 def _obtener_filas(dataset):
     busqueda = request.args.get("q", "").strip()
     estado = request.args.get("estado", "").strip()
-    desde = _parse_fecha(request.args.get("desde"))
-    hasta = _parse_fecha(request.args.get("hasta"))
-
+    desde, hasta = _parse_fecha(request.args.get("desde")), _parse_fecha(request.args.get("hasta"))
     if dataset == "expedientes":
         return _filas_expedientes(busqueda, estado, desde, hasta)
     if dataset == "consolidado":
-        return _filas_expedientes(busqueda, estado, desde, hasta, consolidado=True)
+        return _filas_expedientes(busqueda, estado, desde, hasta, True)
     if dataset == "prestamos":
         return _filas_prestamos(busqueda, estado, desde, hasta)
     if dataset == "alertas":
@@ -333,16 +289,10 @@ def _obtener_filas(dataset):
     return _filas_bitacora(busqueda, estado, desde, hasta)
 
 
-def _etiquetas(dataset):
-    return dict(COLUMNAS[dataset])
-
-
 def _valor_exportable(valor):
-    """Evita que Excel/Calc interpreten texto controlado por usuarios como fórmula."""
     if not isinstance(valor, str):
         return valor
-    visible = valor.lstrip(" \t\r\n")
-    if visible.startswith(("=", "+", "-", "@")):
+    if valor.lstrip(" \t\r\n").startswith(("=", "+", "-", "@")):
         return "'" + valor
     return valor
 
@@ -355,81 +305,50 @@ def _respuesta_sin_cache(respuesta):
 
 
 def _excel(dataset, columnas, filas):
-    etiquetas = _etiquetas(dataset)
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Reporte SICODE"
+    etiquetas = dict(COLUMNAS[dataset])
+    wb = Workbook(); ws = wb.active; ws.title = "Reporte SICODE"
     ws.append([etiquetas[clave] for clave in columnas])
     for celda in ws[1]:
         celda.font = Font(bold=True)
         celda.alignment = Alignment(horizontal="center", vertical="center")
-
     for fila in filas:
         ws.append([_valor_exportable(fila.get(clave, "")) for clave in columnas])
-
-    ws.freeze_panes = "A2"
-    ws.auto_filter.ref = ws.dimensions
-    for indice, clave in enumerate(columnas, start=1):
-        ancho = min(max(len(etiquetas[clave]) + 2, 14), 45)
-        ws.column_dimensions[ws.cell(row=1, column=indice).column_letter].width = ancho
-        for celda in ws.iter_cols(min_col=indice, max_col=indice, min_row=2):
-            for item in celda:
-                item.alignment = Alignment(vertical="top", wrap_text=True)
-
-    salida = BytesIO()
-    wb.save(salida)
-    salida.seek(0)
-    return send_file(
-        salida,
-        as_attachment=True,
-        download_name=f"sicode_{dataset}.xlsx",
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
+    ws.freeze_panes = "A2"; ws.auto_filter.ref = ws.dimensions
+    for indice, clave in enumerate(columnas, 1):
+        letra = ws.cell(row=1, column=indice).column_letter
+        ws.column_dimensions[letra].width = min(max(len(etiquetas[clave]) + 2, 14), 45)
+        for columna in ws.iter_cols(min_col=indice, max_col=indice, min_row=2):
+            for celda in columna:
+                celda.alignment = Alignment(vertical="top", wrap_text=True)
+    salida = BytesIO(); wb.save(salida); salida.seek(0)
+    return send_file(salida, as_attachment=True, download_name=f"sicode_{dataset}.xlsx",
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 def _csv(dataset, columnas, filas):
-    etiquetas = _etiquetas(dataset)
-    salida_texto = StringIO(newline="")
-    escritor = csv.writer(salida_texto)
+    etiquetas = dict(COLUMNAS[dataset])
+    texto = StringIO(newline=""); escritor = csv.writer(texto)
     escritor.writerow([etiquetas[clave] for clave in columnas])
     for fila in filas:
         escritor.writerow([_valor_exportable(fila.get(clave, "")) for clave in columnas])
-    contenido = ("\ufeff" + salida_texto.getvalue()).encode("utf-8")
-    return send_file(
-        BytesIO(contenido),
-        as_attachment=True,
-        download_name=f"sicode_{dataset}.csv",
-        mimetype="text/csv; charset=utf-8",
-    )
+    contenido = ("\ufeff" + texto.getvalue()).encode("utf-8")
+    return send_file(BytesIO(contenido), as_attachment=True,
+                     download_name=f"sicode_{dataset}.csv", mimetype="text/csv; charset=utf-8")
 
 
 def _pdf(dataset, columnas, filas):
-    if len(columnas) > 10:
-        abort(400, description="Para PDF seleccione un máximo de 10 columnas.")
-
-    etiquetas = _etiquetas(dataset)
-    salida = BytesIO()
-    documento = SimpleDocTemplate(
-        salida,
-        pagesize=landscape(A4),
-        rightMargin=22,
-        leftMargin=22,
-        topMargin=24,
-        bottomMargin=24,
-        title=f"SICODE-UCT · {NOMBRES_REPORTES[dataset]}",
-    )
+    etiquetas = dict(COLUMNAS[dataset]); salida = BytesIO()
+    doc = SimpleDocTemplate(salida, pagesize=landscape(A4), rightMargin=22, leftMargin=22,
+                            topMargin=24, bottomMargin=24,
+                            title=f"SICODE-UCT · {NOMBRES_REPORTES[dataset]}")
     estilos = getSampleStyleSheet()
     elementos = [
         Paragraph(f"<b>SICODE-UCT · {escape(NOMBRES_REPORTES[dataset])}</b>", estilos["Heading2"]),
-        Paragraph(f"Registros exportados: {len(filas)}", estilos["BodyText"]),
-        Spacer(1, 10),
+        Paragraph(f"Registros exportados: {len(filas)}", estilos["BodyText"]), Spacer(1, 10),
     ]
-    datos = [[Paragraph(f"<b>{escape(etiquetas[clave])}</b>", estilos["BodyText"]) for clave in columnas]]
+    datos = [[Paragraph(f"<b>{escape(etiquetas[c])}</b>", estilos["BodyText"]) for c in columnas]]
     for fila in filas:
-        datos.append([
-            Paragraph(escape(str(fila.get(clave, "") or ""))[:900], estilos["BodyText"])
-            for clave in columnas
-        ])
+        datos.append([Paragraph(escape(str(fila.get(c, "") or "")[:900]), estilos["BodyText"]) for c in columnas])
     tabla = Table(datos, repeatRows=1)
     tabla.setStyle(TableStyle([
         ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
@@ -439,32 +358,17 @@ def _pdf(dataset, columnas, filas):
         ("LEFTPADDING", (0, 0), (-1, -1), 3),
         ("RIGHTPADDING", (0, 0), (-1, -1), 3),
     ]))
-    elementos.append(tabla)
-    documento.build(elementos)
-    salida.seek(0)
-    return send_file(
-        salida,
-        as_attachment=True,
-        download_name=f"sicode_{dataset}.pdf",
-        mimetype="application/pdf",
-    )
+    elementos.append(tabla); doc.build(elementos); salida.seek(0)
+    return send_file(salida, as_attachment=True, download_name=f"sicode_{dataset}.pdf", mimetype="application/pdf")
 
 
 @dashboard_bp.before_app_request
-def _redirigir_exportaciones_legacy():
-    """Lleva exportaciones históricas al generador seguro sin romper sus URLs."""
-    if not current_user.is_authenticated:
-        return None
-
-    if request.endpoint == "bitacora.exportar_excel":
+def _redirigir_exportacion_bitacora_legacy():
+    """Conserva la URL histórica de Bitácora usando el exportador seguro nuevo."""
+    if current_user.is_authenticated and request.endpoint == "bitacora.exportar_excel":
         argumentos = request.args.to_dict(flat=True)
         argumentos.update(dataset="bitacora", formato="xlsx")
         return redirect(url_for("dashboard.reportes_exportar", **argumentos))
-
-    if request.endpoint == "coordinacion_export.exportar_todos":
-        if current_user.rol != "administrador":
-            abort(403)
-        return redirect(url_for("dashboard.reportes_exportar", dataset="consolidado", formato="xlsx"))
     return None
 
 
@@ -472,18 +376,12 @@ def _redirigir_exportaciones_legacy():
 @login_required
 def reportes_centro():
     dataset = _validar_dataset(request.args.get("dataset", "expedientes"))
-    columnas = _columnas_seleccionadas(dataset)
-    filas = _obtener_filas(dataset)
+    columnas = _columnas(dataset); filas = _obtener_filas(dataset)
     return render_template(
-        "reportes/centro.html",
-        dataset=dataset,
-        datasets=NOMBRES_REPORTES,
-        columnas_disponibles=COLUMNAS[dataset],
-        columnas=columnas,
-        etiquetas=_etiquetas(dataset),
-        filas=filas[:MAX_VISTA_PREVIA],
-        total=len(filas),
-        limite_vista=MAX_VISTA_PREVIA,
+        "reportes/centro.html", dataset=dataset, datasets=NOMBRES_REPORTES,
+        columnas_disponibles=COLUMNAS[dataset], columnas=columnas,
+        etiquetas=dict(COLUMNAS[dataset]), filas=filas[:MAX_VISTA_PREVIA],
+        total=len(filas), limite_vista=MAX_VISTA_PREVIA,
         puede_exportar=not current_user.es_visor,
         es_admin=current_user.rol == "administrador",
     )
@@ -496,29 +394,19 @@ def reportes_exportar():
     formato = request.args.get("formato", "xlsx").strip().lower()
     if formato not in {"xlsx", "csv", "pdf"}:
         abort(400)
-
-    # El guard transversal de visor también bloquea endpoints cuyo nombre
-    # contiene "exportar"; esta comprobación deja la política explícita aquí.
     if current_user.es_visor:
         abort(403)
-
-    columnas = _columnas_seleccionadas(dataset)
+    columnas = _columnas(dataset)
+    if formato == "pdf" and len(columnas) > 10:
+        abort(400, description="Para PDF seleccione un máximo de 10 columnas.")
     filas = _obtener_filas(dataset)
     registrar_bitacora(
-        accion="EXPORTAR_CENTRO_REPORTES",
-        modulo="Reportes",
+        accion="EXPORTAR_CENTRO_REPORTES", modulo="Reportes",
         descripcion=f"Exportación {formato.upper()} del reporte {NOMBRES_REPORTES[dataset]}. Registros: {len(filas)}.",
-        usuario_id=current_user.id,
-        entidad="Reporte",
-        entidad_id=dataset,
-        datos_posteriores={
-            "dataset": dataset,
-            "formato": formato,
-            "registros": len(filas),
-            "columnas": columnas,
-        },
+        usuario_id=current_user.id, entidad="Reporte", entidad_id=dataset,
+        datos_posteriores={"dataset": dataset, "formato": formato,
+                           "registros": len(filas), "columnas": columnas},
     )
-
     if formato == "csv":
         respuesta = _csv(dataset, columnas, filas)
     elif formato == "pdf":
