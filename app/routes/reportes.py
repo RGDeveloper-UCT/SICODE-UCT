@@ -11,7 +11,7 @@ from datetime import datetime, time
 from io import BytesIO, StringIO
 from xml.sax.saxutils import escape
 
-from flask import abort, redirect, render_template, request, send_file, url_for
+from flask import abort, render_template, request, send_file
 from flask_login import current_user, login_required
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font
@@ -144,8 +144,6 @@ def _filas_expedientes(busqueda, estado, desde, hasta, consolidado=False):
 
     filas = []
     for expediente in expedientes:
-        # Usar la propiedad Python canónica evita mezclar el valor histórico de
-        # la columna con el estado documental calculado actualmente.
         documental = expediente.estado_fisico_documental
         if estado and estado not in {
             documental, expediente.estado_administrativo, expediente.disponibilidad
@@ -360,16 +358,6 @@ def _pdf(dataset, columnas, filas):
     ]))
     elementos.append(tabla); doc.build(elementos); salida.seek(0)
     return send_file(salida, as_attachment=True, download_name=f"sicode_{dataset}.pdf", mimetype="application/pdf")
-
-
-@dashboard_bp.before_app_request
-def _redirigir_exportacion_bitacora_legacy():
-    """Conserva la URL histórica de Bitácora usando el exportador seguro nuevo."""
-    if current_user.is_authenticated and request.endpoint == "bitacora.exportar_excel":
-        argumentos = request.args.to_dict(flat=True)
-        argumentos.update(dataset="bitacora", formato="xlsx")
-        return redirect(url_for("dashboard.reportes_exportar", **argumentos))
-    return None
 
 
 @dashboard_bp.route("/reportes")
