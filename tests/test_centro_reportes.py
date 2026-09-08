@@ -153,4 +153,6 @@ def test_estado_documental_de_reporte_usa_valor_derivado_actual(app_reportes):
     assert respuesta.status_code == 200
     texto = respuesta.get_data(as_text=True)
     assert "Estado documental vigente" in texto
-    assert "Pendiente de verificación" in texto
+    # La columna histórica del fixture dice "Pendiente de verificación", pero
+    # al no existir documentos el árbol canónico exige "Pendiente de indexación".
+    assert "Pendiente de indexación" in texto
