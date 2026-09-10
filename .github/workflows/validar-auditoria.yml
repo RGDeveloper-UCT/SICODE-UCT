@@ -1,6 +1,9 @@
 name: Validar Auditoria
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
@@ -24,7 +27,9 @@ jobs:
           cache: pip
 
       - name: Instalar dependencias
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          python -m pip check
 
       - name: Compilar Python
         run: python -m compileall -q app migrations tests
@@ -68,6 +73,7 @@ jobs:
       - name: Instalar dependencias y cliente PostgreSQL
         run: |
           pip install -r requirements.txt
+          python -m pip check
           sudo apt-get update -qq
           sudo apt-get install -y postgresql-client
 

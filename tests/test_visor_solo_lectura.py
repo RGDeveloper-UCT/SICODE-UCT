@@ -124,6 +124,21 @@ def test_visor_no_puede_modificar_ni_abrir_formularios_de_accion(app_visor):
         assert alerta.estado == "Abierta"
 
 
+def test_visor_no_puede_acceder_a_sicode_ia(app_visor):
+    cliente = app_visor.test_client()
+    _login(cliente, "visor")
+
+    assert cliente.get("/coordinacion/analisis-documental/ia/").status_code == 403
+    assert cliente.post(
+        "/coordinacion/analisis-documental/ia/analizar",
+        data={"contexto_usuario": "prueba"},
+    ).status_code == 403
+    assert cliente.post(
+        "/coordinacion/analisis-documental/ia/trabajos/crear",
+        data={"contexto_usuario": "prueba"},
+    ).status_code == 403
+
+
 def test_visor_puede_cambiar_su_propia_password(app_visor):
     cliente = app_visor.test_client()
     _login(cliente, "visor")

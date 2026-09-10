@@ -26,9 +26,10 @@ def _cola():
 
 
 def _exigir_modificacion():
-    """Compatibilidad histórica: los trabajos de SICODE.IA son para todo usuario autenticado."""
     if not current_user.is_authenticated:
         abort(401)
+    if not getattr(current_user, "puede_modificar", False):
+        abort(403)
 
 
 def _tamano(archivo):
@@ -122,6 +123,7 @@ def estado(job_id):
         respuesta.update({"semaforo":"verde","porcentaje":100,"detalle":"Análisis terminado. Ya puede iniciar la Verificación Humana.",
                           "revision_url":url_for("sicode_ia.revision", token=token) if token else None})
     elif estado == "failed":
-        respuesta.update({"semaforo":"rojo","detalle":"El análisis encontró un error. Revise el servicio sicode-ia-worker.","error":(job.exc_info or "")[-900:]})
+        current_app.logger.warning("Trabajo SICODE.IA fallido: job_id=%s usuario_id=%s", job.id, current_user.id)
+        respuesta.update({"semaforo":"rojo","detalle":"El análisis encontró un error. Revise el servicio sicode-ia-worker con un administrador."})
     else: respuesta["semaforo"] = "amarillo"
     return jsonify(respuesta)

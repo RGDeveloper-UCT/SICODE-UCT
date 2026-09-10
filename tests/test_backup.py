@@ -1,3 +1,5 @@
+import os
+import stat
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -38,6 +40,8 @@ def test_pg_dump_no_expone_password_en_argumentos(app_backup, tmp_path, monkeypa
     assert ruta.exists()
     assert "secreto-super" not in " ".join(capturado["comando"])
     assert capturado["env"]["PGPASSWORD"] == "secreto-super"
+    if os.name == "posix":
+        assert stat.S_IMODE(ruta.stat().st_mode) == 0o600
 
 
 def test_pg_dump_admite_ruta_explicitamente_configurada(app_backup, tmp_path, monkeypatch):
@@ -77,3 +81,4 @@ def test_servicio_systemd_define_pythonpath_del_proyecto():
     assert "WorkingDirectory=__SICODE_APPDIR__" in plantilla
     assert "Environment=PYTHONPATH=__SICODE_APPDIR__" in plantilla
     assert "ExecStart=__SICODE_PYTHON__ __SICODE_APPDIR__/scripts/backup_programado.py" in plantilla
+    assert "UMask=0077" in plantilla

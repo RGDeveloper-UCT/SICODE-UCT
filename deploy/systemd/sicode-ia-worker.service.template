@@ -9,11 +9,12 @@ User=__SICODE_USER__
 WorkingDirectory=__SICODE_APPDIR__
 EnvironmentFile=__SICODE_APPDIR__/.env
 Environment="PYTHONUNBUFFERED=1"
-ExecStart=__SICODE_APPDIR__/.venv/bin/rq worker sicode_ia --url redis://127.0.0.1:6379/0 --name sicode-ia-worker
+ExecStart=__SICODE_VENV__/bin/rq worker sicode_ia --url redis://127.0.0.1:6379/0 --name sicode-ia-worker
 Restart=always
 RestartSec=4
 TimeoutStopSec=40
 KillSignal=SIGTERM
+NoNewPrivileges=true
 
 [Install]
 WantedBy=multi-user.target
