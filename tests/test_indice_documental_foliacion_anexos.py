@@ -85,6 +85,31 @@ def _registrar(
     )
 
 
+def _crear_anexo_coordinacion(app, numero, tipo="REPORTE DE MONITOREO", folios="5", rc=None):
+    with app.app_context():
+        registro = RegistroCoordinacion(
+            tipo="ANEXO",
+            expediente_id=1,
+            no_sp_referencia="276",
+            rc=rc or f"RC-{numero}",
+            fecha_recepcion=date(2026, 9, 2),
+            folios_recepcion=folios,
+            usuario_id=1,
+            estado="Completo",
+        )
+        db.session.add(registro)
+        db.session.flush()
+        anexo = AnexoCoordinacion(
+            registro_id=registro.id,
+            tipo_anexo=tipo,
+            numero_anexo=str(numero),
+            folios=folios,
+        )
+        db.session.add(anexo)
+        db.session.commit()
+        return anexo.id
+
+
 def test_documentos_del_expediente_principal_siguen_bloqueando_traslapes(app_indice_folios, cliente_indice):
     primera = _registrar(cliente_indice, "Documento principal A", "Documento", 1, 14)
     assert primera.status_code == 200
@@ -176,6 +201,74 @@ def test_incorporacion_desde_coordinacion_usa_foliacion_propia_y_vincula_anexo(a
         assert documento is not None
         assert documento.es_anexo is True
         assert (documento.folio_inicio, documento.folio_fin) == (1, 3)
+
+
+def test_numero_anexo_se_puede_corregir_desde_indice_y_sincroniza_titulo(app_indice_folios, cliente_indice):
+    anexo_id = _crear_anexo_coordinacion(app_indice_folios, 2)
+    _registrar(
+        cliente_indice,
+        "Anexo 2 - REPORTE DE MONITOREO",
+        "Anexo",
+        1,
+        5,
+        anexo_coordinacion_id=str(anexo_id),
+    )
+
+    with app_indice_folios.app_context():
+        anexo = db.session.get(AnexoCoordinacion, anexo_id)
+        documento_id = anexo.documento_expediente_id
+
+    panel = cliente_indice.get("/expedientes/1/indice-documental")
+    texto_panel = panel.get_data(as_text=True)
+    assert f"/expedientes/1/indice-documental/{documento_id}/editar-numero-anexo" in texto_panel
+    assert 'name="numero_anexo"' in texto_panel
+
+    respuesta = cliente_indice.post(
+        f"/expedientes/1/indice-documental/{documento_id}/editar-numero-anexo",
+        data={"numero_anexo": "3"},
+        follow_redirects=True,
+    )
+    texto = respuesta.get_data(as_text=True)
+
+    assert respuesta.status_code == 200
+    assert "Número actualizado correctamente: Anexo 3." in texto
+
+    with app_indice_folios.app_context():
+        anexo = db.session.get(AnexoCoordinacion, anexo_id)
+        documento = db.session.get(DocumentoExpediente, documento_id)
+        assert anexo.numero_anexo == "3"
+        assert documento.nombre_documento == "Anexo 3 - REPORTE DE MONITOREO"
+
+        evento = Bitacora.query.filter_by(
+            accion="EDITAR_NUMERO_ANEXO_INDICE",
+            expediente_id=1,
+        ).one()
+        assert evento.datos_anteriores["numero_anexo"] == "2"
+        assert evento.datos_posteriores["numero_anexo"] == "3"
+
+
+def test_numero_anexo_no_permite_duplicado_en_mismo_sp(app_indice_folios, cliente_indice):
+    anexo_2_id = _crear_anexo_coordinacion(app_indice_folios, 2, rc="RC-2")
+    anexo_4_id = _crear_anexo_coordinacion(app_indice_folios, 4, rc="RC-4")
+    _registrar(cliente_indice, "Anexo 2 - REPORTE A", "Anexo", 1, 2, anexo_coordinacion_id=str(anexo_2_id))
+    _registrar(cliente_indice, "Anexo 4 - REPORTE B", "Anexo", 1, 2, anexo_coordinacion_id=str(anexo_4_id))
+
+    with app_indice_folios.app_context():
+        documento_id = db.session.get(AnexoCoordinacion, anexo_2_id).documento_expediente_id
+
+    respuesta = cliente_indice.post(
+        f"/expedientes/1/indice-documental/{documento_id}/editar-numero-anexo",
+        data={"numero_anexo": "4"},
+        follow_redirects=True,
+    )
+    texto = respuesta.get_data(as_text=True)
+
+    assert respuesta.status_code == 200
+    assert "ese número ya está registrado para este SP" in texto
+
+    with app_indice_folios.app_context():
+        assert db.session.get(AnexoCoordinacion, anexo_2_id).numero_anexo == "2"
+        assert Bitacora.query.filter_by(accion="EDITAR_NUMERO_ANEXO_INDICE").count() == 0
 
 
 def test_verificacion_individual_marca_documento_y_deja_trazabilidad(app_indice_folios, cliente_indice):
