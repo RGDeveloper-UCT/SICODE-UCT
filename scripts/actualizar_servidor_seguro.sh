@@ -63,6 +63,7 @@ if [[ "$RUN_TESTS" == "1" ]]; then
     tests/test_security.py \
     tests/test_visor_solo_lectura.py \
     tests/test_prestamos_atomicidad.py \
+    tests/test_despliegue_hardening_2026_09.py \
     tests/test_monitoreo_anexos.py \
     tests/test_anexos_inteligentes.py \
     tests/test_admin_anexos_asistidos.py \
