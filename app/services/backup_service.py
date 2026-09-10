@@ -14,7 +14,12 @@ class BackupError(RuntimeError):
 
 def obtener_directorio_backups():
     directorio = Path(current_app.root_path).parent / "backups"
-    directorio.mkdir(parents=True, exist_ok=True)
+    directorio.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if os.name == "posix":
+        try:
+            directorio.chmod(0o700)
+        except OSError as error:
+            raise BackupError("No fue posible asegurar los permisos del directorio de respaldos.") from error
     return directorio
 
 
@@ -150,6 +155,13 @@ def generar_backup(database_url, timeout=180):
         ruta.unlink(missing_ok=True)
         current_app.logger.error("pg_dump falló: %s", resultado.stderr.strip())
         raise BackupError("PostgreSQL no pudo completar el respaldo. Revise el log del servidor.")
+
+    if os.name == "posix":
+        try:
+            ruta.chmod(0o600)
+        except OSError as error:
+            ruta.unlink(missing_ok=True)
+            raise BackupError("No fue posible asegurar los permisos del archivo de respaldo.") from error
 
     _validar_dump(ruta)
     return ruta
