@@ -113,6 +113,9 @@
 
     <h2>Anexos — foliación independiente por anexo</h2>
     <p class="contador-resultados">Anexos registrados: <strong>{{ anexos_documentales|length }}</strong>. Los rangos mostrados pertenecen a cada anexo y no forman un rango único entre sí.</p>
+    <div class="aviso" style="margin-bottom: 10px;">
+        <strong>Corrección de número:</strong> en anexos provenientes de Coordinación puede corregir aquí el número físico. El cambio actualiza también el prefijo del título y queda registrado en bitácora. SICODE impide números repetidos para el mismo SP.
+    </div>
     <div class="tabla-contenedor">
         <table>
             <thead><tr><th>Orden</th><th>Anexo</th><th>Documento / título</th><th>Folios del anexo</th><th>Total</th><th>Revisión</th><th>Origen</th><th>Acción</th></tr></thead>
@@ -120,7 +123,32 @@
             {% for documento in anexos_documentales %}
                 <tr>
                     <td>{{ loop.index }}</td>
-                    <td>{% if documento.anexo_recepcion %}Anexo {{ documento.anexo_recepcion.numero_anexo or 's/n' }}{% else %}Anexo manual{% endif %}</td>
+                    <td>
+                        {% if documento.anexo_recepcion %}
+                            {% if current_user.puede_modificar %}
+                            <form method="POST" action="{{ url_for('indice_documental.editar_numero_anexo', expediente_id=expediente.id, documento_id=documento.id) }}" class="form-inline" style="display:flex; gap:5px; align-items:center; flex-wrap:nowrap;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <span>Anexo</span>
+                                <input
+                                    type="number"
+                                    name="numero_anexo"
+                                    min="1"
+                                    max="200"
+                                    step="1"
+                                    value="{{ documento.anexo_recepcion.numero_anexo or '' }}"
+                                    required
+                                    aria-label="Número del anexo"
+                                    style="width:72px; min-width:72px;"
+                                >
+                                <button type="submit" class="boton-tabla" onclick="return confirm('¿Guardar la corrección del número de este anexo? El cambio quedará registrado en bitácora.');">Guardar</button>
+                            </form>
+                            {% else %}
+                            Anexo {{ documento.anexo_recepcion.numero_anexo or 's/n' }}
+                            {% endif %}
+                        {% else %}
+                        Anexo manual
+                        {% endif %}
+                    </td>
                     <td>{{ documento.nombre_documento }}</td>
                     <td>{{ documento.folio_inicio }}–{{ documento.folio_fin }}</td>
                     <td>{{ documento.total_folios }}</td>
