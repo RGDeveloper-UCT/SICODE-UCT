@@ -306,7 +306,7 @@ def nuevo(expediente_id):
         )
         expediente.estado_administrativo = "En préstamo"
         db.session.add(prestamo)
-        db.session.commit()
+        db.session.flush()
 
         registrar_bitacora(
             accion="REGISTRAR_PRESTAMO",
@@ -317,7 +317,20 @@ def nuevo(expediente_id):
             ),
             usuario_id=current_user.id,
             expediente_id=expediente.id,
+            entidad="PrestamoExpediente",
+            entidad_id=prestamo.id,
+            datos_posteriores={
+                "numero_control": prestamo.numero_control,
+                "estado": prestamo.estado,
+                "solicitante": prestamo.solicitante,
+                "fecha_estimada_devolucion": (
+                    prestamo.fecha_estimada_devolucion.isoformat()
+                    if prestamo.fecha_estimada_devolucion else None
+                ),
+            },
+            commit=False,
         )
+        db.session.commit()
         flash("Préstamo registrado correctamente.", "success")
         return redirect(url_for("prestamos.listado", q=expediente.no_sp))
 
@@ -356,7 +369,7 @@ def nuevo_traslado_virtual(expediente_id):
             creado_en=datetime.utcnow(),
         )
         db.session.add(traslado)
-        db.session.commit()
+        db.session.flush()
 
         registrar_bitacora(
             accion="REGISTRAR_TRASLADO_VIRTUAL",
@@ -378,7 +391,9 @@ def nuevo_traslado_virtual(expediente_id):
                 "enlace_corto": traslado.enlace_corto,
                 "asunto": traslado.asunto,
             },
+            commit=False,
         )
+        db.session.commit()
         return redirect(url_for("prestamos.constancia_virtual_pdf", traslado_id=traslado.id))
 
     return render_template(
@@ -500,13 +515,21 @@ def devolver(prestamo_id):
 
     form = DevolucionForm()
     if form.validate_on_submit():
+        datos_anteriores = {
+            "estado": prestamo.estado,
+            "fecha_real_devolucion": (
+                prestamo.fecha_real_devolucion.isoformat()
+                if prestamo.fecha_real_devolucion else None
+            ),
+            "persona_devuelve": prestamo.persona_devuelve,
+            "persona_recibe_devolucion": prestamo.persona_recibe_devolucion,
+        }
         prestamo.estado = "Devuelto"
         prestamo.fecha_real_devolucion = datetime.utcnow()
         prestamo.persona_devuelve = form.persona_devuelve.data.strip()
         prestamo.persona_recibe_devolucion = form.persona_recibe_devolucion.data.strip()
         prestamo.observaciones_devolucion = form.observaciones_devolucion.data
         expediente.estado_administrativo = "Devuelto"
-        db.session.commit()
 
         registrar_bitacora(
             accion="REGISTRAR_DEVOLUCION",
@@ -517,7 +540,18 @@ def devolver(prestamo_id):
             ),
             usuario_id=current_user.id,
             expediente_id=expediente.id,
+            entidad="PrestamoExpediente",
+            entidad_id=prestamo.id,
+            datos_anteriores=datos_anteriores,
+            datos_posteriores={
+                "estado": prestamo.estado,
+                "fecha_real_devolucion": prestamo.fecha_real_devolucion.isoformat(),
+                "persona_devuelve": prestamo.persona_devuelve,
+                "persona_recibe_devolucion": prestamo.persona_recibe_devolucion,
+            },
+            commit=False,
         )
+        db.session.commit()
         flash("Devolución registrada correctamente.", "success")
         return redirect(url_for("prestamos.listado", q=expediente.no_sp))
 
