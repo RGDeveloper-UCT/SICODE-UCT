@@ -309,7 +309,8 @@ def pdf(acceso_id):
     autorizacion.setStyle(TableStyle([
         ("BOX", (0, 0), (-1, -1), 0.8, colors.HexColor("#1f2937")),
         ("INNERGRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#9ca3af")),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("VALIGN", (0, 0), (0, 0), "BOTTOM"),
+        ("VALIGN", (1, 0), (1, 0), "MIDDLE"),
         ("ALIGN", (1, 0), (1, 0), "CENTER"),
         ("LEFTPADDING", (0, 0), (-1, -1), 8),
         ("RIGHTPADDING", (0, 0), (-1, -1), 8),
