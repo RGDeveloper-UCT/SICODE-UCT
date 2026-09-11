@@ -44,7 +44,7 @@
                     <td>{% if boleta.tipo_equipo %}{{ boleta.tipo_equipo }}{% if boleta.inventario %}<small>Inv. {{ boleta.inventario }}</small>{% endif %}{% else %}—{% endif %}</td>
                     <td><span class="badge soporte-estado soporte-estado-{{ boleta.estado_final|lower }}">{{ boleta.estado_legible }}</span></td>
                     <td>{{ 'Sí' if boleta.seguimiento else 'No' }}</td>
-                    <td class="soporte-acciones-fila"><a href="{{ url_for('soporte_tecnico.detalle', boleta_id=boleta.id) }}">Ver</a>{% if not current_user.es_visor %}<a href="{{ url_for('soporte_tecnico.editar', boleta_id=boleta.id) }}">Editar</a><a href="{{ url_for('soporte_tecnico.generar_pdf', boleta_id=boleta.id) }}">PDF</a>{% endif %}</td>
+                    <td class="soporte-acciones-fila"><a href="{{ url_for('soporte_tecnico.detalle', boleta_id=boleta.id) }}">Ver</a>{% if not current_user.es_visor %}<a href="{{ url_for('soporte_tecnico.editar', boleta_id=boleta.id) }}">Editar</a><a href="{{ url_for('soporte_tecnico_pdf.generar_pdf_limpio', boleta_id=boleta.id) }}">PDF</a>{% endif %}</td>
                 </tr>
             {% else %}
                 <tr><td colspan="9" class="sin-registros-recientes">No hay boletas que coincidan con los filtros.</td></tr>
