@@ -7,7 +7,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import KeepInFrame, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from app.forms.soporte_tecnico_form import (
     GESTION_USUARIO,
@@ -218,7 +218,17 @@ def generar_pdf_limpio(boleta_id):
         mini,
     ))
 
-    doc.build(elementos)
+    # El contenido útil se mantiene en una sola página. Si una boleta contiene
+    # textos más extensos de lo normal, ReportLab reduce proporcionalmente el
+    # bloque completo en vez de crear una segunda hoja.
+    contenido_una_hoja = KeepInFrame(
+        doc.width - 12,
+        doc.height - 12,
+        elementos,
+        mode="shrink",
+        hAlign="LEFT",
+    )
+    doc.build([contenido_una_hoja])
     archivo.seek(0)
 
     registrar_bitacora(
@@ -228,7 +238,11 @@ def generar_pdf_limpio(boleta_id):
         usuario_id=current_user.id,
         entidad="ServicioSoporteTecnico",
         entidad_id=boleta.id,
-        datos_posteriores={"numero_boleta": boleta.numero_boleta, "formato": "PDF", "modo": "solo_campos_con_datos"},
+        datos_posteriores={
+            "numero_boleta": boleta.numero_boleta,
+            "formato": "PDF",
+            "modo": "solo_campos_con_datos_una_hoja",
+        },
     )
 
     nombre = f"{boleta.numero_boleta}_soporte_tecnico.pdf".replace("/", "-")
