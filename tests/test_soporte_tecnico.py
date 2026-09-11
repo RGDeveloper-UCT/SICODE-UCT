@@ -1,4 +1,7 @@
+from io import BytesIO
+
 import pytest
+from pypdf import PdfReader
 from werkzeug.security import generate_password_hash
 
 from app import create_app, db
@@ -191,7 +194,26 @@ def test_pdf_limpio_y_ruta_nueva(app_soporte, cliente_soporte):
     assert respuesta.data.startswith(b"%PDF")
     assert f"BST-2026-{boleta_id:05d}_soporte_tecnico.pdf" in respuesta.headers["Content-Disposition"]
 
+    lector = PdfReader(BytesIO(respuesta.data))
+    assert len(lector.pages) == 1
+    texto_pdf = "\n".join(pagina.extract_text() or "" for pagina in lector.pages)
+
+    # Solo deben aparecer actividades que realmente fueron seleccionadas.
+    assert "Mantenimiento de software" in texto_pdf
+    assert "Revisión y diagnóstico de equipo" in texto_pdf
+    assert "Backup de archivos de información" in texto_pdf
+    assert "Instalación / actualización de software autorizado" in texto_pdf
+    assert "Falla de red / Internet" in texto_pdf
+
+    # Estas opciones existen en el catálogo, pero no fueron realizadas.
+    assert "Creación / modificación / baja de usuario" not in texto_pdf
+    assert "Limpieza externa e interna" not in texto_pdf
+    assert "Actualización del sistema operativo" not in texto_pdf
+    assert "Configuración de red" not in texto_pdf
+    assert "Cambio de oficina / área" not in texto_pdf
+    assert "No enciende" not in texto_pdf
+
     with app_soporte.app_context():
         auditoria = Bitacora.query.filter_by(accion="EXPORTAR_BOLETA_SOPORTE_PDF").order_by(Bitacora.id.desc()).first()
         assert auditoria is not None
-        assert auditoria.datos_posteriores["modo"] == "solo_campos_con_datos"
+        assert auditoria.datos_posteriores["modo"] == "solo_campos_con_datos_una_hoja"
