@@ -51,9 +51,9 @@
                     </header>
                     <div class="anexos-tipos">
                         {% for tipo in categoria.tipos %}
-                        <button type="button" class="anexo-tipo" data-tipo="{{ tipo.codigo }}" data-titulo="{{ tipo.titulo }}" data-modo="{{ tipo.modo }}" data-categoria-titulo="{{ categoria.titulo }}"{% if tipo.codigo == 'REPORTE_MONITOREO' %} data-url-especial="{{ url_monitoreo }}"{% elif tipo.codigo == 'ANALISIS_RIESGO' %} data-url-especial="{{ url_analisis }}"{% endif %}>
+                        <button type="button" class="anexo-tipo" data-tipo="{{ tipo.codigo }}" data-titulo="{{ tipo.titulo }}" data-modo="{{ tipo.modo }}" data-categoria-titulo="{{ categoria.titulo }}"{% if tipo.codigo == 'REPORTE_MONITOREO' %} data-url-especial="{{ url_monitoreo }}"{% elif tipo.codigo == 'ANALISIS_RIESGO' %} data-url-especial="{{ url_analisis }}"{% elif tipo.codigo == 'ANALISIS_RIESGO_MASIVO' %} data-url-especial="{{ url_analisis_masivo }}"{% endif %}>
                             <span class="anexo-tipo__marca" aria-hidden="true">✓</span>
-                            <span><strong>{{ tipo.titulo }}</strong>{% if tipo.modo == 'especial' %}<small>Formulario especializado</small>{% elif tipo.modo == 'componentes' %}<small>Selección múltiple de componentes</small>{% elif tipo.modo == 'libre' %}<small>Nombre controlado por el usuario</small>{% endif %}</span>
+                            <span><strong>{{ tipo.titulo }}</strong>{% if tipo.codigo == 'ANALISIS_RIESGO_MASIVO' %}<small>Captura masiva · fecha, No. análisis y SP</small>{% elif tipo.modo == 'especial' %}<small>Formulario especializado</small>{% elif tipo.modo == 'componentes' %}<small>Selección múltiple de componentes</small>{% elif tipo.modo == 'libre' %}<small>Nombre controlado por el usuario</small>{% endif %}</span>
                         </button>
                         {% endfor %}
                     </div>

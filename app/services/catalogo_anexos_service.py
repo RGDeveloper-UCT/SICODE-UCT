@@ -44,6 +44,7 @@ CATEGORIAS_ANEXOS = [
         "icono": "riesgo",
         "tipos": [
             ("ANALISIS_RIESGO", "Análisis de riesgo", "especial"),
+            ("ANALISIS_RIESGO_MASIVO", "Registro masivo de análisis de riesgo", "especial"),
             ("SOLICITUD_INFORME_COMPORTAMIENTO", "Solicitud de informe de comportamiento del SP", "generico"),
         ],
     },

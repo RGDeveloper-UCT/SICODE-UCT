@@ -58,6 +58,8 @@ if [[ "$RUN_TESTS" == "1" ]]; then
     tests/test_security.py \
     tests/test_soporte_tecnico.py \
     tests/test_monitoreo_anexos.py \
+    tests/test_analisis_riesgo_anexos.py \
+    tests/test_analisis_riesgo_masivo.py \
     tests/test_anexos_inteligentes.py \
     tests/test_admin_anexos_asistidos.py \
     tests/test_control_integridad.py \

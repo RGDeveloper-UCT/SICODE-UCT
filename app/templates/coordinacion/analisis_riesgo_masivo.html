@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}Registro masivo de análisis de riesgo — SICODE-UCT{% endblock %}
+{% block body_class %}vista-anexos-inteligentes vista-analisis-riesgo-masivo{% endblock %}
+
+{% block content %}
+<style>
+    .riesgo-masivo{max-width:1500px;margin:0 auto;padding:24px 28px 30px}
+    .riesgo-masivo__encabezado{display:flex;justify-content:space-between;gap:24px;align-items:flex-end;padding-bottom:20px;border-bottom:1px solid #d5deea}
+    .riesgo-masivo__encabezado h1{margin:4px 0 6px;font-size:clamp(27px,3vw,40px)}
+    .riesgo-masivo__encabezado p{margin:0;max-width:850px;color:#65748a}
+    .riesgo-masivo__acciones-superiores{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .riesgo-masivo__ayuda{margin:18px 0;padding:14px 16px;border:1px solid #cbd8e8;border-radius:12px;background:#f4f8fc;font-size:12px;line-height:1.5}
+    .riesgo-masivo__ayuda strong{color:#214f84}
+    .riesgo-masivo__resumen{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0}
+    .riesgo-masivo__dato{padding:12px;border:1px solid #d5dfeb;border-radius:11px;background:#fff}
+    .riesgo-masivo__dato span{display:block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#758297}
+    .riesgo-masivo__dato strong{display:block;margin-top:4px;font-size:18px}
+    .riesgo-masivo__tabla-wrap{overflow:auto;border:1px solid #d3deea;border-radius:13px;background:#fff}
+    .riesgo-masivo__tabla{width:100%;min-width:980px;border-collapse:collapse}
+    .riesgo-masivo__tabla th{padding:10px 9px;background:#edf3f9;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#56677c}
+    .riesgo-masivo__tabla td{padding:8px 9px;border-top:1px solid #e2e8f0;vertical-align:top}
+    .riesgo-masivo__tabla input{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #cbd7e5;border-radius:8px;background:#fff;color:#182338}
+    .riesgo-masivo__tabla tr.fila-valida{background:#f5fbf7}
+    .riesgo-masivo__tabla tr.fila-error{background:#fff7f7}
+    .riesgo-masivo__tabla tr.fila-rectificacion{background:#fffaf0}
+    .riesgo-masivo__estado{min-width:250px}
+    .riesgo-masivo__estado strong{display:block;font-size:11.5px}
+    .riesgo-masivo__estado small{display:block;margin-top:3px;color:#6c798b;line-height:1.35}
+    .riesgo-masivo__badge{display:inline-block;margin-bottom:4px;padding:4px 7px;border-radius:999px;background:#e9eef5;font-size:9.5px;font-weight:900;text-transform:uppercase}
+    .riesgo-masivo__badge.ok{background:#dcf2e5;color:#1d6a42}
+    .riesgo-masivo__badge.error{background:#fde5e5;color:#9c2f2f}
+    .riesgo-masivo__badge.alerta{background:#fff0cf;color:#8b5d13}
+    .riesgo-masivo__fila-acciones{display:flex;gap:5px;flex-wrap:wrap}
+    .riesgo-masivo__mini{border:1px solid #c9d6e5;border-radius:7px;background:#fff;padding:6px 8px;font-size:10px;font-weight:800;cursor:pointer}
+    .riesgo-masivo__mini.peligro{color:#9d3131}
+    .riesgo-masivo__controles{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:16px;flex-wrap:wrap}
+    .riesgo-masivo__confirmacion{display:flex;gap:9px;align-items:flex-start;max-width:750px;padding:11px 13px;border:1px solid #d3deea;border-radius:10px;background:#fff;font-size:11.5px}
+    .riesgo-masivo__confirmacion input{margin-top:2px;width:17px;height:17px;accent-color:#24558d}
+    .riesgo-masivo__resultado{margin-top:14px;padding:13px 15px;border-radius:10px;border:1px solid #cddaea;background:#f5f9fd;font-size:12px}
+    .riesgo-masivo__resultado.ok{border-color:#b9dec9;background:#f0faf4}
+    .riesgo-masivo__resultado.error{border-color:#efc1c1;background:#fff5f5}
+    .riesgo-dialogo{width:min(520px,calc(100vw - 32px));border:0;border-radius:14px;padding:0;box-shadow:0 26px 80px rgba(15,23,42,.3)}
+    .riesgo-dialogo::backdrop{background:rgba(15,23,42,.62)}
+    .riesgo-dialogo__cuerpo{padding:20px}
+    .riesgo-dialogo h3{margin:0 0 7px}
+    .riesgo-dialogo p{margin:0 0 14px;color:#66758a;font-size:12px}
+    .riesgo-dialogo label{display:block;margin:12px 0;font-size:12px;font-weight:800}
+    .riesgo-dialogo input[type="number"]{width:100%;box-sizing:border-box;margin-top:5px;padding:10px;border:1px solid #cbd7e5;border-radius:8px}
+    .riesgo-dialogo__check{display:flex!important;gap:8px;align-items:flex-start;font-weight:600!important}
+    .riesgo-dialogo__acciones{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+    .riesgo-masivo button[disabled]{opacity:.5;cursor:not-allowed}
+    @media(max-width:800px){
+        .riesgo-masivo{padding:18px 12px 24px}
+        .riesgo-masivo__encabezado{display:block}
+        .riesgo-masivo__acciones-superiores{justify-content:flex-start;margin-top:14px}
+        .riesgo-masivo__resumen{grid-template-columns:repeat(2,minmax(0,1fr))}
+        .riesgo-masivo__controles{align-items:stretch;flex-direction:column}
+    }
+</style>
+
+<section
+    class="panel panel-ancho riesgo-masivo"
+    data-riesgo-masivo
+    data-url-validar="{{ url_validar }}"
+    data-url-guardar="{{ url_guardar }}"
+    data-url-rectificar="{{ url_rectificar }}"
+    data-max-filas="{{ max_filas }}"
+>
+    <header class="riesgo-masivo__encabezado">
+        <div>
+            <a class="anexos-volver" href="{{ url_for('anexos_inteligentes.nuevo') }}">← Volver a Anexos</a>
+            <p class="anexos-kicker">SICODE-UCT · ANÁLISIS Y COMPORTAMIENTO</p>
+            <h1>Registro masivo de análisis de riesgo</h1>
+            <p>Capture únicamente la fecha de recibido, el número de análisis de riesgo y el SP. SICODE valida la secuencia de anexos antes de guardar.</p>
+        </div>
+        <div class="riesgo-masivo__acciones-superiores">
+            <button type="button" class="boton-secundario" data-agregar-fila>+ Agregar fila</button>
+            <button type="button" class="boton" data-validar-lote>Validar registros</button>
+        </div>
+    </header>
+
+    <div class="riesgo-masivo__ayuda">
+        <strong>Regla de control:</strong> un registro normal se propone como el siguiente anexo vigente del SP.
+        Si el documento pertenece a un anexo anterior, use la acción <strong>Histórico</strong> y confirme su número físico original.
+        Si el SP todavía no tiene secuencia confirmada, SICODE pedirá <strong>rectificar</strong> el total contra File Server antes de permitir el alta.
+    </div>
+
+    <div class="riesgo-masivo__resumen" aria-live="polite">
+        <div class="riesgo-masivo__dato"><span>Filas capturadas</span><strong data-total-filas>0</strong></div>
+        <div class="riesgo-masivo__dato"><span>Listas para guardar</span><strong data-total-validas>0</strong></div>
+        <div class="riesgo-masivo__dato"><span>Con error</span><strong data-total-errores>0</strong></div>
+        <div class="riesgo-masivo__dato"><span>Por rectificar</span><strong data-total-rectificar>0</strong></div>
+    </div>
+
+    <div class="riesgo-masivo__tabla-wrap">
+        <table class="riesgo-masivo__tabla">
+            <thead>
+                <tr>
+                    <th style="width:52px">#</th>
+                    <th style="width:155px">Fecha de recibido</th>
+                    <th style="width:220px">No. análisis de riesgo</th>
+                    <th style="width:165px">No. SP</th>
+                    <th>Resultado / anexo</th>
+                    <th style="width:175px">Acciones</th>
+                </tr>
+            </thead>
+            <tbody data-filas-riesgo></tbody>
+        </table>
+    </div>
+
+    <datalist id="lista-sp-riesgo-masivo">
+        {% for expediente in expedientes %}<option value="{{ expediente.no_sp }}">{% endfor %}
+    </datalist>
+
+    <div class="riesgo-masivo__controles">
+        <label class="riesgo-masivo__confirmacion">
+            <input type="checkbox" data-confirmacion-file-server>
+            <span>Confirmo que revisé en <strong>File Server</strong> la secuencia propuesta y, cuando corresponde, los números físicos de anexos históricos.</span>
+        </label>
+        <div class="anexos-acciones" style="margin:0">
+            <button type="button" class="boton-secundario" data-limpiar-lote>Limpiar</button>
+            <button type="button" class="boton" data-guardar-lote disabled>Guardar válidos</button>
+        </div>
+    </div>
+
+    <div class="riesgo-masivo__resultado" data-resultado-lote hidden aria-live="polite"></div>
+</section>
+
+<template id="plantilla-fila-riesgo">
+    <tr data-fila-riesgo data-es-vencido="0" data-numero-anexo="">
+        <td data-numero-fila></td>
+        <td><input type="date" data-fecha-recibido aria-label="Fecha de recibido"></td>
+        <td><input type="text" maxlength="120" data-correlativo placeholder="Ej. AR-2026-001" aria-label="Número de análisis de riesgo"></td>
+        <td><input type="text" maxlength="50" list="lista-sp-riesgo-masivo" data-no-sp placeholder="Ej. 31" autocomplete="off" aria-label="Número de SP"></td>
+        <td class="riesgo-masivo__estado" data-estado-fila><span class="riesgo-masivo__badge">Sin validar</span><small>Complete los tres campos y valide el lote.</small></td>
+        <td><div class="riesgo-masivo__fila-acciones" data-acciones-fila></div></td>
+    </tr>
+</template>
+
+<dialog class="riesgo-dialogo" data-dialogo-historico>
+    <div class="riesgo-dialogo__cuerpo">
+        <h3>Registrar como anexo histórico</h3>
+        <p data-historico-contexto></p>
+        <label>Número físico original del anexo
+            <input type="number" min="1" max="200" step="1" data-historico-numero>
+        </label>
+        <label class="riesgo-dialogo__check">
+            <input type="checkbox" data-historico-confirmacion>
+            <span>Confirmé este número en File Server.</span>
+        </label>
+        <div class="riesgo-dialogo__acciones">
+            <button type="button" class="boton-secundario" data-cerrar-historico>Cancelar</button>
+            <button type="button" class="boton" data-confirmar-historico>Aplicar</button>
+        </div>
+    </div>
+</dialog>
+
+<dialog class="riesgo-dialogo" data-dialogo-rectificar>
+    <div class="riesgo-dialogo__cuerpo">
+        <h3>Rectificar anexos del SP</h3>
+        <p data-rectificar-contexto></p>
+        <label>Total de anexos existentes confirmado en File Server
+            <input type="number" min="0" max="200" step="1" data-rectificar-total>
+        </label>
+        <label class="riesgo-dialogo__check">
+            <input type="checkbox" data-rectificar-confirmacion>
+            <span>Confirmé físicamente/digitalmente el total antes de actualizar la secuencia.</span>
+        </label>
+        <div class="riesgo-dialogo__acciones">
+            <button type="button" class="boton-secundario" data-cerrar-rectificar>Cancelar</button>
+            <button type="button" class="boton" data-confirmar-rectificar>Guardar rectificación</button>
+        </div>
+    </div>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/analisis_riesgo_masivo.js') }}" defer></script>
+{% endblock %}
