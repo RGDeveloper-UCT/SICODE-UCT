@@ -174,9 +174,10 @@ def test_admin_descarga_memoria_nexo_json_segura(app_nexo_export, monkeypatch):
     assert "attachment; filename=\"SICODE_NEXO_APRENDIZAJE_" in respuesta.headers["Content-Disposition"]
     assert respuesta.headers["Cache-Control"].startswith("no-store")
     assert data["formato"] == "SICODE-NEXO-APRENDIZAJE"
-    assert data["version_formato"] == 2
+    assert data["version_formato"] == 3
     assert data["estado_exportacion"] == "completa"
     assert data["diagnostico_exportacion"]["degradado"] is False
+    assert "texto libre probable en campos de catálogo" in data["privacidad"]["contenido_excluido"]
     assert data["aprendizaje"]["perfiles_documentales"][0]["tipo_documento"] == "PROVIDENCIA"
     assert data["aprendizaje"]["patrones_clasificacion"][0]["caracteristica"] == "kw_providencia"
     assert data["aprendizaje"]["eventos_aprendizaje"]["total"] == 1

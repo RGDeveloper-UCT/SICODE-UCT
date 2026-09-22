@@ -99,7 +99,8 @@ def retroalimentar_segmento(segmento, tipo_confirmado, datos_confirmados):
             correcto = PatronAprendizajeDocumental(tipo_documento=tipo_confirmado, caracteristica=caracteristica)
             db.session.add(correcto)
         correcto.aciertos = int(correcto.aciertos or 0) + 1
-        correcto.peso = max(0.50, min(2.25, (correcto.aciertos + 1) / (correcto.errores + 1)))
+        errores_correcto = int(correcto.errores or 0)
+        correcto.peso = max(0.50, min(2.25, (int(correcto.aciertos or 0) + 1) / (errores_correcto + 1)))
 
         detectado_tipo = str(segmento.tipo_detectado or "OTRO").upper()
         if detectado_tipo != tipo_confirmado:
@@ -111,7 +112,8 @@ def retroalimentar_segmento(segmento, tipo_confirmado, datos_confirmados):
                 errado = PatronAprendizajeDocumental(tipo_documento=detectado_tipo, caracteristica=caracteristica)
                 db.session.add(errado)
             errado.errores = int(errado.errores or 0) + 1
-            errado.peso = max(0.50, min(2.25, (errado.aciertos + 1) / (errado.errores + 1)))
+            aciertos_errado = int(errado.aciertos or 0)
+            errado.peso = max(0.50, min(2.25, (aciertos_errado + 1) / (int(errado.errores or 0) + 1)))
 
     _recalcular_nivel(perfil)
 
