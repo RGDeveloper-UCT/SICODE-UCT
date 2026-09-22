@@ -122,6 +122,13 @@ def estado(job_id):
         respuesta.update({"semaforo":"verde","porcentaje":100,"detalle":"Análisis terminado. Ya puede iniciar la Verificación Humana.",
                           "revision_url":url_for("sicode_ia.revision", token=token) if token else None})
     elif estado == "failed":
-        respuesta.update({"semaforo":"rojo","detalle":"El análisis encontró un error. Revise el servicio sicode-ia-worker.","error":(job.exc_info or "")[-900:]})
+        # El traceback queda disponible únicamente en logs/administración del
+        # worker; nunca se devuelve al navegador porque puede contener rutas,
+        # valores internos, versiones o fragmentos de datos procesados.
+        current_app.logger.error("Trabajo SICODE.IA fallido. job_id=%s", job.id)
+        respuesta.update({
+            "semaforo":"rojo",
+            "detalle":"El análisis encontró un error. Revise el servicio sicode-ia-worker o contacte al administrador."
+        })
     else: respuesta["semaforo"] = "amarillo"
     return jsonify(respuesta)

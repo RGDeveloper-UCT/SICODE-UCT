@@ -33,6 +33,7 @@ rq==2.6.0
 SQLAlchemy==2.0.51
 tomli==2.4.1
 typing_extensions==4.15.0
+tzdata==2026.3
 Werkzeug==3.1.8
 WTForms==3.2.1
 xlrd==2.0.2
