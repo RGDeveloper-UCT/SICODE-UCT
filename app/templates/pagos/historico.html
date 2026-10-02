@@ -63,8 +63,14 @@
                     <td>{{ pago.periodo_desde.strftime('%d/%m/%Y') if pago.periodo_desde else '—' }}</td>
                     <td>{{ pago.periodo_hasta.strftime('%d/%m/%Y') if pago.periodo_hasta else '—' }}</td>
                     <td><strong>Q {{ "{:,.2f}".format(pago.total or 0) }}</strong></td>
-                    <td>
-                        {% if pago.registro.expediente_id %}<a href="{{ url_for('pagos.sp', expediente_id=pago.registro.expediente_id) }}">Pagos SP</a> · {% endif %}
+                    <td class="pagos-acciones-boleta">
+                        {% if pago.boleta_pdf %}
+                            <a class="pagos-boton-pdf" target="_blank" rel="noopener" href="{{ url_for('pagos.boleta_pdf', pago_id=pago.id) }}">Imprimir boleta</a>
+                            <a href="{{ url_for('pagos.boleta_pdf', pago_id=pago.id, descargar=1) }}">Descargar</a>
+                        {% else %}
+                            <span class="pagos-sin-pdf">Registro anterior sin PDF</span>
+                        {% endif %}
+                        {% if pago.registro.expediente_id %}<a href="{{ url_for('pagos.sp', expediente_id=pago.registro.expediente_id) }}">Pagos SP</a>{% endif %}
                         <a href="{{ url_for('coordinacion.detalle', registro_id=pago.registro.id) }}">Registro</a>
                     </td>
                 </tr>
