@@ -75,7 +75,10 @@
                         <td>{{ pago.boleta or '—' }}</td>
                         <td>{{ pago.periodo_desde.strftime('%d/%m/%Y') if pago.periodo_desde else '—' }} — {{ pago.periodo_hasta.strftime('%d/%m/%Y') if pago.periodo_hasta else '—' }}</td>
                         <td><strong>Q {{ "{:,.2f}".format(pago.total or 0) }}</strong></td>
-                        <td>{% if pago.registro.expediente_id %}<a href="{{ url_for('pagos.sp', expediente_id=pago.registro.expediente_id) }}">Ver SP</a>{% else %}<span>Sin vínculo</span>{% endif %}</td>
+                        <td class="pagos-acciones-boleta">
+                            {% if pago.boleta_pdf %}<a class="pagos-boton-pdf" target="_blank" rel="noopener" href="{{ url_for('pagos.boleta_pdf', pago_id=pago.id) }}">Imprimir</a>{% endif %}
+                            {% if pago.registro.expediente_id %}<a href="{{ url_for('pagos.sp', expediente_id=pago.registro.expediente_id) }}">Ver SP</a>{% else %}<span>Sin vínculo</span>{% endif %}
+                        </td>
                     </tr>
                 {% else %}<tr><td colspan="9">No hay pagos con los filtros seleccionados.</td></tr>{% endfor %}
                 </tbody>
