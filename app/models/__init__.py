@@ -29,3 +29,5 @@ from app.models.coordinacion import (
     RemisionCoordinacion,
     RemisionExpediente,
 )
+
+from app.models.boleta_pago import BoletaPagoSP
