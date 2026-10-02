@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Registrar pago — SICODE-UCT{% endblock %}
+{% block title %}Registrar pago y boleta — SICODE-UCT{% endblock %}
 {% block body_class %}vista-pagos{% endblock %}
 {% block content %}
 <section class="panel panel-ancho pagos-modulo">
     <div class="encabezado-modulo pagos-encabezado">
         <div>
-            <h1>Registrar pago de SP</h1>
-            <p>El registro queda vinculado al expediente maestro y su fecha, hora y usuario se toman automáticamente de SICODE.</p>
+            <h1>Registrar pago y generar boleta</h1>
+            <p>Un solo formulario registra el pago, lo vincula al SP, genera la boleta institucional y guarda el PDF histórico dentro de SICODE.</p>
         </div>
         <a class="boton-cancelar" href="{{ url_for('pagos.inicio') }}">Volver</a>
     </div>
@@ -16,67 +16,138 @@
     <div class="pagos-registro-layout">
         <section class="pagos-formulario-panel">
             <div class="pagos-sello-tiempo" aria-label="Fecha y hora automática del registro">
-                <span>Fecha y hora del sistema</span>
+                <span>Fecha y hora de registro SICODE</span>
                 <strong>{{ ahora_gt.strftime('%d/%m/%Y · %H:%M:%S') }}</strong>
-                <small>Se guardará automáticamente al confirmar. Este dato no puede editarse.</small>
+                <small>El PDF se conserva como copia histórica: no se reconstruye con datos futuros del SP.</small>
             </div>
 
-            <form method="POST" class="pagos-formulario" novalidate>
+            <form method="POST" enctype="multipart/form-data" class="pagos-formulario" novalidate data-pago-boleta-form data-sp-api="{{ url_for('pagos.api_sp') }}" data-tarifa-dia="{{ tarifa_dia }}" data-tarifa-mes="{{ tarifa_mes }}">
                 {{ form.hidden_tag() }}
 
-                <div class="pagos-form-grid">
-                    <div class="campo campo-ancho-medio">
-                        {{ form.no_sp.label }}
-                        {{ form.no_sp(list='registro-pago-sps', autocomplete='off', placeholder='Ej. 459') }}
-                        {% for error in form.no_sp.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                <div class="pagos-bloque-form">
+                    <div class="pagos-bloque-titulo">
+                        <h2>1. Sujeto portador y datos de la boleta</h2>
+                        <p>Al indicar el SP, SICODE toma del registro maestro el nombre, caso judicial y órgano jurisdiccional. Puede completar un dato faltante sin modificar el expediente maestro.</p>
                     </div>
-                    <div class="campo campo-ancho-medio">
-                        {{ form.providencia.label }}
-                        {{ form.providencia(autocomplete='off', placeholder='Número de providencia') }}
-                        {% for error in form.providencia.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                    <div class="pagos-form-grid">
+                        <div class="campo">
+                            {{ form.no_sp.label }}
+                            {{ form.no_sp(list='registro-pago-sps', autocomplete='off', placeholder='Ej. 272', data_sp_input='1') }}
+                            {% for error in form.no_sp.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                        </div>
+                        <div class="campo">
+                            {{ form.fecha_comprobante.label }}
+                            {{ form.fecha_comprobante() }}
+                            {% for error in form.fecha_comprobante.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                        </div>
+                        <div class="campo campo-ancho-medio">
+                            {{ form.nombre_sujeto.label }}
+                            {{ form.nombre_sujeto(autocomplete='off', data_sp_nombre='1') }}
+                            {% for error in form.nombre_sujeto.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                        </div>
+                        <div class="campo campo-ancho-medio">
+                            {{ form.expediente_oj.label }}
+                            {{ form.expediente_oj(autocomplete='off', data_sp_expediente='1') }}
+                            {% for error in form.expediente_oj.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                        </div>
+                        <div class="campo campo-ancho-medio">
+                            {{ form.organo_jurisdiccional.label }}
+                            {{ form.organo_jurisdiccional(rows='2', data_sp_organo='1') }}
+                            {% for error in form.organo_jurisdiccional.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                        </div>
                     </div>
+                </div>
 
-                    <div class="campo campo-referencia-tipo">
-                        {{ form.tipo_referencia.label }}
-                        {{ form.tipo_referencia() }}
-                        {% for error in form.tipo_referencia.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                <div class="pagos-bloque-form">
+                    <div class="pagos-bloque-titulo">
+                        <h2>2. Control interno del pago</h2>
+                        <p>Providencia y RC/RE continúan alimentando el historial operativo y la búsqueda de SICODE.</p>
                     </div>
-                    <div class="campo campo-referencia-numero">
-                        {{ form.numero_referencia.label }}
-                        {{ form.numero_referencia(autocomplete='off', placeholder='Número sin prefijo') }}
-                        {% for error in form.numero_referencia.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                    <div class="pagos-form-grid">
+                        <div class="campo campo-ancho-medio">
+                            {{ form.providencia.label }}
+                            {{ form.providencia(autocomplete='off', placeholder='Número de providencia') }}
+                            {% for error in form.providencia.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                        </div>
+                        <div class="campo campo-referencia-tipo">
+                            {{ form.tipo_referencia.label }}
+                            {{ form.tipo_referencia() }}
+                            {% for error in form.tipo_referencia.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                        </div>
+                        <div class="campo campo-referencia-numero">
+                            {{ form.numero_referencia.label }}
+                            {{ form.numero_referencia(autocomplete='off', placeholder='Número sin prefijo') }}
+                            {% for error in form.numero_referencia.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                        </div>
                     </div>
+                </div>
 
-                    <div class="campo">
-                        {{ form.monto.label }}
-                        {{ form.monto(step='0.01', min='0.01', inputmode='decimal', placeholder='0.00') }}
-                        {% for error in form.monto.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                <div class="pagos-bloque-form">
+                    <div class="pagos-bloque-titulo">
+                        <h2>3. Plazo, tarifa y boleta bancaria</h2>
+                        <p>La cantidad se calcula en servidor con las mismas tarifas de la plantilla: Q{{ "{:,.2f}".format(tarifa_dia) }} por día y Q{{ "{:,.2f}".format(tarifa_mes) }} por mes.</p>
                     </div>
-                    <div class="campo">
-                        {{ form.boleta.label }}
-                        {{ form.boleta(autocomplete='off', placeholder='Número de boleta') }}
-                        {% for error in form.boleta.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
-                    </div>
-                    <div class="campo campo-ancho-medio">
-                        {{ form.banco.label }}
-                        {{ form.banco(list='registro-pago-bancos', autocomplete='off', placeholder='Seleccione o escriba el banco') }}
-                        {% for error in form.banco.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
-                    </div>
+                    <div class="pagos-form-grid">
+                        <div class="campo">
+                            {{ form.periodo_desde.label }}
+                            {{ form.periodo_desde() }}
+                            {% for error in form.periodo_desde.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                        </div>
+                        <div class="campo">
+                            {{ form.periodo_hasta.label }}
+                            {{ form.periodo_hasta() }}
+                            {% for error in form.periodo_hasta.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                        </div>
+                        <div class="campo">
+                            {{ form.dias_aplicados.label }}
+                            {{ form.dias_aplicados(min='0', step='1', data_dias='1') }}
+                            {% for error in form.dias_aplicados.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                        </div>
+                        <div class="campo">
+                            {{ form.meses_aplicados.label }}
+                            {{ form.meses_aplicados(min='0', step='1', data_meses='1') }}
+                            {% for error in form.meses_aplicados.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                        </div>
 
-                    <div class="campo">
-                        {{ form.periodo_desde.label }}
-                        {{ form.periodo_desde() }}
-                        {% for error in form.periodo_desde.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
-                    </div>
-                    <div class="campo">
-                        {{ form.periodo_hasta.label }}
-                        {{ form.periodo_hasta() }}
-                        {% for error in form.periodo_hasta.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
-                    </div>
-                    <div class="campo campo-ancho-completo">
-                        {{ form.observaciones.label }}
-                        {{ form.observaciones(rows='3', placeholder='Observaciones opcionales del pago') }}
-                        {% for error in form.observaciones.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                        <div class="campo campo-ancho-medio">
+                            <label for="monto-calculado">Cantidad a pagar</label>
+                            <input id="monto-calculado" type="text" value="Q {{ '{:,.2f}'.format(monto_calculado) }}" readonly data-total='1'>
+                            {% for error in form.monto.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                        </div>
+                        <div class="campo campo-ancho-medio">
+                            {{ form.boleta.label }}
+                            {{ form.boleta(autocomplete='off', placeholder='Número de boleta BANTRAB') }}
+                            {% for error in form.boleta.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                        </div>
+
+                        <div class="campo campo-ancho-medio">
+                            {{ form.banco.label }}
+                            {{ form.banco(list='registro-pago-bancos', autocomplete='off') }}
+                            {% for error in form.banco.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                        </div>
+                        <div class="campo campo-ancho-medio">
+                            {{ form.contacto.label }}
+                            {{ form.contacto(autocomplete='off', placeholder='Nombre / teléfono que aparecerá en la boleta') }}
+                            {% for error in form.contacto.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                        </div>
+
+                        <div class="campo campo-ancho-completo pagos-cuenta-bantrab">
+                            <label>Cuenta que se imprimirá</label>
+                            <strong>{{ cuenta_bantrab }}</strong>
+                            <span>a nombre de: {{ cuenta_nombre }}</span>
+                        </div>
+
+                        <div class="campo campo-ancho-completo">
+                            {{ form.comprobante.label }}
+                            {{ form.comprobante(accept='.jpg,.jpeg,.png,.pdf') }}
+                            <small class="pagos-ayuda-campo">JPG, PNG o PDF, máximo 12 MB. El comprobante se integra al PDF final y queda protegido por hash SHA-256.</small>
+                            {% for error in form.comprobante.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                        </div>
+                        <div class="campo campo-ancho-completo">
+                            {{ form.observaciones.label }}
+                            {{ form.observaciones(rows='3', placeholder='Observaciones opcionales del registro') }}
+                            {% for error in form.observaciones.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
+                        </div>
                     </div>
                 </div>
 
@@ -84,26 +155,75 @@
                 <datalist id="registro-pago-bancos">{% for banco in bancos %}<option value="{{ banco }}"></option>{% endfor %}</datalist>
 
                 <div class="pagos-confirmacion">
-                    <p><strong>Control de integridad:</strong> la fecha, hora y usuario que registra no se solicitan al operador; SICODE los incorpora directamente en el momento de guardar.</p>
+                    <p><strong>Al confirmar:</strong> se registra el pago, se actualiza la solvencia del SP, se genera el PDF tamaño Legal, se integra el comprobante y se guarda la copia histórica en PostgreSQL. Si el PDF falla, el pago no se registra.</p>
                     {{ form.submit(class_='boton-exito') }}
                 </div>
             </form>
         </section>
 
         <aside class="pagos-ayuda-registro">
-            <h2>Qué quedará vinculado al SP</h2>
+            <h2>Boleta oficial de pagos</h2>
             <ul>
-                <li>Providencia y referencia RC o RE.</li>
-                <li>Monto, banco y número de boleta.</li>
-                <li>Período exacto cubierto por el pago.</li>
-                <li>Fecha y hora automática de registro.</li>
-                <li>Usuario responsable dentro de la bitácora institucional.</li>
+                <li>Formato Legal vertical, reproducido desde las hojas Excel proporcionadas.</li>
+                <li>Encabezado institucional, SP, caso, juzgado, nombre y plazo.</li>
+                <li>Tarifa aplicada, BANTRAB, cuenta, total, contacto y No. de boleta.</li>
+                <li>Base legal conservada en la copia histórica.</li>
+                <li>Comprobante bancario incorporado como página adicional cuando corresponda.</li>
+                <li>Botón de imprimir disponible en el histórico de pagos.</li>
             </ul>
             <div class="pagos-ayuda-solvencia">
-                <strong>Solvencia automática</strong>
-                <p>El indicador cambia a verde cuando el período pagado cubre la fecha actual. Los SP exonerados se consideran solventes sin exigir pago.</p>
+                <strong>Copia inmutable</strong>
+                <p>La boleta guardada no cambia aunque posteriormente se editen los datos maestros del SP. Cada consulta del PDF queda registrada en bitácora.</p>
             </div>
         </aside>
     </div>
 </section>
+
+<script>
+(() => {
+    const form = document.querySelector('[data-pago-boleta-form]');
+    if (!form) return;
+
+    const sp = form.querySelector('[data-sp-input]');
+    const nombre = form.querySelector('[data-sp-nombre]');
+    const expediente = form.querySelector('[data-sp-expediente]');
+    const organo = form.querySelector('[data-sp-organo]');
+    const dias = form.querySelector('[data-dias]');
+    const meses = form.querySelector('[data-meses]');
+    const total = form.querySelector('[data-total]');
+    const tarifaDia = Number(form.dataset.tarifaDia || 50);
+    const tarifaMes = Number(form.dataset.tarifaMes || 1500);
+
+    function recalcular() {
+        const d = Math.max(0, Number(dias?.value || 0));
+        const m = Math.max(0, Number(meses?.value || 0));
+        const monto = (d * tarifaDia) + (m * tarifaMes);
+        if (total) total.value = new Intl.NumberFormat('es-GT', {style: 'currency', currency: 'GTQ'}).format(monto);
+    }
+
+    async function cargarSP() {
+        const valor = (sp?.value || '').trim();
+        if (!valor) return;
+        try {
+            const respuesta = await fetch(form.dataset.spApi + '?sp=' + encodeURIComponent(valor), {
+                headers: {'Accept': 'application/json'}
+            });
+            if (!respuesta.ok) return;
+            const datos = await respuesta.json();
+            if (!datos.ok) return;
+            if (nombre) nombre.value = datos.nombre_sujeto || '';
+            if (expediente) expediente.value = datos.expediente_oj || '';
+            if (organo) organo.value = datos.organo_jurisdiccional || '';
+        } catch (_error) {
+            // El POST vuelve a resolver el SP en servidor; este autollenado es solo ayuda de captura.
+        }
+    }
+
+    dias?.addEventListener('input', recalcular);
+    meses?.addEventListener('input', recalcular);
+    sp?.addEventListener('change', cargarSP);
+    sp?.addEventListener('blur', cargarSP);
+    recalcular();
+})();
+</script>
 {% endblock %}
