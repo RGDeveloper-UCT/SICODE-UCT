@@ -1,23 +1,40 @@
 from collections import defaultdict
 from datetime import date
 from decimal import Decimal
+from hashlib import sha256
+from io import BytesIO
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func, or_
+from werkzeug.utils import secure_filename
 
 from app import db
 from app.forms.pagos_form import PagoSPForm
+from app.models.boleta_pago import BoletaPagoSP
 from app.models.coordinacion import PagoCoordinacion, RegistroCoordinacion
 from app.models.expediente import Expediente
 from app.services.bitacora_service import registrar_bitacora
+from app.services.pagos_boleta_pdf_service import (
+    BANCO_DEFAULT,
+    BASE_LEGAL_DEFAULT,
+    CUENTA_DEFAULT,
+    CUENTA_NOMBRE_DEFAULT,
+    TARIFA_DIA,
+    TARIFA_MES,
+    DatosBoletaPago,
+    generar_boleta_pago_pdf,
+)
 from app.services.pagos_service import ahora_guatemala, resumen_solvencia_actual
 from app.services.sp_service import resolver_expediente
 
 
 pagos_bp = Blueprint("pagos", __name__, url_prefix="/pagos")
 
+MAX_COMPROBANTE_BYTES = 12 * 1024 * 1024
 BANCOS_SUGERIDOS = (
+    "BANTRAB",
+    BANCO_DEFAULT,
     "BANRURAL",
     "BANCO INDUSTRIAL",
     "G&T CONTINENTAL",
@@ -131,6 +148,37 @@ def _numero_referencia(tipo, numero):
     return f"{tipo} {numero}".strip()
 
 
+def _nombre_sp(expediente):
+    return (
+        (expediente.nombre_referencia or "").strip()
+        or " ".join(
+            parte.strip()
+            for parte in (expediente.nombres or "", expediente.apellidos or "")
+            if parte and parte.strip()
+        )
+        or f"SP {expediente.no_sp}"
+    )
+
+
+def _datos_sp(expediente):
+    return {
+        "no_sp": expediente.no_sp,
+        "nombre_sujeto": _nombre_sp(expediente),
+        "expediente_oj": expediente.expediente_oj or "",
+        "organo_jurisdiccional": expediente.juzgado_tribunal or "",
+    }
+
+
+def _precargar_formulario(form, expediente):
+    datos = _datos_sp(expediente)
+    if not form.nombre_sujeto.data:
+        form.nombre_sujeto.data = datos["nombre_sujeto"]
+    if not form.expediente_oj.data:
+        form.expediente_oj.data = datos["expediente_oj"]
+    if not form.organo_jurisdiccional.data:
+        form.organo_jurisdiccional.data = datos["organo_jurisdiccional"]
+
+
 @pagos_bp.route("")
 @pagos_bp.route("/")
 @login_required
@@ -152,6 +200,7 @@ def inicio():
         fecha_registro = pago.registro.fecha_recepcion
         clave_mes = fecha_registro.strftime("%Y-%m") if fecha_registro else "Sin fecha"
         por_mes[clave_mes]["cantidad"] += 1
+        por_mes[banco]["cantidad"] += 0
         por_mes[clave_mes]["monto"] += pago.total or Decimal("0.00")
 
     bancos_grafica = [
@@ -161,6 +210,7 @@ def inicio():
     meses_grafica = [
         {"nombre": nombre, **datos}
         for nombre, datos in sorted(por_mes.items(), reverse=True)[:12]
+        if datos["cantidad"] > 0
     ]
     meses_grafica.reverse()
 
@@ -188,6 +238,16 @@ def inicio():
     )
 
 
+@pagos_bp.route("/api/sp")
+@login_required
+def api_sp():
+    no_sp = (request.args.get("sp") or "").strip()
+    expediente, normalizado = resolver_expediente(no_sp)
+    if not expediente:
+        return jsonify({"ok": False, "error": f"El SP {normalizado or no_sp} no existe."}), 404
+    return jsonify({"ok": True, **_datos_sp(expediente)})
+
+
 @pagos_bp.route("/registrar", methods=["GET", "POST"])
 @login_required
 def registrar():
@@ -195,15 +255,29 @@ def registrar():
         abort(403)
 
     form = PagoSPForm()
-    if request.method == "GET" and request.args.get("sp"):
-        form.no_sp.data = request.args.get("sp", "").strip()
+    if request.method == "GET":
+        form.fecha_comprobante.data = ahora_guatemala().date()
+        if not form.banco.data:
+            form.banco.data = BANCO_DEFAULT
+        if form.dias_aplicados.data is None:
+            form.dias_aplicados.data = 0
+        if form.meses_aplicados.data is None:
+            form.meses_aplicados.data = 1
+
+        no_sp_get = (request.args.get("sp") or "").strip()
+        if no_sp_get:
+            form.no_sp.data = no_sp_get
+            expediente_get, _ = resolver_expediente(no_sp_get)
+            if expediente_get:
+                _precargar_formulario(form, expediente_get)
 
     if form.validate_on_submit():
         expediente, no_sp = resolver_expediente(form.no_sp.data)
         if not expediente:
             form.no_sp.errors.append(f"El SP {no_sp or form.no_sp.data} no existe en el registro maestro de SICODE.")
         else:
-            banco = (form.banco.data or "").strip()
+            _precargar_formulario(form, expediente)
+            banco = (form.banco.data or BANCO_DEFAULT).strip()
             boleta = (form.boleta.data or "").strip()
             duplicado = (
                 PagoCoordinacion.query
@@ -216,78 +290,204 @@ def registrar():
             if duplicado:
                 form.boleta.errors.append("Esta boleta ya está registrada para el mismo banco.")
             else:
-                ahora = ahora_guatemala()
-                momento_local = ahora.replace(tzinfo=None)
-                referencia = _numero_referencia(form.tipo_referencia.data, form.numero_referencia.data)
+                comprobante_archivo = form.comprobante.data
+                comprobante_bytes = comprobante_archivo.read() if comprobante_archivo else b""
+                if not comprobante_bytes:
+                    form.comprobante.errors.append("El comprobante bancario está vacío.")
+                elif len(comprobante_bytes) > MAX_COMPROBANTE_BYTES:
+                    form.comprobante.errors.append("El comprobante bancario no puede superar 12 MB.")
+                else:
+                    referencia = _numero_referencia(form.tipo_referencia.data, form.numero_referencia.data)
+                    datos_boleta = DatosBoletaPago(
+                        fecha_comprobante=form.fecha_comprobante.data,
+                        no_sp=expediente.no_sp,
+                        numero_expediente=(form.expediente_oj.data or expediente.expediente_oj or "").strip(),
+                        organo_jurisdiccional=(
+                            form.organo_jurisdiccional.data or expediente.juzgado_tribunal or ""
+                        ).strip(),
+                        nombre_sujeto=(form.nombre_sujeto.data or _nombre_sp(expediente)).strip(),
+                        periodo_desde=form.periodo_desde.data,
+                        periodo_hasta=form.periodo_hasta.data,
+                        dias_aplicados=form.dias_aplicados.data or 0,
+                        meses_aplicados=form.meses_aplicados.data or 0,
+                        numero_boleta=boleta,
+                        elaborado_por=current_user.nombre,
+                        contacto=(form.contacto.data or "").strip(),
+                        banco=banco,
+                    )
 
-                registro = RegistroCoordinacion(
-                    tipo="PAGO",
-                    expediente_id=expediente.id,
-                    no_sp_referencia=expediente.no_sp,
-                    rc=referencia,
-                    providencia=(form.providencia.data or "").strip(),
-                    fecha_recepcion=ahora.date(),
-                    usuario_id=current_user.id,
-                    usuario_origen=current_user.nombre,
-                    estado="Completo",
-                    observaciones=(form.observaciones.data or "").strip() or None,
-                    origen_registro="MANUAL",
-                    creado_en=momento_local,
-                    actualizado_en=momento_local,
-                )
-                db.session.add(registro)
-                db.session.flush()
+                    if datos_boleta.total <= 0:
+                        form.monto.errors.append("La cantidad calculada debe ser mayor que cero.")
+                    else:
+                        ahora = ahora_guatemala()
+                        momento_local = ahora.replace(tzinfo=None)
+                        nombre_comprobante = secure_filename(comprobante_archivo.filename or "comprobante")
+                        comprobante_mime = (comprobante_archivo.mimetype or "application/octet-stream").lower()
 
-                pago = PagoCoordinacion(
-                    registro_id=registro.id,
-                    periodo_desde=form.periodo_desde.data,
-                    periodo_hasta=form.periodo_hasta.data,
-                    periodo_texto=None,
-                    boleta=boleta,
-                    banco=banco,
-                    total=form.monto.data,
-                )
-                db.session.add(pago)
-                db.session.flush()
+                        try:
+                            documento = generar_boleta_pago_pdf(
+                                datos_boleta,
+                                comprobante=comprobante_bytes,
+                                comprobante_mime=comprobante_mime,
+                            )
+                        except Exception as exc:
+                            current_app.logger.warning(
+                                "No se pudo generar la boleta PDF de pago para SP %s",
+                                expediente.no_sp,
+                                exc_info=exc,
+                            )
+                            form.comprobante.errors.append(
+                                "No se pudo procesar el comprobante. Verifique que el archivo sea una imagen o PDF válido."
+                            )
+                        else:
+                            registro = RegistroCoordinacion(
+                                tipo="PAGO",
+                                expediente_id=expediente.id,
+                                no_sp_referencia=expediente.no_sp,
+                                rc=referencia,
+                                providencia=(form.providencia.data or "").strip(),
+                                fecha_recepcion=ahora.date(),
+                                usuario_id=current_user.id,
+                                usuario_origen=current_user.nombre,
+                                estado="Completo",
+                                observaciones=(form.observaciones.data or "").strip() or None,
+                                origen_registro="MANUAL",
+                                creado_en=momento_local,
+                                actualizado_en=momento_local,
+                            )
+                            db.session.add(registro)
+                            db.session.flush()
 
-                registrar_bitacora(
-                    accion="REGISTRAR_PAGO_SP",
-                    modulo="Pagos",
-                    descripcion=(
-                        f"Se registró pago del SP {expediente.no_sp}, boleta {boleta}, "
-                        f"período {form.periodo_desde.data.strftime('%d/%m/%Y')} al "
-                        f"{form.periodo_hasta.data.strftime('%d/%m/%Y')}."
-                    ),
-                    usuario_id=current_user.id,
-                    expediente_id=expediente.id,
-                    entidad="PagoCoordinacion",
-                    entidad_id=pago.id,
-                    datos_posteriores={
-                        "sp": expediente.no_sp,
-                        "referencia": referencia,
-                        "providencia": registro.providencia,
-                        "banco": banco,
-                        "boleta": boleta,
-                        "monto": str(pago.total),
-                        "periodo_desde": str(pago.periodo_desde),
-                        "periodo_hasta": str(pago.periodo_hasta),
-                        "registrado_en": momento_local.isoformat(sep=" ", timespec="seconds"),
-                    },
-                    commit=False,
-                )
-                db.session.commit()
-                flash(
-                    f"Pago del SP {expediente.no_sp} registrado correctamente a las {ahora.strftime('%H:%M:%S')}.",
-                    "success",
-                )
-                return redirect(url_for("pagos.sp", expediente_id=expediente.id))
+                            pago = PagoCoordinacion(
+                                registro_id=registro.id,
+                                periodo_desde=form.periodo_desde.data,
+                                periodo_hasta=form.periodo_hasta.data,
+                                periodo_texto=None,
+                                boleta=boleta,
+                                banco=banco,
+                                total=documento["total"],
+                            )
+                            db.session.add(pago)
+                            db.session.flush()
 
+                            boleta_pdf = BoletaPagoSP(
+                                pago_id=pago.id,
+                                plantilla_version=documento["plantilla_version"],
+                                fecha_comprobante=datos_boleta.fecha_comprobante,
+                                expediente_numero=datos_boleta.numero_expediente or None,
+                                organo_jurisdiccional=datos_boleta.organo_jurisdiccional or None,
+                                nombre_sujeto=datos_boleta.nombre_sujeto,
+                                dias_aplicados=datos_boleta.dias_aplicados,
+                                meses_aplicados=datos_boleta.meses_aplicados,
+                                tarifa_dia=TARIFA_DIA,
+                                tarifa_mes=TARIFA_MES,
+                                banco_snapshot=datos_boleta.banco,
+                                cuenta_snapshot=CUENTA_DEFAULT,
+                                cuenta_nombre_snapshot=CUENTA_NOMBRE_DEFAULT,
+                                elaborado_por_snapshot=datos_boleta.elaborado_por or None,
+                                contacto_snapshot=datos_boleta.contacto or None,
+                                base_legal_snapshot=BASE_LEGAL_DEFAULT,
+                                comprobante_nombre=nombre_comprobante,
+                                comprobante_mime=comprobante_mime,
+                                comprobante_sha256=sha256(comprobante_bytes).hexdigest(),
+                                pdf_nombre=documento["nombre"],
+                                pdf_mime=documento["mime"],
+                                pdf_sha256=documento["sha256"],
+                                pdf_bytes=documento["bytes"],
+                                generado_en=momento_local,
+                            )
+                            db.session.add(boleta_pdf)
+                            db.session.flush()
+
+                            registrar_bitacora(
+                                accion="REGISTRAR_PAGO_SP",
+                                modulo="Pagos",
+                                descripcion=(
+                                    f"Se registró pago y boleta PDF del SP {expediente.no_sp}, "
+                                    f"boleta {boleta}, período "
+                                    f"{form.periodo_desde.data.strftime('%d/%m/%Y')} al "
+                                    f"{form.periodo_hasta.data.strftime('%d/%m/%Y')}."
+                                ),
+                                usuario_id=current_user.id,
+                                expediente_id=expediente.id,
+                                entidad="PagoCoordinacion",
+                                entidad_id=pago.id,
+                                datos_posteriores={
+                                    "sp": expediente.no_sp,
+                                    "referencia": referencia,
+                                    "providencia": registro.providencia,
+                                    "banco": banco,
+                                    "boleta": boleta,
+                                    "monto": str(pago.total),
+                                    "periodo_desde": str(pago.periodo_desde),
+                                    "periodo_hasta": str(pago.periodo_hasta),
+                                    "dias_aplicados": datos_boleta.dias_aplicados,
+                                    "meses_aplicados": datos_boleta.meses_aplicados,
+                                    "plantilla_pdf": boleta_pdf.plantilla_version,
+                                    "pdf_sha256": boleta_pdf.pdf_sha256,
+                                    "comprobante_sha256": boleta_pdf.comprobante_sha256,
+                                    "registrado_en": momento_local.isoformat(sep=" ", timespec="seconds"),
+                                },
+                                commit=False,
+                            )
+                            db.session.commit()
+                            flash(
+                                f"Pago del SP {expediente.no_sp} registrado y boleta PDF generada correctamente.",
+                                "success",
+                            )
+                            return redirect(url_for("pagos.boleta_pdf", pago_id=pago.id))
+
+    monto_calculado = (
+        Decimal(form.dias_aplicados.data or 0) * TARIFA_DIA
+        + Decimal(form.meses_aplicados.data or 0) * TARIFA_MES
+    )
     return render_template(
         "pagos/registrar.html",
         form=form,
         ahora_gt=ahora_guatemala(),
         bancos=_bancos_disponibles(),
         sps=_sp_disponibles(),
+        tarifa_dia=TARIFA_DIA,
+        tarifa_mes=TARIFA_MES,
+        monto_calculado=monto_calculado,
+        cuenta_bantrab=CUENTA_DEFAULT,
+        cuenta_nombre=CUENTA_NOMBRE_DEFAULT,
+    )
+
+
+@pagos_bp.route("/<int:pago_id>/boleta.pdf")
+@login_required
+def boleta_pdf(pago_id):
+    pago = PagoCoordinacion.query.get_or_404(pago_id)
+    boleta = pago.boleta_pdf
+    if boleta is None:
+        abort(404)
+
+    registrar_bitacora(
+        accion="CONSULTAR_BOLETA_PAGO_PDF",
+        modulo="Pagos",
+        descripcion=(
+            f"Se consultó la boleta PDF del SP {pago.registro.no_sp_referencia or 'sin SP'}, "
+            f"boleta {pago.boleta or pago.id}."
+        ),
+        usuario_id=current_user.id,
+        expediente_id=pago.registro.expediente_id,
+        entidad="BoletaPagoSP",
+        entidad_id=boleta.id,
+        datos_posteriores={
+            "pago_id": pago.id,
+            "pdf_sha256": boleta.pdf_sha256,
+            "plantilla_version": boleta.plantilla_version,
+        },
+    )
+
+    descargar = (request.args.get("descargar") or "").lower() in {"1", "true", "si", "sí"}
+    return send_file(
+        BytesIO(boleta.pdf_bytes),
+        mimetype=boleta.pdf_mime or "application/pdf",
+        as_attachment=descargar,
+        download_name=boleta.pdf_nombre,
+        max_age=0,
     )
 
 
