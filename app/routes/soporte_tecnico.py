@@ -5,11 +5,13 @@ from xml.sax.saxutils import escape
 from flask import Blueprint, flash, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
+from reportlab.lib.pagesizes import landscape, letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from sqlalchemy import cast, or_
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font
 
 from app import db
 from app.forms.soporte_tecnico_form import (
@@ -349,6 +351,227 @@ def _tabla_seccion(titulo, filas, anchos, estilo_encabezado=None):
         ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
     ]))
     return tabla
+
+
+
+def _historico_boletas():
+    return ServicioSoporteTecnico.query.order_by(
+        ServicioSoporteTecnico.fecha_hora_solicitud.asc(),
+        ServicioSoporteTecnico.id.asc(),
+    ).all()
+
+
+def _servicios_legibles(boleta):
+    catalogo = dict(TIPOS_SERVICIO)
+    servicios = [catalogo.get(codigo, codigo) for codigo in (boleta.tipos_servicio or [])]
+    if boleta.otro_servicio_ti:
+        servicios.append(boleta.otro_servicio_ti)
+    return ", ".join(servicios) or "—"
+
+
+@soporte_tecnico_bp.route("/exportar/excel")
+@login_required
+def exportar_historico_excel():
+    boletas = _historico_boletas()
+
+    libro = Workbook()
+    hoja = libro.active
+    hoja.title = "Histórico soporte TI"
+
+    encabezados = [
+        "No. boleta",
+        "Fecha/hora solicitud",
+        "Usuario solicitante",
+        "Puesto/cargo",
+        "Coordinación/área",
+        "Técnico asignado",
+        "Servicios",
+        "Tipo equipo",
+        "Marca/modelo",
+        "No. serie",
+        "SICOIN / inventario",
+        "IP / nombre equipo",
+        "Descripción solicitud",
+        "Diagnóstico / trabajo",
+        "Estado",
+        "Seguimiento",
+        "Fecha/hora cierre",
+        "Tiempo empleado",
+        "Observaciones cierre",
+        "Creado en",
+        "Actualizado en",
+    ]
+    hoja.append(encabezados)
+
+    for celda in hoja[1]:
+        celda.font = Font(bold=True)
+        celda.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    for boleta in boletas:
+        hoja.append([
+            boleta.numero_boleta,
+            boleta.fecha_hora_solicitud,
+            boleta.usuario_solicitante,
+            boleta.puesto_cargo or "",
+            boleta.coordinacion_area,
+            boleta.tecnico_asignado,
+            _servicios_legibles(boleta),
+            boleta.tipo_equipo or "",
+            boleta.marca_modelo or "",
+            boleta.numero_serie or "",
+            boleta.inventario or "",
+            boleta.ip_nombre_equipo or "",
+            boleta.descripcion_solicitud,
+            boleta.diagnostico_trabajo or "",
+            boleta.estado_legible,
+            "Sí" if boleta.seguimiento else "No",
+            boleta.fecha_hora_cierre,
+            boleta.tiempo_empleado or "",
+            boleta.observaciones_cierre or "",
+            boleta.creado_en,
+            boleta.actualizado_en,
+        ])
+
+    hoja.freeze_panes = "A2"
+    hoja.auto_filter.ref = hoja.dimensions
+    anchos = {
+        "A": 20, "B": 20, "C": 28, "D": 24, "E": 28, "F": 28, "G": 38,
+        "H": 18, "I": 24, "J": 20, "K": 20, "L": 24, "M": 45, "N": 45,
+        "O": 15, "P": 14, "Q": 20, "R": 18, "S": 40, "T": 20, "U": 20,
+    }
+    for columna, ancho in anchos.items():
+        hoja.column_dimensions[columna].width = ancho
+    for fila in hoja.iter_rows(min_row=2):
+        for celda in fila:
+            celda.alignment = Alignment(vertical="top", wrap_text=True)
+
+    archivo = BytesIO()
+    libro.save(archivo)
+    archivo.seek(0)
+
+    registrar_bitacora(
+        accion="EXPORTAR_HISTORICO_SOPORTE_EXCEL",
+        modulo="Coordinación",
+        descripcion=f"Se exportó el histórico completo de soporte TI a Excel ({len(boletas)} boletas).",
+        usuario_id=current_user.id,
+        entidad="ServicioSoporteTecnico",
+        datos_posteriores={"formato": "XLSX", "total_boletas": len(boletas)},
+    )
+
+    fecha = datetime.now().strftime("%Y%m%d_%H%M")
+    return send_file(
+        archivo,
+        as_attachment=True,
+        download_name=f"historico_soporte_ti_{fecha}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@soporte_tecnico_bp.route("/exportar/pdf")
+@login_required
+def exportar_historico_pdf():
+    boletas = _historico_boletas()
+
+    archivo = BytesIO()
+    doc = SimpleDocTemplate(
+        archivo,
+        pagesize=landscape(letter),
+        leftMargin=18,
+        rightMargin=18,
+        topMargin=22,
+        bottomMargin=22,
+    )
+    estilos = getSampleStyleSheet()
+    texto = ParagraphStyle(
+        "HistoricoSoporteTexto",
+        parent=estilos["Normal"],
+        fontName="Helvetica",
+        fontSize=6.2,
+        leading=7.3,
+    )
+    titulo = ParagraphStyle(
+        "HistoricoSoporteTitulo",
+        parent=estilos["Heading2"],
+        fontName="Helvetica-Bold",
+        fontSize=12,
+        leading=14,
+        alignment=1,
+    )
+
+    elementos = [
+        Paragraph("SICODE-UCT — HISTÓRICO DE SERVICIOS DE SOPORTE TÉCNICO", titulo),
+        Paragraph(
+            f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')} · Total de boletas: {len(boletas)}",
+            texto,
+        ),
+        Spacer(1, 8),
+    ]
+
+    encabezados = [
+        "Boleta", "Fecha", "Usuario", "Área", "Servicio",
+        "Técnico", "Estado", "Seg.", "Cierre",
+    ]
+    datos = [[Paragraph(f"<b>{escape(valor)}</b>", texto) for valor in encabezados]]
+
+    for boleta in boletas:
+        datos.append([
+            Paragraph(_valor(boleta.numero_boleta), texto),
+            Paragraph(
+                boleta.fecha_hora_solicitud.strftime("%d/%m/%Y %H:%M")
+                if boleta.fecha_hora_solicitud else "—",
+                texto,
+            ),
+            Paragraph(_valor(boleta.usuario_solicitante), texto),
+            Paragraph(_valor(boleta.coordinacion_area), texto),
+            Paragraph(escape(_servicios_legibles(boleta)), texto),
+            Paragraph(_valor(boleta.tecnico_asignado), texto),
+            Paragraph(_valor(boleta.estado_legible), texto),
+            Paragraph("Sí" if boleta.seguimiento else "No", texto),
+            Paragraph(
+                boleta.fecha_hora_cierre.strftime("%d/%m/%Y %H:%M")
+                if boleta.fecha_hora_cierre else "—",
+                texto,
+            ),
+        ])
+
+    tabla = Table(
+        datos,
+        repeatRows=1,
+        colWidths=[
+            0.95 * inch, 1.0 * inch, 1.35 * inch, 1.25 * inch, 1.75 * inch,
+            1.3 * inch, 0.75 * inch, 0.45 * inch, 1.0 * inch,
+        ],
+    )
+    tabla.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f2937")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#9ca3af")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 3),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+    ]))
+    elementos.append(tabla)
+    doc.build(elementos)
+    archivo.seek(0)
+
+    registrar_bitacora(
+        accion="EXPORTAR_HISTORICO_SOPORTE_PDF",
+        modulo="Coordinación",
+        descripcion=f"Se exportó el histórico completo de soporte TI a PDF ({len(boletas)} boletas).",
+        usuario_id=current_user.id,
+        entidad="ServicioSoporteTecnico",
+        datos_posteriores={"formato": "PDF", "total_boletas": len(boletas)},
+    )
+
+    fecha = datetime.now().strftime("%Y%m%d_%H%M")
+    return send_file(
+        archivo,
+        as_attachment=True,
+        download_name=f"historico_soporte_ti_{fecha}.pdf",
+        mimetype="application/pdf",
+    )
 
 
 @soporte_tecnico_bp.route("/boletas/<int:boleta_id>/pdf")
