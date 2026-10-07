@@ -11,6 +11,8 @@
         </div>
         <div class="acciones-detalle">
             <a class="boton-cancelar" href="{{ url_for('coordinacion.inicio') }}">Coordinación</a>
+            <a class="boton-secundario" href="{{ url_for('soporte_tecnico.exportar_historico_excel') }}">Exportar Excel</a>
+            <a class="boton-secundario" href="{{ url_for('soporte_tecnico.exportar_historico_pdf') }}">Exportar PDF</a>
             {% if not current_user.es_visor %}<a class="boton-primario" href="{{ url_for('soporte_tecnico.nuevo') }}">Nueva boleta</a>{% endif %}
         </div>
     </div>
