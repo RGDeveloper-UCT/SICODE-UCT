@@ -28,6 +28,9 @@ class DocumentoExpediente(db.Model):
 
     estado_revision = db.Column(db.String(80), nullable=False, default="Pendiente de revisión")
     es_anexo = db.Column(db.Boolean, nullable=False, default=False)
+    indice_numero_anexo = db.Column(db.Integer, nullable=True, index=True)
+    indice_titulo_anexo = db.Column(db.String(180), nullable=True)
+    indice_orden = db.Column(db.Integer, nullable=True)
 
     observaciones = db.Column(db.Text, nullable=True)
     activo = db.Column(db.Boolean, nullable=False, default=True)
