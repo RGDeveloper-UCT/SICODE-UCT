@@ -31,7 +31,7 @@ def _texto(v):
 
 def _entero(v, campo, fila):
     valor = _texto(v)
-    if not re.fullmatch(r"[0-9]+(?:\\.0)?", valor):
+    if not re.fullmatch(r"[0-9]+(?:\.0)?", valor):
         raise ImportacionInvalida(f"Fila {fila}: {campo} no es entero válido.")
     return int(float(valor))
 
