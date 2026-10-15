@@ -8,10 +8,17 @@ from flask_login import current_user, login_required
 from sqlalchemy import text
 
 from app import db
-from app.services.cerebro_sicode_absorber import absorber_verificaciones_pendientes
+from app.services.cerebro_sicode_absorber import (
+    absorber_verificaciones_pendientes,
+    estado_cola_aprendizaje,
+)
 from app.services.cerebro_sicode_schema import inventariar_esquema_sicode
 from app.services.cerebro_sicode_service import analizar_sicode, guardar_hallazgos
-from app.services.nexo_export_service import construir_exportacion_nexo
+from app.services.nexo_catalogo_service import (
+    enriquecer_analisis_catalogos,
+    resumen_motor_catalogos,
+)
+from app.services.nexo_export_seguro_service import construir_exportacion_nexo
 
 
 nexo_ia_bp = Blueprint("nexo_ia", __name__, url_prefix="/nexo")
@@ -23,6 +30,13 @@ ESQUEMA_VACIO = {
     "columnas_total": 0,
     "cambio_detectado": False,
     "primera_lectura": False,
+}
+
+COLA_VACIA = {
+    "segmentos_verificados": 0,
+    "segmentos_aprendidos": 0,
+    "pendientes_aprendizaje": 0,
+    "pendientes_validacion_humana": 0,
 }
 
 
@@ -122,6 +136,7 @@ def _integraciones(postgresql):
     return {
         "ia_local": _estado_ollama(),
         "postgresql": postgresql,
+        "normalizacion": resumen_motor_catalogos(),
         "github": {
             "nombre": "GitHub",
             "modo": "código y trazabilidad de desarrollo",
@@ -158,7 +173,7 @@ def exportar_aprendizaje():
         error = _registrar_error_etapa("exportar_aprendizaje", exc)
         paquete = {
             "formato": "SICODE-NEXO-APRENDIZAJE",
-            "version_formato": 2,
+            "version_formato": 3,
             "generado_en": datetime.utcnow().isoformat(timespec="seconds") + "Z",
             "estado_exportacion": "parcial",
             "diagnostico_exportacion": {
@@ -175,6 +190,7 @@ def exportar_aprendizaje():
                     "PDF e imágenes",
                     "texto OCR completo",
                     "datos personales",
+                    "texto libre probable en campos de catálogo",
                     "credenciales, tokens o secretos",
                     "direcciones IP y user-agent",
                 ],
@@ -204,10 +220,9 @@ def exportar_aprendizaje():
 def estado():
     """Entrega un estado útil aun cuando una subetapa de NEXO falle.
 
-    Antes, cualquier excepción en aprendizaje, inventario, análisis o persistencia
-    devolvía HTTP 500 y el panel quedaba completamente en cero. NEXO ahora aísla
-    las etapas, recupera la sesión de SQLAlchemy y muestra qué componente requiere
-    revisión sin exponer SQL, credenciales ni contenido documental.
+    NEXO separa aprendizaje, cola, inventario, análisis y persistencia para que un
+    fallo puntual no deje el panel en cero. La salida nunca expone SQL, credenciales
+    ni contenido documental.
     """
     _exigir_acceso()
 
@@ -215,18 +230,33 @@ def estado():
     omitidas = []
     resultado = _resultado_vacio()
     esquema = dict(ESQUEMA_VACIO)
+    cola = dict(COLA_VACIA)
     aprendidas = 0
     nuevos_hallazgos = 0
 
     postgresql, error_db = _estado_postgresql()
     if error_db:
         errores.append(error_db)
-        omitidas.extend(["aprendizaje", "inventario_esquema", "analisis_sicode", "guardar_hallazgos"])
+        omitidas.extend([
+            "aprendizaje",
+            "cola_aprendizaje",
+            "inventario_esquema",
+            "analisis_sicode",
+            "guardar_hallazgos",
+        ])
     else:
         aprendidas, error = _ejecutar_etapa(
             "aprendizaje",
             lambda: absorber_verificaciones_pendientes(usuario_id=current_user.id),
             0,
+        )
+        if error:
+            errores.append(error)
+
+        cola, error = _ejecutar_etapa(
+            "cola_aprendizaje",
+            estado_cola_aprendizaje,
+            dict(COLA_VACIA),
         )
         if error:
             errores.append(error)
@@ -241,7 +271,7 @@ def estado():
 
         resultado, error_analisis = _ejecutar_etapa(
             "analisis_sicode",
-            analizar_sicode,
+            lambda: enriquecer_analisis_catalogos(analizar_sicode()),
             _resultado_vacio(),
         )
         if error_analisis:
@@ -258,6 +288,7 @@ def estado():
 
     resultado["retroalimentaciones_nuevas"] = aprendidas
     resultado["hallazgos_guardados_nuevos"] = nuevos_hallazgos
+    resultado["cola_aprendizaje"] = cola
     resultado["esquema"] = esquema
     resultado["integraciones"] = _integraciones(postgresql)
     resultado["identidad"] = _identidad()
@@ -297,5 +328,6 @@ def estado():
             "columnas_total": esquema.get("columnas_total", 0),
             "cambio_detectado": esquema.get("cambio_detectado", False),
         }
+        resultado.pop("catalogos_inteligentes", None)
 
     return jsonify(resultado)

@@ -7,6 +7,7 @@
   const nombresEtapa = {
     postgresql: 'conexión con PostgreSQL',
     aprendizaje: 'aprendizaje de verificaciones',
+    cola_aprendizaje: 'diagnóstico de la cola de aprendizaje',
     inventario_esquema: 'inventario del esquema',
     analisis_sicode: 'análisis transversal',
     guardar_hallazgos: 'registro de hallazgos',
@@ -35,6 +36,10 @@
     }
     if (nombre === 'PostgreSQL') {
       small.textContent = info.disponible ? 'Núcleo de datos conectado' : 'Conexión con la base de datos no disponible';
+      return;
+    }
+    if (nombre === 'RapidFuzz') {
+      small.textContent = info.nota || (info.acelerado ? 'Normalización local activa' : 'Modo de compatibilidad activo');
       return;
     }
     small.textContent = info.nota || info.modo || small.textContent;
@@ -73,6 +78,26 @@
     }
 
     list.innerHTML = bloques.join('');
+  }
+
+  function renderCola(data) {
+    const cola = data.cola_aprendizaje || {};
+    const small = $('[data-kpi-queue]');
+    if (!small) return;
+
+    const pendientesAprender = Number(cola.pendientes_aprendizaje || 0);
+    const pendientesHumanos = Number(cola.pendientes_validacion_humana || 0);
+    const verificadas = Number(cola.segmentos_verificados || 0);
+
+    if (pendientesAprender > 0) {
+      small.textContent = `${pendientesAprender} verificación(es) listas para incorporar`;
+    } else if (pendientesHumanos > 0) {
+      small.textContent = `${pendientesHumanos} segmento(s) esperan validación humana`;
+    } else if (verificadas > 0) {
+      small.textContent = 'toda la retroalimentación validada está incorporada';
+    } else {
+      small.textContent = 'aún no hay verificaciones humanas elegibles';
+    }
   }
 
   async function cargar() {
@@ -121,8 +146,10 @@
       }
 
       renderHallazgos(data);
+      renderCola(data);
       actualizarConexion('PostgreSQL', data.integraciones?.postgresql);
       actualizarConexion('Ollama', data.integraciones?.ia_local);
+      actualizarConexion('RapidFuzz', data.integraciones?.normalizacion);
       actualizarConexion('GitHub', data.integraciones?.github);
     } catch (err) {
       if (status) status.textContent = err?.name === 'AbortError'

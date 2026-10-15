@@ -28,6 +28,126 @@ def _caracteristicas_seguras(valor):
     return list(dict.fromkeys(salida))
 
 
+def _es_muestra_sicode_ia(segmento):
+    """Reconoce únicamente muestras originadas en el flujo supervisado SICODE.IA.
+
+    El lote documental clásico también usa SegmentoDocumental, pero ya posee su
+    propio circuito de aprendizaje al confirmar. Mezclar ambos caminos haría
+    posible contar una misma confirmación dos veces. Para NEXO se aceptan las
+    señales explícitas de SICODE.IA conservadas por versiones actuales o previas.
+    """
+    analisis = getattr(segmento, "analisis", None)
+    if analisis is None:
+        return False
+
+    meta = _dict_seguro(getattr(analisis, "datos_detectados", None))
+    modo = str(meta.get("modo") or "").strip().upper()
+    metodo = str(getattr(analisis, "metodo_extraccion", "") or "").strip().upper()
+
+    return modo == "SICODE_IA" or metodo == "SICODE_IA"
+
+
+def _marca_aprendizaje(segmento_id):
+    return Bitacora.query.filter_by(
+        accion="CEREBRO_SICODE_APRENDIZAJE",
+        entidad="SegmentoDocumental",
+        entidad_id=str(segmento_id),
+    ).first()
+
+
+def incorporar_segmento_verificado(segmento, usuario_id=None, commit=True):
+    """Incorpora una verificación humana una sola vez al aprendizaje de NEXO.
+
+    Devuelve True cuando la muestra se incorporó y False cuando no era elegible o
+    ya había sido aprendida. Solo utiliza metadatos seguros y características kw_*.
+    """
+    if segmento is None:
+        return False
+    if segmento.estado not in {"VERIFICADO_HUMANO", "CONFIRMADO"}:
+        return False
+    if not segmento.datos_confirmados:
+        return False
+    if not _es_muestra_sicode_ia(segmento):
+        return False
+    if _marca_aprendizaje(segmento.id):
+        return False
+
+    datos = _dict_seguro(segmento.datos_confirmados)
+    if not datos:
+        return False
+
+    tipo = str(
+        datos.get("tipo_documento_lote")
+        or segmento.tipo_confirmado
+        or segmento.tipo_detectado
+        or "OTRO"
+    ).strip().upper()
+
+    muestra_segura = SimpleNamespace(
+        tipo_detectado=str(segmento.tipo_detectado or "OTRO").strip().upper(),
+        datos_detectados=_dict_seguro(segmento.datos_detectados),
+        caracteristicas_clasificacion=_caracteristicas_seguras(
+            segmento.caracteristicas_clasificacion
+        ),
+    )
+    retroalimentar_segmento(muestra_segura, tipo, datos)
+
+    db.session.add(Bitacora(
+        usuario_id=usuario_id,
+        expediente_id=segmento.expediente_id,
+        accion="CEREBRO_SICODE_APRENDIZAJE",
+        modulo="SICODE.IA",
+        descripcion=(
+            f"El cerebro incorporó la verificación humana del segmento "
+            f"{segmento.id} como {tipo}."
+        ),
+        entidad="SegmentoDocumental",
+        entidad_id=str(segmento.id),
+        datos_posteriores={
+            "tipo_detectado": segmento.tipo_detectado,
+            "tipo_confirmado": tipo,
+            "caracteristicas": _caracteristicas_seguras(segmento.caracteristicas_clasificacion),
+            "solo_metadatos": True,
+            "pdf_almacenado": False,
+        },
+        motivo="Retroalimentación de clasificación y extracción validada por usuario",
+    ))
+
+    if commit:
+        db.session.commit()
+    return True
+
+
+def estado_cola_aprendizaje():
+    """Resume el flujo SICODE.IA -> verificación humana -> aprendizaje."""
+    segmentos = SegmentoDocumental.query.order_by(SegmentoDocumental.id.asc()).all()
+    elegibles = [segmento for segmento in segmentos if _es_muestra_sicode_ia(segmento)]
+    verificadas = [
+        segmento
+        for segmento in elegibles
+        if segmento.estado in {"VERIFICADO_HUMANO", "CONFIRMADO"}
+        and segmento.datos_confirmados
+    ]
+    pendientes_validacion = sum(
+        1 for segmento in elegibles if segmento.estado == "PENDIENTE_VALIDACION"
+    )
+
+    marcas = Bitacora.query.filter_by(
+        accion="CEREBRO_SICODE_APRENDIZAJE",
+        entidad="SegmentoDocumental",
+    ).all()
+    ids_aprendidos = {str(marca.entidad_id or "") for marca in marcas}
+    aprendidas = sum(1 for segmento in verificadas if str(segmento.id) in ids_aprendidos)
+
+    return {
+        "segmentos_sicode_ia": len(elegibles),
+        "segmentos_verificados": len(verificadas),
+        "segmentos_aprendidos": int(aprendidas or 0),
+        "pendientes_aprendizaje": max(0, len(verificadas) - int(aprendidas or 0)),
+        "pendientes_validacion_humana": int(pendientes_validacion or 0),
+    }
+
+
 def absorber_verificaciones_pendientes(usuario_id=None):
     """Incorpora una sola vez cada verificación humana realizada en SICODE.IA.
 
@@ -40,7 +160,7 @@ def absorber_verificaciones_pendientes(usuario_id=None):
         .filter(SegmentoDocumental.estado.in_(["VERIFICADO_HUMANO", "CONFIRMADO"]))
         .filter(SegmentoDocumental.datos_confirmados.isnot(None))
         .order_by(SegmentoDocumental.id.asc())
-        .limit(1000)
+        .limit(2000)
         .all()
     )
 
@@ -48,69 +168,11 @@ def absorber_verificaciones_pendientes(usuario_id=None):
     omitidas = 0
 
     for segmento in segmentos:
+        if not _es_muestra_sicode_ia(segmento):
+            continue
         try:
-            meta_analisis = _dict_seguro(
-                segmento.analisis.datos_detectados if segmento.analisis else None
-            )
-            if meta_analisis.get("modo") != "SICODE_IA":
-                continue
-
-            marca = Bitacora.query.filter_by(
-                accion="CEREBRO_SICODE_APRENDIZAJE",
-                entidad="SegmentoDocumental",
-                entidad_id=str(segmento.id),
-            ).first()
-            if marca:
-                continue
-
-            datos = _dict_seguro(segmento.datos_confirmados)
-            if not datos:
-                omitidas += 1
-                continue
-
-            tipo = str(
-                datos.get("tipo_documento_lote")
-                or segmento.tipo_confirmado
-                or segmento.tipo_detectado
-                or "OTRO"
-            ).strip().upper()
-
-            # retroalimentar_segmento solo necesita estos metadatos. Se utiliza un
-            # proxy sanitizado para que NEXO no modifique el segmento original ni
-            # dependa de formas JSON históricas inesperadas.
-            muestra_segura = SimpleNamespace(
-                tipo_detectado=str(segmento.tipo_detectado or "OTRO").strip().upper(),
-                datos_detectados=_dict_seguro(segmento.datos_detectados),
-                caracteristicas_clasificacion=_caracteristicas_seguras(
-                    segmento.caracteristicas_clasificacion
-                ),
-            )
-            retroalimentar_segmento(muestra_segura, tipo, datos)
-
-            db.session.add(Bitacora(
-                usuario_id=usuario_id,
-                expediente_id=segmento.expediente_id,
-                accion="CEREBRO_SICODE_APRENDIZAJE",
-                modulo="SICODE.IA",
-                descripcion=(
-                    f"El cerebro incorporó la verificación humana del segmento "
-                    f"{segmento.id} como {tipo}."
-                ),
-                entidad="SegmentoDocumental",
-                entidad_id=str(segmento.id),
-                datos_posteriores={
-                    "tipo_detectado": segmento.tipo_detectado,
-                    "tipo_confirmado": tipo,
-                    "solo_metadatos": True,
-                    "pdf_almacenado": False,
-                },
-                motivo="Retroalimentación de clasificación y extracción validada por usuario",
-            ))
-
-            # Confirmación por muestra: si una muestra posterior falla, las ya
-            # aprendidas permanecen guardadas y no se repite su procesamiento.
-            db.session.commit()
-            aprendidas += 1
+            if incorporar_segmento_verificado(segmento, usuario_id=usuario_id, commit=True):
+                aprendidas += 1
         except Exception as exc:  # pragma: no cover - depende de datos históricos reales
             db.session.rollback()
             omitidas += 1
