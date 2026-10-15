@@ -173,8 +173,10 @@ def create_app():
         if request.is_secure:
             respuesta.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
         if current_user.is_authenticated and request.endpoint != "static":
-            respuesta.headers.setdefault("Cache-Control", "no-store, private")
-            respuesta.headers.setdefault("Pragma", "no-cache")
+            # No usar setdefault: una respuesta previa puede traer public/max-age
+            # y eso permitiría cachear metadatos o una descarga autenticada.
+            respuesta.headers["Cache-Control"] = "no-store, private"
+            respuesta.headers["Pragma"] = "no-cache"
         return respuesta
 
     @app.context_processor

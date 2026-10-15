@@ -15,6 +15,15 @@ from app.services.bitacora_service import registrar_bitacora
 bitacora_bp = Blueprint("bitacora", __name__)
 
 
+def _valor_exportable(valor):
+    """Evita fórmulas activas al abrir texto de bitácora en Excel/Calc."""
+    if not isinstance(valor, str):
+        return valor
+    if valor.lstrip(" \t\r\n").startswith(("=", "+", "-", "@")):
+        return "'" + valor
+    return valor
+
+
 def _consulta_filtrada(busqueda="", accion="", modulo="", usuario=""):
     consulta = (
         Bitacora.query
@@ -111,7 +120,7 @@ def exportar_excel():
     for evento in eventos:
         usuario_evento = evento.usuario
         expediente_evento = evento.expediente
-        ws.append([
+        fila = [
             evento.id,
             evento.creado_en_guatemala.strftime("%d/%m/%Y %H:%M:%S") if evento.creado_en_guatemala else "",
             usuario_evento.usuario if usuario_evento else "Sistema / Sin usuario",
@@ -128,7 +137,8 @@ def exportar_excel():
             evento.descripcion or "",
             str(evento.datos_anteriores or ""),
             str(evento.datos_posteriores or ""),
-        ])
+        ]
+        ws.append([_valor_exportable(valor) for valor in fila])
 
     for columna, ancho in {
         "A": 8, "B": 22, "C": 20, "D": 26, "E": 32, "F": 22,
