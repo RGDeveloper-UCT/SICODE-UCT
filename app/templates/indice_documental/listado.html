@@ -31,7 +31,7 @@
 <section class="panel panel-ancho">
     <div class="encabezado-modulo">
         <div><h1>Índice documental y foliación</h1><p>SP <strong>{{ expediente.no_sp }}</strong> · {{ expediente.codigo_interno }}</p></div>
-        <a class="boton-cancelar" href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Volver al expediente</a>
+        <div class="acciones"><a class="boton" href="{{ url_for('indice_documental.importar_indice', expediente_id=expediente.id) }}">Importar índice documental</a><a class="boton-cancelar" href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Volver al expediente</a></div>
     </div>
 
     <div class="aviso"><strong>Regla institucional:</strong> registre únicamente metadatos, rangos de folios y observaciones. No cargue documentos sensibles ni copias completas.</div>
@@ -112,7 +112,7 @@
     </div>
 
     <h2>Anexos — foliación independiente por anexo</h2>
-    <p class="contador-resultados">Anexos registrados: <strong>{{ anexos_documentales|length }}</strong>. Los rangos mostrados pertenecen a cada anexo y no forman un rango único entre sí.</p>
+    <p class="contador-resultados">Documentos en anexos: <strong>{{ anexos_documentales|length }}</strong>. Los rangos mostrados pertenecen a cada anexo y no forman un rango único entre sí.</p>
     <div class="aviso" style="margin-bottom: 10px;">
         <strong>Corrección de número:</strong> en anexos provenientes de Coordinación puede corregir aquí el número físico. El cambio actualiza también el prefijo del título y queda registrado en bitácora. SICODE impide números repetidos para el mismo SP.
     </div>
@@ -124,7 +124,7 @@
                 <tr>
                     <td>{{ loop.index }}</td>
                     <td>
-                        {% if documento.anexo_recepcion %}
+                        {% if documento.indice_numero_anexo %}Anexo {{ documento.indice_numero_anexo }} — {{ documento.indice_titulo_anexo or '' }}{% elif documento.anexo_recepcion %}
                             {% if current_user.puede_modificar %}
                             <form method="POST" action="{{ url_for('indice_documental.editar_numero_anexo', expediente_id=expediente.id, documento_id=documento.id) }}" class="form-inline" style="display:flex; gap:5px; align-items:center; flex-wrap:nowrap;">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
