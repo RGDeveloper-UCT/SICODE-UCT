@@ -4,7 +4,7 @@ import ipaddress
 from datetime import datetime
 from flask import Blueprint, abort, flash, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from sqlalchemy.exc import IntegrityError
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -126,6 +126,14 @@ def agregar_personal():
     if not nombre or not apellido or coordinacion not in COORDINACIONES:
         flash("Nombre, apellido y coordinación son obligatorios.", "warning")
         return redirect(url_for("seguridad.nuevo"))
+    existente = PersonalInstitucional.query.filter(
+        func.lower(PersonalInstitucional.nombre) == nombre.lower(),
+        func.lower(PersonalInstitucional.apellido) == apellido.lower(),
+        PersonalInstitucional.coordinacion == coordinacion,
+    ).first()
+    if existente:
+        flash("El responsable ya está registrado en esa coordinación.", "warning")
+        return redirect(url_for("seguridad.nuevo", responsable=existente.id))
     persona = PersonalInstitucional(nombre=nombre, apellido=apellido, coordinacion=coordinacion)
     db.session.add(persona)
     try:
