@@ -290,3 +290,57 @@ def test_catalogo_perifericos_y_usuario_invalido(contexto):
                         usuario_habitual_personal_id="999999"))
     assert response.status_code == 200
     assert EquipoInstitucional.query.filter_by(codigo="SICOIN-INVALIDO").count() == 0
+
+
+def test_registro_multiple_y_pdf_conjunto(contexto):
+    from pypdf import PdfReader
+    from io import BytesIO
+    app, usuario_id = contexto
+    client = app.test_client()
+    _sesion(client, usuario_id)
+    datos = _formulario(codigo="SICOIN-GRUPO-001")
+    campos = [
+        ("codigo", ["SICOIN-MON-001", "SICOIN-MOUSE-002"]),
+        ("nombre", ["Monitor principal", "Mouse adicional"]),
+        ("marca", ["DELL", "LOGITECH"]),
+        ("modelo", ["P2422", "M185"]),
+        ("serie", ["MON-001", "MOU-002"]),
+        ("ip_estatica", ["", ""]),
+        ("ubicacion", ["Oficina", "Oficina"]),
+        ("observaciones", ["", ""]),
+        ("tipo", ["MONITOR", "MOUSE"]),
+        ("area", ["", ""]),
+        ("tipo_acceso", ["INTERNO", "INTERNO"]),
+        ("estado", ["ACTIVO", "ACTIVO"]),
+        ("acceso_institucional", ["si", "no"]),
+    ]
+    datos.update({"adicional_" + campo: valores for campo, valores in campos})
+    res = client.post("/coordinacion/seguridad/equipos/nuevo", data=datos)
+    assert res.status_code == 302
+    padre = EquipoInstitucional.query.filter_by(codigo="SICOIN-GRUPO-001").one()
+    assert len(padre.accesorios) == 2
+    assert {e.codigo for e in padre.accesorios} == {"SICOIN-MON-001", "SICOIN-MOUSE-002"}
+    assert all(e.equipo_principal_id == padre.id for e in padre.accesorios)
+    pdf = client.get(f"/coordinacion/seguridad/equipos/{padre.id}/constancia.pdf")
+    assert pdf.status_code == 200
+    lector = PdfReader(BytesIO(pdf.data))
+    assert len(lector.pages) == 1
+    texto = lector.pages[0].extract_text()
+    assert "SICOIN-MON-001" in texto and "SICOIN-MOUSE-002" in texto
+
+
+def test_grupo_no_guarda_parcial_por_codigo_duplicado(contexto):
+    app, usuario_id = contexto
+    client = app.test_client()
+    _sesion(client, usuario_id)
+    datos = _formulario(codigo="SICOIN-DUP-GRUPO")
+    plantilla = {
+        "codigo": ["SICOIN-DUP-GRUPO"], "nombre": ["Mouse"], "marca": [""],
+        "modelo": [""], "serie": [""], "ip_estatica": [""],
+        "ubicacion": [""], "observaciones": [""], "tipo": ["MOUSE"],
+        "area": [""], "tipo_acceso": ["INTERNO"], "estado": ["ACTIVO"],
+        "acceso_institucional": ["no"],
+    }
+    datos.update({"adicional_" + k: v for k, v in plantilla.items()})
+    assert client.post("/coordinacion/seguridad/equipos/nuevo", data=datos).status_code == 200
+    assert EquipoInstitucional.query.count() == 0
