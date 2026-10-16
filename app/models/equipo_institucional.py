@@ -17,6 +17,8 @@ class EquipoInstitucional(db.Model):
     ubicacion = db.Column(db.String(160))
     responsable_usuario_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), index=True)  # legado
     responsable_personal_id = db.Column(db.Integer, db.ForeignKey("personal_institucional.id"), index=True)
+    usuario_habitual_personal_id = db.Column(db.Integer, db.ForeignKey("personal_institucional.id"), nullable=True, index=True)
+    usuario_habitual = db.relationship("PersonalInstitucional", foreign_keys=[usuario_habitual_personal_id])
     acceso_institucional = db.Column(db.Boolean, nullable=False, default=True)
     tipo_acceso = db.Column(db.String(40), nullable=False, default="INTERNO")
     estado = db.Column(db.String(30), nullable=False, default="ACTIVO", index=True)
@@ -27,6 +29,10 @@ class EquipoInstitucional(db.Model):
     responsable = db.relationship("Usuario", foreign_keys=[responsable_usuario_id])
     personal_responsable = db.relationship("PersonalInstitucional", foreign_keys=[responsable_personal_id])
     creador = db.relationship("Usuario", foreign_keys=[creado_por_id])
+
+    @property
+    def nombre_usuario_habitual(self):
+        return self.usuario_habitual.nombre_completo if self.usuario_habitual else "Sin asignación"
 
     @property
     def numero_registro(self):
@@ -48,6 +54,6 @@ class EquipoInstitucional(db.Model):
         return {campo: getattr(self, campo) for campo in (
             "codigo", "tipo", "nombre", "marca", "modelo", "serie",
             "numero_inventario", "ip_estatica", "area", "ubicacion", "responsable_usuario_id",
-            "responsable_personal_id", "acceso_institucional", "tipo_acceso",
+            "responsable_personal_id", "usuario_habitual_personal_id", "acceso_institucional", "tipo_acceso",
             "estado", "observaciones"
         )}
