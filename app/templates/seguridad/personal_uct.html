@@ -6,6 +6,10 @@
     <p>Directorio compartido con Inventario Tecnológico y Soporte Técnico.</p></div>
     <a class="boton-secundario" href="{{ url_for('seguridad.inicio') }}">← Inventario Tecnológico</a>
   </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin:16px 0">
+    <a class="boton-secundario" href="{{ url_for('seguridad.exportar_personal', formato='xlsx') }}">📗 Exportar Excel</a>
+    <a class="boton-secundario" href="{{ url_for('seguridad.exportar_personal', formato='pdf') }}">📄 Exportar PDF</a>
+  </div>
   <form method="get" style="display:flex;gap:12px;margin:16px 0">
     <input name="q" value="{{ q }}" maxlength="100" placeholder="Buscar nombre, apellido o coordinación" style="flex:1">
     <button type="submit" class="boton">Buscar</button>
