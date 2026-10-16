@@ -4,7 +4,7 @@
 <section class="panel panel-ancho">
     <div class="encabezado-modulo">
         <div><h1>Bitácora / Auditoría</h1><p>Consulta del historial técnico y administrativo, incluida trazabilidad estructurada cuando está disponible.</p></div>
-        <div class="acciones-detalle"><a class="boton-exito" href="{{ url_for('bitacora.exportar_excel', q=busqueda, accion=filtro_accion, modulo=filtro_modulo, usuario=filtro_usuario) }}">Exportar Excel</a><a class="boton-cancelar" href="{{ url_for('dashboard.inicio') }}">Dashboard</a></div>
+        <div class="acciones-detalle"><a class="boton-exito" href="{{ url_for('bitacora.exportar_excel', q=busqueda, accion=filtro_accion, modulo=filtro_modulo, usuario=filtro_usuario) }}">Exportar Excel</a>{% if current_user.rol == 'administrador' %}<a class="boton-principal" style="background:#274d85;color:#fff" href="{{ url_for('bitacora.exportar_completo', q=busqueda, accion=filtro_accion, modulo=filtro_modulo, usuario=filtro_usuario) }}" title="Exporta todos los eventos con cambios estructurados y resumen estadístico">Exportación completa · Admin</a>{% endif %}<a class="boton-cancelar" href="{{ url_for('dashboard.inicio') }}">Dashboard</a></div>
     </div>
 
     <form method="GET" class="filtros-expedientes">

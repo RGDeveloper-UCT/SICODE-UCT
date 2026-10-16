@@ -145,6 +145,8 @@ class SoporteTecnicoForm(FlaskForm):
     otro_traslado = StringField("Otro detalle de traslado", validators=[Optional(), Length(max=220)])
     otro_revision = StringField("Otro detalle de revisión", validators=[Optional(), Length(max=220)])
 
+    equipo_institucional_id = SelectField("Equipo registrado (SICOIN)", choices=[(0, "Sin vincular")], coerce=int, validators=[Optional()])
+    personal_institucional_id = SelectField("Personal institucional", choices=[(0, "Sin vincular")], coerce=int, validators=[Optional()])
     tipo_equipo = SelectField("Tipo de equipo", choices=TIPOS_EQUIPO, validators=[Optional()])
     tipo_equipo_otro = StringField("Otro tipo de equipo", validators=[Optional(), Length(max=80)])
     marca_modelo = StringField("Marca / modelo", validators=[Optional(), Length(max=180)])

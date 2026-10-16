@@ -45,3 +45,5 @@ from app.routes import admin_sicodeiav3 as _admin_sicodeiav3
 from app.routes import coordinacion_monitoreo_masivo as _coordinacion_monitoreo_masivo
 from app.routes import coordinacion_monitoreo_masivo_fisico as _coordinacion_monitoreo_masivo_fisico
 from app.routes import aprendizaje_documental as _aprendizaje_documental
+
+from app.routes.seguridad_informatica import seguridad_bp

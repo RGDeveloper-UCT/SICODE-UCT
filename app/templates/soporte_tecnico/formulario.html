@@ -60,6 +60,16 @@
                     {% for error in form.coordinacion_area.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
                 </div>
                 <div class="campo campo-doble">
+                    <label>Personal institucional (registro compartido)</label>
+                    <select name="personal_institucional_id" id="personal_institucional_id">
+                        {% for valor,etiqueta in form.personal_institucional_id.choices %}
+                        {% set p = personal_opciones.get(valor) %}
+                        <option value="{{ valor }}" data-nombre="{{ p.nombre_completo if p else '' }}" data-area="{{ p.coordinacion if p else '' }}" {% if form.personal_institucional_id.data == valor %}selected{% endif %}>{{ etiqueta }}</option>
+                        {% endfor %}
+                    </select>
+                    <small>Al seleccionar, reutiliza nombre y coordinación.</small>
+                </div>
+                <div class="campo campo-doble">
                     {{ form.tecnico_asignado.label }}
                     {{ form.tecnico_asignado() }}
                     <small>Por defecto se usa el usuario que inició sesión.</small>
@@ -131,6 +141,16 @@
         <section class="soporte-paso soporte-paso-equipo" data-equipo-section hidden>
             <div class="soporte-paso-titulo"><span>5</span><div><h2>Identificación del equipo</h2><p>Complete solo lo disponible.</p></div></div>
             <div class="grid-form soporte-grid-5">
+                <div class="campo campo-doble">
+                    <label>Equipo institucional (SICOIN)</label>
+                    <select name="equipo_institucional_id" id="equipo_institucional_id">
+                        {% for valor,etiqueta in form.equipo_institucional_id.choices %}
+                        {% set e = equipos_opciones.get(valor) %}
+                        <option value="{{ valor }}" data-sicoin="{{ e.codigo if e else '' }}" data-serie="{{ e.serie or '' if e else '' }}" data-marca="{{ ((e.marca or '') ~ ' ' ~ (e.modelo or ''))|trim if e else '' }}" data-ip="{{ e.ip_estatica or '' if e else '' }}" {% if form.equipo_institucional_id.data == valor %}selected{% endif %}>{{ etiqueta }}</option>
+                        {% endfor %}
+                    </select>
+                    <small>Vincula la boleta al equipo; el número BST seguirá generándose automáticamente.</small>
+                </div>
                 <div class="campo">{{ form.tipo_equipo.label }}{{ form.tipo_equipo() }}</div>
                 <div class="campo" data-tipo-equipo-otro hidden>{{ form.tipo_equipo_otro.label }}{{ form.tipo_equipo_otro() }}</div>
                 <div class="campo">{{ form.marca_modelo.label }}{{ form.marca_modelo() }}</div>
@@ -195,4 +215,23 @@
     </form>
 </section>
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('static', filename='js/soporte_tecnico.js') }}" defer></script>{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const fields = document.querySelector("form.soporte-form");
+  const bind = (selectId, mapping) => {
+    const select = document.getElementById(selectId);
+    if (!select || !fields) return;
+    select.addEventListener("change", () => {
+      const option = select.selectedOptions[0];
+      if (!option || !option.value || option.value === "0") return;
+      for (const [attr, name] of Object.entries(mapping)) {
+        const input = fields.elements.namedItem(name);
+        if (input && option.dataset[attr]) input.value = option.dataset[attr];
+      }
+    });
+  };
+  bind("personal_institucional_id", {nombre:"usuario_solicitante", area:"coordinacion_area"});
+  bind("equipo_institucional_id", {sicoin:"inventario", serie:"numero_serie", marca:"marca_modelo", ip:"ip_nombre_equipo"});
+});
+</script><script src="{{ url_for('static', filename='js/soporte_tecnico.js') }}" defer></script>{% endblock %}
