@@ -155,3 +155,27 @@ def test_constancia_requiere_sesion_y_registra_emision(contexto):
         accion="GENERAR_CONSTANCIA_INVENTARIO_EQUIPO",
         entidad_id=str(equipo.id)
     ).count() == 1
+
+
+def test_paginas_inventario_y_formulario_renderizan(contexto):
+    app, usuario_id = contexto
+    client = app.test_client()
+    _sesion(client, usuario_id)
+    pagina = client.get("/coordinacion/seguridad/")
+    assert pagina.status_code == 200
+    assert b"Inventario institucional" in pagina.data
+    nuevo = client.get("/coordinacion/seguridad/equipos/nuevo")
+    assert nuevo.status_code == 200
+    assert b'name="csrf_token"' in nuevo.data
+    assert b'name="codigo"' in nuevo.data
+
+    equipo = EquipoInstitucional(codigo="UCT-HTML-001", nombre="Equipo interfaz",
+                                 tipo="COMPUTADORA", creado_por_id=usuario_id)
+    db.session.add(equipo)
+    db.session.commit()
+    listado = client.get("/coordinacion/seguridad/")
+    assert listado.status_code == 200
+    assert b"UCT-HTML-001" in listado.data
+    editar = client.get(f"/coordinacion/seguridad/equipos/{equipo.id}/editar")
+    assert editar.status_code == 200
+    assert b'name="motivo"' in editar.data
