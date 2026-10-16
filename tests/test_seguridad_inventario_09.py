@@ -392,3 +392,51 @@ def test_exportacion_columnas_y_bitacora(contexto):
     invalido = client.post("/coordinacion/seguridad/exportar/",
                            data={"formato": "xlsx", "campos": ["__dict__"]})
     assert invalido.status_code == 400
+
+
+def test_personal_uct_exportacion_excel_pdf_campos_y_auditoria(contexto):
+    from io import BytesIO
+    from openpyxl import load_workbook
+    from pypdf import PdfReader
+    from app.models.personal_institucional import PersonalInstitucional
+    app, usuario_id = contexto
+    persona = PersonalInstitucional(
+        nombre="Ana", apellido="Ejemplo",
+        coordinacion="Coordinación Enlace", activo=True)
+    db.session.add(persona)
+    db.session.commit()
+    client = app.test_client()
+    _sesion(client, usuario_id)
+    pantalla = client.get("/coordinacion/seguridad/personal/")
+    assert pantalla.status_code == 200
+    assert "Exportar Excel" in pantalla.get_data(as_text=True)
+    assert "Exportar PDF" in pantalla.get_data(as_text=True)
+    elegir = client.get("/coordinacion/seguridad/personal/exportar/")
+    assert elegir.status_code == 200
+    assert 'name="campos"' in elegir.get_data(as_text=True)
+    excel = client.post("/coordinacion/seguridad/personal/exportar/",
+        data={"formato": "xlsx", "campos": ["nombre", "apellido"]})
+    assert excel.status_code == 200
+    hoja = load_workbook(BytesIO(excel.data)).active
+    assert [c.value for c in hoja[5]] == ["Nombre", "Apellido"]
+    assert ("Ana", "Ejemplo") in list(hoja.iter_rows(
+        min_row=6, max_col=2, values_only=True))
+    pdf = client.post("/coordinacion/seguridad/personal/exportar/",
+        data={"formato": "pdf", "campos": ["nombre", "coordinacion"]})
+    assert pdf.status_code == 200
+    texto = " ".join(page.extract_text() for page in PdfReader(BytesIO(pdf.data)).pages)
+    assert "Ana" in texto and "PERSONAL UCT" in texto
+    assert "SICODE-UCT" in texto
+    assert "Exportado por" in texto
+    assert Bitacora.query.filter_by(accion="EXPORTAR_PERSONAL_UCT").count() == 2
+    error = client.post("/coordinacion/seguridad/personal/exportar/",
+        data={"formato": "xlsx", "campos": ["campo_prohibido"]})
+    assert error.status_code == 400
+
+
+def test_personal_uct_exportacion_requires_login(contexto):
+    app, _ = contexto
+    client = app.test_client()
+    assert client.get("/coordinacion/seguridad/personal/exportar/").status_code == 302
+    assert client.post("/coordinacion/seguridad/personal/exportar/",
+                       data={"formato": "pdf", "campos": ["todos"]}).status_code == 302
