@@ -163,7 +163,7 @@ def test_paginas_inventario_y_formulario_renderizan(contexto):
     _sesion(client, usuario_id)
     pagina = client.get("/coordinacion/seguridad/")
     assert pagina.status_code == 200
-    assert b"Inventario institucional" in pagina.data
+    assert "Inventario Tecnológico" in pagina.get_data(as_text=True)
     nuevo = client.get("/coordinacion/seguridad/equipos/nuevo")
     assert nuevo.status_code == 200
     assert b'name="csrf_token"' in nuevo.data
