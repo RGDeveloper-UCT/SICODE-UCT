@@ -15,7 +15,10 @@ def contexto():
         try:
             usuario = Usuario(nombre="Responsable Pruebas", usuario="prueba-seg-09",
                 password_hash="irrelevante-en-pruebas", rol=Usuario.ROL_ADMINISTRADOR,
-                activo=True, debe_cambiar_password=False)
+                activo=True)
+            # El validador de password_hash marca nuevas claves como temporales.
+            # En esta prueba, simular explícitamente el cambio ya completado.
+            usuario.debe_cambiar_password = False
             db.session.add(usuario)
             db.session.commit()
             yield app, usuario.id
@@ -42,6 +45,7 @@ def test_registro_edicion_y_bitacora(contexto):
     respuesta = client.post("/coordinacion/seguridad/equipos/nuevo",
         data=_formulario(), follow_redirects=False)
     assert respuesta.status_code == 302
+    assert "/seguridad/" in respuesta.headers["Location"]
     equipo = EquipoInstitucional.query.filter_by(codigo="UCT-TEST-001").one()
     assert Bitacora.query.filter_by(accion="CREAR_EQUIPO_INSTITUCIONAL", entidad_id=str(equipo.id)).count() == 1
     respuesta = client.post(f"/coordinacion/seguridad/equipos/{equipo.id}/editar",
