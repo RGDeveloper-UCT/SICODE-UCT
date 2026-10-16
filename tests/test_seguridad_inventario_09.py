@@ -1,5 +1,6 @@
 """Pruebas del control 09 en base temporal, nunca en producción."""
 import pytest
+from flask_login import login_user
 from app import create_app, db
 from app.models.equipo_institucional import EquipoInstitucional
 from app.models.usuario import Usuario
@@ -10,6 +11,14 @@ from app.models.bitacora import Bitacora
 def contexto():
     app = create_app()
     app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
+    # La sesión real de Flask-Login usa protección strong y un identificador
+    # de cliente; simular solo _user_id provoca redirección a /login.
+    @app.get("/__pruebas_seguridad_09_login")
+    def acceso_prueba():
+        usuario = Usuario.query.filter_by(usuario="prueba-seg-09").one()
+        login_user(usuario, fresh=True)
+        return "ok"
+
     with app.app_context():
         db.create_all()
         try:
@@ -27,9 +36,9 @@ def contexto():
             db.drop_all()
 
 def _sesion(client, usuario_id):
-    with client.session_transaction() as sesion:
-        sesion["_user_id"] = str(usuario_id)
-        sesion["_fresh"] = True
+    # Solo existe en la aplicación de pruebas, nunca en producción.
+    respuesta = client.get("/__pruebas_seguridad_09_login")
+    assert respuesta.status_code == 200
 
 def _formulario(**cambios):
     datos = dict(codigo="UCT-TEST-001", nombre="Equipo de pruebas",
