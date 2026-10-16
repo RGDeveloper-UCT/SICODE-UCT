@@ -15,13 +15,13 @@
     <button class="boton" type="submit">Buscar</button>
   </form>
   <div style="overflow-x:auto">
-  <table class="tabla"><thead><tr><th>No. registro</th><th>SICOIN</th><th>Equipo</th><th>Área</th><th>IP estática</th><th>Boleta soporte</th><th>Responsable</th><th>Estado</th><th>Acciones</th></tr></thead>
+  <table class="tabla"><thead><tr><th>No. registro</th><th>SICOIN</th><th>Equipo</th><th>Área</th><th>IP estática</th><th>Boleta soporte</th><th>Custodio</th><th>Usuario habitual</th><th>Estado</th><th>Acciones</th></tr></thead>
   <tbody>{% for equipo in equipos.items %}
     <tr><td>{{ equipo.numero_registro }}</td><td>{{ equipo.codigo }}</td><td>{{ equipo.nombre }}<br><small>{{ equipo.tipo }}</small></td>
-    <td>{{ equipo.area or '—' }}</td><td>{{ equipo.ip_estatica or '—' }}</td><td>{{ equipo.numero_boleta or 'Sin boleta' }}</td><td>{{ equipo.nombre_responsable }}</td>
+    <td>{{ equipo.area or '—' }}</td><td>{{ equipo.ip_estatica or '—' }}</td><td>{{ equipo.numero_boleta or 'Sin boleta' }}</td><td>{{ equipo.nombre_responsable }}</td><td>{{ equipo.nombre_usuario_habitual }}</td>
     <td>{{ equipo.estado.replace('_',' ') }}</td>
     <td>{% if current_user.puede_modificar %}<a href="{{ url_for('seguridad.editar', equipo_id=equipo.id) }}">Editar</a> · {% endif %}<a href="{{ url_for('seguridad.constancia', equipo_id=equipo.id) }}">Constancia PDF</a></td></tr>
-    {% else %}<tr><td colspan="9">Todavía no hay equipos registrados.</td></tr>{% endfor %}</tbody></table></div>
+    {% else %}<tr><td colspan="10">Todavía no hay equipos registrados.</td></tr>{% endfor %}</tbody></table></div>
     {% if equipos.pages > 1 %}<p>Página {{ equipos.page }} de {{ equipos.pages }} ·
     {% if equipos.has_prev %}<a href="{{ url_for('seguridad.inicio', q=q, page=equipos.prev_num) }}">Anterior</a>{% endif %}
     {% if equipos.has_next %}<a href="{{ url_for('seguridad.inicio', q=q, page=equipos.next_num) }}">Siguiente</a>{% endif %}</p>{% endif %}
