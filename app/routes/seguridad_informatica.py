@@ -174,7 +174,7 @@ def editar(equipo_id):
             except (ValueError, IntegrityError) as error:
                 db.session.rollback()
                 flash("No se guardó: revise los identificadores únicos." if isinstance(error, IntegrityError) else str(error), "warning")
-    return render_template("seguridad/formulario.html", equipo=equipo, usuarios=_usuarios(), tipos=TIPOS, estados=ESTADOS, accesos=ACCESOS)
+    return render_template("seguridad/formulario.html", equipo=equipo, personal=_personal(), coordinaciones=COORDINACIONES, tipos=TIPOS, estados=ESTADOS, accesos=ACCESOS)
 
 @seguridad_bp.route("/equipos/<int:equipo_id>/constancia.pdf")
 @login_required
