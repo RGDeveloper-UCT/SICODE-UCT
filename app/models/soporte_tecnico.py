@@ -21,6 +21,10 @@ class ServicioSoporteTecnico(db.Model):
         unique=True,
         index=True,
     )
+    equipo_institucional_id = db.Column(db.Integer, db.ForeignKey("equipos_institucionales.id"), nullable=True, index=True)
+    equipo_institucional = db.relationship("EquipoInstitucional", backref="boletas_soporte")
+    personal_institucional_id = db.Column(db.Integer, db.ForeignKey("personal_institucional.id"), nullable=True, index=True)
+    personal_institucional = db.relationship("PersonalInstitucional")
     numero_boleta = db.Column(db.String(40), nullable=False, unique=True, index=True)
     fecha_hora_solicitud = db.Column(db.DateTime, nullable=False, index=True)
 
