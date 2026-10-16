@@ -28,6 +28,8 @@ from app.forms.soporte_tecnico_form import (
 )
 from app.models.coordinacion import ActividadCoordinacion, RegistroCoordinacion
 from app.models.soporte_tecnico import ServicioSoporteTecnico
+from app.models.equipo_institucional import EquipoInstitucional
+from app.models.personal_institucional import PersonalInstitucional
 from app.services.bitacora_service import registrar_bitacora
 
 
@@ -80,7 +82,19 @@ def _datos_bitacora(boleta):
     }
 
 
+def _opciones_vinculadas(form):
+    form.equipo_institucional_id.choices = [(0, "Sin vincular")] + [
+        (e.id, f"{e.codigo} — {e.nombre}") for e in EquipoInstitucional.query.order_by(EquipoInstitucional.codigo).all()
+    ]
+    form.personal_institucional_id.choices = [(0, "Sin vincular")] + [
+        (p.id, f"{p.nombre_completo} — {p.coordinacion}") for p in
+        PersonalInstitucional.query.filter_by(activo=True).order_by(PersonalInstitucional.nombre).all()
+    ]
+
+
 def _aplicar_formulario(boleta, form):
+    boleta.equipo_institucional_id = form.equipo_institucional_id.data or None
+    boleta.personal_institucional_id = form.personal_institucional_id.data or None
     boleta.fecha_hora_solicitud = form.fecha_hora_solicitud.data
     boleta.usuario_solicitante = form.usuario_solicitante.data.strip()
     boleta.puesto_cargo = _limpiar(form.puesto_cargo.data)
@@ -125,6 +139,8 @@ def _aplicar_formulario(boleta, form):
 def _preparar_formulario_get(form, boleta=None):
     if boleta is None:
         form.fecha_hora_solicitud.data = datetime.now().replace(second=0, microsecond=0)
+        form.equipo_institucional_id.data = 0
+        form.personal_institucional_id.data = 0
         form.tecnico_asignado.data = current_user.nombre
         form.nombre_firma_tecnico.data = current_user.nombre
         form.estado_final.data = "PENDIENTE"
@@ -132,6 +148,8 @@ def _preparar_formulario_get(form, boleta=None):
         return
 
     form.seguimiento.data = "SI" if boleta.seguimiento else "NO"
+    form.equipo_institucional_id.data = boleta.equipo_institucional_id or 0
+    form.personal_institucional_id.data = boleta.personal_institucional_id or 0
 
 
 @soporte_tecnico_bp.route("")
@@ -201,6 +219,7 @@ def listado():
 @login_required
 def nuevo():
     form = SoporteTecnicoForm()
+    _opciones_vinculadas(form)
     if request.method == "GET":
         _preparar_formulario_get(form)
 
@@ -257,6 +276,8 @@ def nuevo():
         "soporte_tecnico/formulario.html",
         form=form,
         boleta=None,
+        personal_opciones={p.id:p for p in PersonalInstitucional.query.all()},
+        equipos_opciones={e.id:e for e in EquipoInstitucional.query.all()},
     )
 
 
@@ -277,6 +298,7 @@ def detalle(boleta_id):
 def editar(boleta_id):
     boleta = ServicioSoporteTecnico.query.get_or_404(boleta_id)
     form = SoporteTecnicoForm(obj=boleta)
+    _opciones_vinculadas(form)
     if request.method == "GET":
         _preparar_formulario_get(form, boleta)
 
@@ -315,6 +337,8 @@ def editar(boleta_id):
         "soporte_tecnico/formulario.html",
         form=form,
         boleta=boleta,
+        personal_opciones={p.id:p for p in PersonalInstitucional.query.all()},
+        equipos_opciones={e.id:e for e in EquipoInstitucional.query.all()},
     )
 
 

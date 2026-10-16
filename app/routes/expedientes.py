@@ -680,6 +680,7 @@ def reporte_completo_pdf(expediente_id):
         ["No. de SP", p(expediente.no_sp)],
         ["Nombre referencia", p(expediente.nombre_referencia)],
         ["Estado administrativo", p(expediente.estado_administrativo)],
+        ["Estado de SP", p(expediente.estado_sp_clasificado)],
         ["Estado fisico/documental", p(expediente.estado_fisico_documental)],
         ["Activo", p("Si" if expediente.activo else "No")],
         ["Fecha de creacion", p(fecha_dt(expediente.creado_en))],

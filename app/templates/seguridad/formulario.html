@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}Inventario de equipos — SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+  <div class="encabezado-modulo"><div><h1>🖥️ {{ 'Editar equipo' if equipo else 'Registrar equipo' }}</h1>
+  <p>Inventario Tecnológico · Control 09</p></div>
+  <a class="boton-secundario" href="{{ url_for('seguridad.inicio') }}">← Inventario</a></div>
+  <div class="tarjeta" style="margin-bottom:14px">
+    <strong>Número de registro:</strong> {{ equipo.numero_registro if equipo else 'Se asignará automáticamente al guardar' }}
+    <span style="margin-left:18px"><strong>Boleta de servicio técnico:</strong> {{ equipo.numero_boleta if equipo and equipo.numero_boleta else 'Sin boleta vinculada' }}</span>
+  </div>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% set campos = [('codigo','SICOIN *',60),('nombre','Nombre del equipo *',120),('marca','Marca',100),('modelo','Modelo',120),('serie','Número de serie',120),('ip_estatica','IP estática asignada',45),('ubicacion','Ubicación',160)] %}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px">
+    {% for campo,etiqueta,maximo in campos %}
+      <label>{{ etiqueta }}
+        <input style="width:100%" name="{{ campo }}" maxlength="{{ maximo }}" value="{{ request.form.get(campo, equipo|attr(campo) if equipo else '') or '' }}" {% if campo in ['codigo','nombre'] %}required{% endif %} {% if campo == 'ip_estatica' %}placeholder="Ej. 192.168.1.20"{% endif %}>
+      </label>
+    {% endfor %}
+    <label>Área o coordinación
+      <select name="area" style="width:100%">
+        <option value="">Seleccione una coordinación</option>
+        {% for c in coordinaciones %}
+        <option value="{{ c }}" {% if request.form.get('area', equipo.area if equipo else '') == c %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Tipo de equipo *
+      <select name="tipo" required style="width:100%">{% for valor in tipos %}
+        <option value="{{ valor }}" {% if request.form.get('tipo', equipo.tipo if equipo else 'COMPUTADORA') == valor %}selected{% endif %}>{{ valor.replace('_',' ') }}</option>
+      {% endfor %}</select>
+    </label>
+    <label>Responsable de asignación (custodio institucional)
+      <select name="responsable_personal_id" style="width:100%">
+        <option value="">Sin asignación</option>
+        {% for p in personal %}
+        <option data-coordinacion="{{ p.coordinacion }}" value="{{ p.id }}" {% if request.form.get('responsable_personal_id', request.args.get('responsable', equipo.responsable_personal_id|string if equipo and equipo.responsable_personal_id else '')) == p.id|string %}selected{% endif %}>{{ p.nombre_completo }} — {{ p.coordinacion }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Usuario habitual del equipo
+      <select name="usuario_habitual_personal_id" style="width:100%">
+        <option value="">Sin asignación</option>
+        {% for p in personal %}
+        <option value="{{ p.id }}" data-coordinacion="{{ p.coordinacion }}" {% if request.form.get('usuario_habitual_personal_id', request.args.get('usuario_habitual', equipo.usuario_habitual_personal_id|string if equipo and equipo.usuario_habitual_personal_id else '')) == p.id|string %}selected{% endif %}>{{ p.nombre_completo }} — {{ p.coordinacion }}</option>
+        {% endfor %}
+      </select>
+      <small>Persona que utiliza regularmente el equipo; puede ser distinta del custodio.</small>
+    </label>
+    <label>Tipo de acceso
+      <select name="tipo_acceso" style="width:100%">{% for valor in accesos %}
+        <option value="{{ valor }}" {% if request.form.get('tipo_acceso', equipo.tipo_acceso if equipo else 'INTERNO') == valor %}selected{% endif %}>{{ valor }}</option>
+      {% endfor %}</select>
+    </label>
+    <label>Estado
+      <select name="estado" style="width:100%">{% for valor in estados %}
+        <option value="{{ valor }}" {% if request.form.get('estado', equipo.estado if equipo else 'ACTIVO') == valor %}selected{% endif %}>{{ valor.replace('_',' ') }}</option>
+      {% endfor %}</select>
+    </label>
+    <label>¿Acceso a información institucional?
+      <select name="acceso_institucional" style="width:100%">
+        <option value="si" {% if request.form.get('acceso_institucional', 'si' if not equipo or equipo.acceso_institucional else 'no') == 'si' %}selected{% endif %}>Sí</option>
+        <option value="no" {% if request.form.get('acceso_institucional', 'si' if not equipo or equipo.acceso_institucional else 'no') == 'no' %}selected{% endif %}>No</option>
+      </select>
+    </label>
+    </div>
+    <p><label>Observaciones<textarea name="observaciones" maxlength="2000" rows="3" style="width:100%">{{ request.form.get('observaciones', equipo.observaciones if equipo else '') or '' }}</textarea></label></p>
+    {% if equipo %}<p><label>Motivo de corrección *<textarea name="motivo" maxlength="500" rows="2" required style="width:100%">{{ request.form.get('motivo','') }}</textarea></label></p>{% endif %}
+    {% if not equipo %}
+    <div class="tarjeta" style="margin:16px 0;padding:14px">
+      <h3>Equipos adicionales en esta asignación (opcional)</h3>
+      <p>Agregue monitor, mouse, teclado, impresora u otros activos. Cada uno conserva SICOIN y serie propios. Custodio y usuario habitual se comparten con el registro principal.</p>
+      <div id="activos-adicionales"></div>
+      <button type="button" class="boton-secundario" id="agregar-equipo-adicional">＋ Agregar otro equipo</button>
+    </div>
+    <template id="plantilla-equipo-adicional">
+      <fieldset class="tarjeta" style="margin-top:12px;border:1px solid #475569;border-radius:8px;padding:12px">
+        <legend>Equipo adicional <span class="numero-adicional"></span></legend>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px">
+          {% for campo,etiqueta,maximo in campos %}
+          <label>{{ etiqueta }}<input style="width:100%" name="adicional_{{ campo }}" maxlength="{{ maximo }}" {% if campo in ['codigo','nombre'] %}required{% endif %}></label>
+          {% endfor %}
+          <label>Tipo de equipo *<select name="adicional_tipo" required style="width:100%">
+            {% for t in tipos %}<option value="{{ t }}">{{ t.replace('_',' ') }}</option>{% endfor %}
+          </select></label>
+          <label>Área o coordinación<select name="adicional_area" style="width:100%"><option value="">Sin especificar</option>
+            {% for c in coordinaciones %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+          </select></label>
+          <label>Tipo de acceso<select name="adicional_tipo_acceso" style="width:100%">
+            {% for t in accesos %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+          </select></label>
+          <label>Estado<select name="adicional_estado" style="width:100%">
+            {% for e in estados %}<option value="{{ e }}">{{ e.replace('_',' ') }}</option>{% endfor %}
+          </select></label>
+          <label>Acceso a información institucional<select name="adicional_acceso_institucional" style="width:100%">
+            <option value="si">Sí</option><option value="no">No</option>
+          </select></label>
+        </div>
+        <button type="button" class="boton-secundario eliminar-equipo-adicional" style="margin-top:8px">Quitar este equipo</button>
+      </fieldset>
+    </template>
+    {% endif %}
+    <button class="boton" type="submit">Guardar con auditoría</button>
+  </form>
+  {% for destino, titulo in [('responsable','Agregar responsable de asignación'),('usuario_habitual','Agregar usuario habitual')] %}
+  <details class="tarjeta" style="margin-top:18px">
+    <summary style="cursor:pointer;font-weight:700">＋ {{ titulo }}</summary>
+    <p>Se guarda en el directorio compartido de Personal Institucional, sin crear una cuenta de acceso a SICODE.</p>
+    <form method="post" action="{{ url_for('seguridad.agregar_personal') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="destino" value="{{ destino }}">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+        <label>Nombre *<input name="nombre" maxlength="100" required style="width:100%"></label>
+        <label>Apellido *<input name="apellido" maxlength="120" required style="width:100%"></label>
+        <label>Coordinación *<select name="coordinacion" required style="width:100%">
+          <option value="">Seleccione coordinación</option>
+          {% for c in coordinaciones %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+        </select></label>
+      </div>
+      <button class="boton" type="submit" style="margin-top:12px">Guardar en Personal Institucional</button>
+    </form>
+  </details>
+  {% endfor %}
+</section>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const contenedor = document.getElementById("activos-adicionales");
+  const plantilla = document.getElementById("plantilla-equipo-adicional");
+  const agregar = document.getElementById("agregar-equipo-adicional");
+  if (contenedor && plantilla && agregar) {
+    agregar.addEventListener("click", function () {
+      if (contenedor.children.length >= 20) return;
+      const fragmento = plantilla.content.cloneNode(true);
+      fragmento.querySelector(".numero-adicional").textContent = contenedor.children.length + 1;
+      fragmento.querySelector(".eliminar-equipo-adicional").addEventListener("click", function (e) {
+        e.target.closest("fieldset").remove();
+      });
+      contenedor.appendChild(fragmento);
+    });
+  }
+  const custodio = document.querySelector('select[name="responsable_personal_id"]');
+  const area = document.querySelector('select[name="area"]');
+  if (custodio && area) custodio.addEventListener("change", function () {
+    const seleccionado = custodio.selectedOptions[0];
+    if (seleccionado && seleccionado.dataset.coordinacion && !area.value)
+      area.value = seleccionado.dataset.coordinacion;
+  });
+});
+</script>
+{% endblock %}

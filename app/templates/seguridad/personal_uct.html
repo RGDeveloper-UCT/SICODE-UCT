@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Personal UCT — SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+  <div class="encabezado-modulo"><div><h1>👥 PERSONAL UCT</h1>
+    <p>Directorio compartido con Inventario Tecnológico y Soporte Técnico.</p></div>
+    <a class="boton-secundario" href="{{ url_for('seguridad.inicio') }}">← Inventario Tecnológico</a>
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin:16px 0">
+    <a class="boton-secundario" href="{{ url_for('seguridad.exportar_personal', formato='xlsx') }}">📗 Exportar Excel</a>
+    <a class="boton-secundario" href="{{ url_for('seguridad.exportar_personal', formato='pdf') }}">📄 Exportar PDF</a>
+  </div>
+  <form method="get" style="display:flex;gap:12px;margin:16px 0">
+    <input name="q" value="{{ q }}" maxlength="100" placeholder="Buscar nombre, apellido o coordinación" style="flex:1">
+    <button type="submit" class="boton">Buscar</button>
+  </form>
+  <div style="overflow-x:auto"><table class="tabla">
+  <thead><tr><th>Nombre</th><th>Apellido</th><th>Coordinación</th><th>Estado</th></tr></thead>
+  <tbody>{% for persona in personas.items %}
+  <tr><td>{{ persona.nombre }}</td><td>{{ persona.apellido }}</td><td>{{ persona.coordinacion }}</td>
+    <td>{{ "Activo" if persona.activo else "Inactivo" }}</td></tr>
+  {% else %}<tr><td colspan="4">No hay personal registrado.</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% if personas.pages>1 %}
+    <p>Página {{ personas.page }} de {{ personas.pages }}
+    {% if personas.has_prev %}<a href="{{ url_for('seguridad.personal_uct',q=q,page=personas.prev_num) }}">Anterior</a>{% endif %}
+    {% if personas.has_next %}<a href="{{ url_for('seguridad.personal_uct',q=q,page=personas.next_num) }}">Siguiente</a>{% endif %}</p>
+  {% endif %}
+</section>
+{% endblock %}
