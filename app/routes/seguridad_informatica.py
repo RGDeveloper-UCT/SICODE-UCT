@@ -17,7 +17,7 @@ from app.services.catalogo_institucional import COORDINACIONES
 from app.services.bitacora_service import registrar_bitacora
 
 seguridad_bp = Blueprint("seguridad", __name__, url_prefix="/coordinacion/seguridad")
-TIPOS = ("COMPUTADORA", "PORTATIL", "SERVIDOR", "TABLETA", "MOVIL", "OTRO")
+TIPOS = ("COMPUTADORA", "PORTATIL", "SERVIDOR", "TABLETA", "MOVIL", "IMPRESORA", "ESCANER", "MULTIFUNCIONAL", "MONITOR", "TECLADO", "MOUSE", "PROYECTOR", "UPS", "SWITCH", "ROUTER", "TELEFONO_IP", "OTRO")
 ESTADOS = ("ACTIVO", "EN_REVISION", "FUERA_DE_SERVICIO", "BAJA")
 ACCESOS = ("INTERNO", "REMOTO", "AMBOS", "SIN_ACCESO")
 
@@ -70,6 +70,18 @@ def _datos():
         datos["responsable_personal_id"] = usuario_id
     else:
         datos["responsable_personal_id"] = None
+    valor_uso = request.form.get("usuario_habitual_personal_id", "").strip()
+    if valor_uso:
+        try:
+            persona_uso_id = int(valor_uso)
+        except ValueError:
+            raise ValueError("Usuario habitual inválido.")
+        persona_uso = db.session.get(PersonalInstitucional, persona_uso_id)
+        if not persona_uso or not persona_uso.activo:
+            raise ValueError("Usuario habitual inexistente o inactivo.")
+        datos["usuario_habitual_personal_id"] = persona_uso_id
+    else:
+        datos["usuario_habitual_personal_id"] = None
     return datos
 
 def _guardar_auditoria(equipo, accion, anterior=None, motivo=None):
@@ -123,6 +135,8 @@ def agregar_personal():
     nombre = _normalizar(request.form.get("nombre"), 100)
     apellido = _normalizar(request.form.get("apellido"), 120)
     coordinacion = _normalizar(request.form.get("coordinacion"), 160)
+    if request.form.get("destino", "responsable") not in ("responsable", "usuario_habitual"):
+        abort(400)
     if not nombre or not apellido or coordinacion not in COORDINACIONES:
         flash("Nombre, apellido y coordinación son obligatorios.", "warning")
         return redirect(url_for("seguridad.nuevo"))
@@ -133,7 +147,7 @@ def agregar_personal():
     ).first()
     if existente:
         flash("El responsable ya está registrado en esa coordinación.", "warning")
-        return redirect(url_for("seguridad.nuevo", responsable=existente.id))
+        return redirect(url_for("seguridad.nuevo", **{request.form.get("destino", "responsable"): existente.id}))
     persona = PersonalInstitucional(nombre=nombre, apellido=apellido, coordinacion=coordinacion)
     db.session.add(persona)
     try:
@@ -147,7 +161,7 @@ def agregar_personal():
         db.session.rollback()
         raise
     flash("Responsable agregado a Personal Institucional.", "success")
-    return redirect(url_for("seguridad.nuevo", responsable=persona.id))
+    return redirect(url_for("seguridad.nuevo", **{request.form.get("destino", "responsable"): persona.id}))
 
 @seguridad_bp.route("/equipos/<int:equipo_id>/editar", methods=["GET", "POST"])
 @login_required
@@ -198,7 +212,8 @@ def constancia(equipo_id):
         ("Marca", equipo.marca), ("Modelo", equipo.modelo),
         ("Serie", equipo.serie),
         ("Area", equipo.area), ("Ubicacion", equipo.ubicacion),
-        ("Responsable", equipo.nombre_responsable),
+        ("Responsable de asignación", equipo.nombre_responsable),
+        ("Usuario habitual", equipo.nombre_usuario_habitual),
         ("Tipo de acceso", equipo.tipo_acceso), ("Estado", equipo.estado),
     ]
     y = 716
