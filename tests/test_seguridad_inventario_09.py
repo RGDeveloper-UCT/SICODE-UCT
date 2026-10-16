@@ -247,3 +247,46 @@ def test_boleta_usa_numero_existente_y_enlace(contexto):
     db.session.refresh(equipo)
     assert equipo.numero_boleta == boleta.numero_boleta
     assert equipo.numero_registro != boleta.numero_boleta
+
+
+def test_custodio_y_usuario_habitual_son_independientes(contexto):
+    from app.models.personal_institucional import PersonalInstitucional
+    app, usuario_id = contexto
+    client = app.test_client()
+    _sesion(client, usuario_id)
+    custodio = PersonalInstitucional(nombre="Ana", apellido="Custodia",
+                                     coordinacion="Dirección")
+    usuario = PersonalInstitucional(nombre="Luis", apellido="Operador",
+                                    coordinacion="Dirección")
+    db.session.add_all([custodio, usuario])
+    db.session.commit()
+    pagina = client.get("/coordinacion/seguridad/equipos/nuevo")
+    assert pagina.status_code == 200
+    assert b'name="responsable_personal_id"' in pagina.data
+    assert b'name="usuario_habitual_personal_id"' in pagina.data
+    respuesta = client.post("/coordinacion/seguridad/equipos/nuevo",
+        data=_formulario(codigo="SICOIN-DOBLE-001",
+                        responsable_personal_id=str(custodio.id),
+                        usuario_habitual_personal_id=str(usuario.id)))
+    assert respuesta.status_code == 302
+    equipo = EquipoInstitucional.query.filter_by(codigo="SICOIN-DOBLE-001").one()
+    assert equipo.nombre_responsable == "Ana Custodia"
+    assert equipo.nombre_usuario_habitual == "Luis Operador"
+    assert equipo.snapshot()["usuario_habitual_personal_id"] == usuario.id
+    assert "Ana Custodia" in client.get("/coordinacion/seguridad/").get_data(as_text=True)
+    assert "Luis Operador" in client.get("/coordinacion/seguridad/").get_data(as_text=True)
+
+
+def test_catalogo_perifericos_y_usuario_invalido(contexto):
+    app, usuario_id = contexto
+    client = app.test_client()
+    _sesion(client, usuario_id)
+    for tipo in ("IMPRESORA", "MOUSE", "TECLADO", "MONITOR", "ESCANER"):
+        response = client.post("/coordinacion/seguridad/equipos/nuevo",
+            data=_formulario(codigo=f"SICOIN-{tipo}", tipo=tipo))
+        assert response.status_code == 302
+    response = client.post("/coordinacion/seguridad/equipos/nuevo",
+        data=_formulario(codigo="SICOIN-INVALIDO",
+                        usuario_habitual_personal_id="999999"))
+    assert response.status_code == 200
+    assert EquipoInstitucional.query.filter_by(codigo="SICOIN-INVALIDO").count() == 0
