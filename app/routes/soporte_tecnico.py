@@ -276,6 +276,8 @@ def nuevo():
         "soporte_tecnico/formulario.html",
         form=form,
         boleta=None,
+        personal_opciones={p.id:p for p in PersonalInstitucional.query.all()},
+        equipos_opciones={e.id:e for e in EquipoInstitucional.query.all()},
     )
 
 
@@ -335,6 +337,8 @@ def editar(boleta_id):
         "soporte_tecnico/formulario.html",
         form=form,
         boleta=boleta,
+        personal_opciones={p.id:p for p in PersonalInstitucional.query.all()},
+        equipos_opciones={e.id:e for e in EquipoInstitucional.query.all()},
     )
 
 
