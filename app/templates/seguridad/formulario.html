@@ -3,7 +3,7 @@
 {% block content %}
 <section class="panel panel-ancho">
   <div class="encabezado-modulo"><div><h1>🖥️ {{ 'Editar equipo' if equipo else 'Registrar equipo' }}</h1>
-  <p>Seguridad Informática · Control 09</p></div>
+  <p>Inventario Tecnológico · Control 09</p></div>
   <a class="boton-secundario" href="{{ url_for('seguridad.inicio') }}">← Inventario</a></div>
   <div class="tarjeta" style="margin-bottom:14px">
     <strong>Número de registro:</strong> {{ equipo.numero_registro if equipo else 'Se asignará automáticamente al guardar' }}
