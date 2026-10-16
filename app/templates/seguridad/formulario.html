@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Equipo institucional — SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+  <div class="encabezado-modulo"><div><h1>🖥️ {{ 'Editar equipo' if equipo else 'Registrar equipo' }}</h1><p>Seguridad Informática · Control 09</p></div>
+  <a class="boton-secundario" href="{{ url_for('seguridad.inicio') }}">← Inventario</a></div>
+  <form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% set campos = [('codigo','Código institucional *',60),('nombre','Nombre del equipo *',120),('marca','Marca',100),('modelo','Modelo',120),('serie','Número de serie',120),('numero_inventario','Número de inventario',120),('area','Área o coordinación',160),('ubicacion','Ubicación',160)] %}
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px">
+  {% for campo,etiqueta,maximo in campos %}
+  <label>{{ etiqueta }}<input style="width:100%" name="{{ campo }}" maxlength="{{ maximo }}" value="{{ request.form.get(campo, equipo|attr(campo) if equipo else '') or '' }}" {% if campo in ['codigo','nombre'] %}required{% endif %}></label>
+  {% endfor %}
+  <label>Tipo de equipo *<select name="tipo" required>{% for valor in tipos %}<option value="{{ valor }}" {% if request.form.get('tipo', equipo.tipo if equipo else 'COMPUTADORA') == valor %}selected{% endif %}>{{ valor.replace('_',' ') }}</option>{% endfor %}</select></label>
+  <label>Responsable institucional<select name="responsable_usuario_id"><option value="">Sin asignar</option>{% for u in usuarios %}<option value="{{ u.id }}" {% if request.form.get('responsable_usuario_id', equipo.responsable_usuario_id|string if equipo and equipo.responsable_usuario_id else '') == u.id|string %}selected{% endif %}>{{ u.nombre }}</option>{% endfor %}</select></label>
+  <label>Tipo de acceso<select name="tipo_acceso">{% for valor in accesos %}<option value="{{ valor }}" {% if request.form.get('tipo_acceso', equipo.tipo_acceso if equipo else 'INTERNO') == valor %}selected{% endif %}>{{ valor }}</option>{% endfor %}</select></label>
+  <label>Estado<select name="estado">{% for valor in estados %}<option value="{{ valor }}" {% if request.form.get('estado', equipo.estado if equipo else 'ACTIVO') == valor %}selected{% endif %}>{{ valor.replace('_',' ') }}</option>{% endfor %}</select></label>
+  <label>¿Acceso a información institucional?<select name="acceso_institucional"><option value="si" {% if request.form.get('acceso_institucional', 'si' if not equipo or equipo.acceso_institucional else 'no') == 'si' %}selected{% endif %}>Sí</option><option value="no" {% if request.form.get('acceso_institucional', 'si' if not equipo or equipo.acceso_institucional else 'no') == 'no' %}selected{% endif %}>No</option></select></label>
+  </div>
+  <p><label>Observaciones<textarea name="observaciones" maxlength="2000" rows="3" style="width:100%">{{ request.form.get('observaciones', equipo.observaciones if equipo else '') or '' }}</textarea></label></p>
+  {% if equipo %}<p><label>Motivo de corrección *<textarea name="motivo" maxlength="500" rows="2" required style="width:100%">{{ request.form.get('motivo','') }}</textarea></label></p>{% endif %}
+  <button class="boton" type="submit">Guardar con auditoría</button>
+  </form>
+</section>
+{% endblock %}
