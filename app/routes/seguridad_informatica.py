@@ -6,8 +6,7 @@ from flask import Blueprint, abort, flash, redirect, render_template, request, s
 from flask_login import current_user, login_required
 from sqlalchemy import or_, func
 from sqlalchemy.exc import IntegrityError
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
+from app.services.constancia_inventario_service import generar_constancia_inventario
 
 from app import db
 from app.models.equipo_institucional import EquipoInstitucional
@@ -84,6 +83,52 @@ def _datos():
         datos["usuario_habitual_personal_id"] = None
     return datos
 
+
+CAMPOS_ADICIONALES = {
+    "codigo": 60, "nombre": 120, "marca": 100, "modelo": 120, "serie": 120,
+    "ip_estatica": 45, "ubicacion": 160, "observaciones": 2000,
+}
+MAX_ADICIONALES = 20
+
+
+def _datos_adicionales(principal):
+    """Validación integral antes de guardar; el guardado se hace en una transacción."""
+    valores = {k: request.form.getlist("adicional_" + k) for k in
+               (*CAMPOS_ADICIONALES, "tipo", "area", "tipo_acceso", "estado", "acceso_institucional")}
+    cantidad = len(valores["codigo"])
+    if cantidad > MAX_ADICIONALES:
+        raise ValueError("Solo se permiten hasta 20 equipos adicionales por registro.")
+    if any(len(lista) != cantidad for lista in valores.values()):
+        raise ValueError("Datos incompletos en los equipos adicionales.")
+    resultado = []
+    for i in range(cantidad):
+        datos = {campo: _normalizar(valores[campo][i], limite)
+                 for campo, limite in CAMPOS_ADICIONALES.items()}
+        for campo, maximo in (("tipo", 40), ("area", 160), ("tipo_acceso", 40), ("estado", 30)):
+            datos[campo] = _normalizar(valores[campo][i], maximo)
+        datos["acceso_institucional"] = valores["acceso_institucional"][i] == "si"
+        if not datos["codigo"] or not datos["nombre"]:
+            raise ValueError(f"El equipo adicional {i + 1} requiere SICOIN y nombre.")
+        if datos["tipo"] not in TIPOS or datos["tipo_acceso"] not in ACCESOS or datos["estado"] not in ESTADOS:
+            raise ValueError(f"Opciones incorrectas en equipo adicional {i + 1}.")
+        if datos["area"] and datos["area"] not in COORDINACIONES:
+            raise ValueError(f"Coordinación incorrecta en equipo adicional {i + 1}.")
+        if datos["ip_estatica"]:
+            try:
+                ipaddress.ip_address(datos["ip_estatica"])
+            except ValueError:
+                raise ValueError(f"IP incorrecta en equipo adicional {i + 1}.")
+        datos["responsable_personal_id"] = principal["responsable_personal_id"]
+        datos["usuario_habitual_personal_id"] = principal["usuario_habitual_personal_id"]
+        resultado.append(datos)
+    codigos = [principal["codigo"]] + [e["codigo"] for e in resultado]
+    if len(codigos) != len(set(codigos)):
+        raise ValueError("Los códigos SICOIN no pueden repetirse en el registro.")
+    series = [e["serie"] for e in [principal, *resultado] if e.get("serie")]
+    if len(series) != len(set(series)):
+        raise ValueError("Las series no pueden repetirse en el registro.")
+    return resultado
+
 def _guardar_auditoria(equipo, accion, anterior=None, motivo=None):
     registrar_bitacora(
         accion=accion, modulo="Seguridad Informática",
@@ -96,7 +141,7 @@ def _guardar_auditoria(equipo, accion, anterior=None, motivo=None):
 @seguridad_bp.route("/")
 @login_required
 def inicio():
-    consulta = EquipoInstitucional.query
+    consulta = EquipoInstitucional.query.filter(EquipoInstitucional.equipo_principal_id.is_(None))
     q = request.args.get("q", "").strip()[:120]
     if q:
         patron = f"%{q}%"
@@ -113,12 +158,20 @@ def nuevo():
     _editar_permitido()
     if request.method == "POST":
         try:
-            equipo = EquipoInstitucional(**_datos(), creado_por_id=current_user.id)
+            principal = _datos()
+            adicionales = _datos_adicionales(principal)
+            equipo = EquipoInstitucional(**principal, creado_por_id=current_user.id)
             db.session.add(equipo)
             db.session.flush()
             _guardar_auditoria(equipo, "CREAR_EQUIPO_INSTITUCIONAL")
+            for datos in adicionales:
+                adicional = EquipoInstitucional(**datos, creado_por_id=current_user.id,
+                                                equipo_principal_id=equipo.id)
+                db.session.add(adicional)
+                db.session.flush()
+                _guardar_auditoria(adicional, "CREAR_EQUIPO_INSTITUCIONAL")
             db.session.commit()
-            flash("Equipo registrado y auditado.", "success")
+            flash(f"Registro guardado con {1 + len(adicionales)} equipo(s) y auditoría.", "success")
             return redirect(url_for("seguridad.inicio"))
         except (ValueError, IntegrityError) as error:
             db.session.rollback()
@@ -194,41 +247,12 @@ def editar(equipo_id):
 @login_required
 def constancia(equipo_id):
     equipo = db.get_or_404(EquipoInstitucional, equipo_id)
-    buffer = BytesIO()
-    pdf = canvas.Canvas(buffer, pagesize=A4)
-    pdf.setTitle("Constancia de inventario de equipo - SICODE-UCT")
-    pdf.setFont("Helvetica-Bold", 13)
-    pdf.drawString(48, 780, "MINISTERIO DE GOBERNACION - UCT")
-    pdf.setFont("Helvetica-Bold", 12)
-    pdf.drawString(48, 749, "CONSTANCIA DE INVENTARIO DE EQUIPO")
-    pdf.setFont("Helvetica", 10)
-    lineas = [
-        ("Control", "09 - Inventario de equipos con acceso a informacion institucional"),
-        ("Referencia", f"UCT-SEG-09-{equipo.id:06d}"),
-        ("Fecha de emision", datetime.now().strftime("%d/%m/%Y %H:%M")),
-        ("No. registro", equipo.numero_registro), ("SICOIN", equipo.codigo),
-        ("IP estática", equipo.ip_estatica), ("Boleta soporte", equipo.numero_boleta),
-        ("Tipo", equipo.tipo), ("Nombre", equipo.nombre),
-        ("Marca", equipo.marca), ("Modelo", equipo.modelo),
-        ("Serie", equipo.serie),
-        ("Area", equipo.area), ("Ubicacion", equipo.ubicacion),
-        ("Responsable de asignación", equipo.nombre_responsable),
-        ("Usuario habitual", equipo.nombre_usuario_habitual),
-        ("Tipo de acceso", equipo.tipo_acceso), ("Estado", equipo.estado),
-    ]
-    y = 716
-    for nombre, valor in lineas:
-        pdf.drawString(48, y, f"{nombre}:")
-        pdf.drawString(165, y, str(valor or "No consignado")[:65])
-        y -= 26
-    pdf.setFont("Helvetica-Oblique", 9)
-    pdf.drawString(48, 165, "Constancia de registro administrativo; no certifica por si sola cumplimiento tecnico.")
-    pdf.drawString(48, 140, "El historial de cambios se conserva en la Bitacora de SICODE-UCT.")
-    pdf.showPage()
-    pdf.save()
-    buffer.seek(0)
+    principal = equipo.equipo_principal or equipo
+    integrantes = [principal, *principal.accesorios]
+    buffer = generar_constancia_inventario(principal, integrantes)
     registrar_bitacora("GENERAR_CONSTANCIA_INVENTARIO_EQUIPO", "Seguridad Informática",
-        usuario_id=current_user.id, entidad="EquipoInstitucional", entidad_id=equipo.id,
-        descripcion=f"Constancia de inventario consultada: {equipo.codigo}")
+        usuario_id=current_user.id, entidad="EquipoInstitucional", entidad_id=principal.id,
+        descripcion=f"Constancia conjunta consultada: {principal.numero_registro} ({len(integrantes)} activos)",
+        datos_posteriores={"equipos": [e.snapshot() for e in integrantes]})
     return send_file(buffer, mimetype="application/pdf", as_attachment=True,
-        download_name=f"constancia_equipo_{equipo.id:06d}.pdf")
+        download_name=f"constancia_inventario_{principal.id:06d}.pdf")
