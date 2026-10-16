@@ -43,7 +43,7 @@ def _sesion(client, usuario_id):
 def _formulario(**cambios):
     datos = dict(codigo="UCT-TEST-001", nombre="Equipo de pruebas",
         tipo="COMPUTADORA", estado="ACTIVO", tipo_acceso="INTERNO",
-        acceso_institucional="si", area="Coordinación")
+        acceso_institucional="si", area="Coordinación Administrativa")
     datos.update(cambios)
     return datos
 
@@ -179,3 +179,38 @@ def test_paginas_inventario_y_formulario_renderizan(contexto):
     editar = client.get(f"/coordinacion/seguridad/equipos/{equipo.id}/editar")
     assert editar.status_code == 200
     assert b'name="motivo"' in editar.data
+
+
+def test_personal_y_sicoin_ip(contexto):
+    from app.models.personal_institucional import PersonalInstitucional
+    app, usuario_id = contexto
+    client = app.test_client()
+    _sesion(client, usuario_id)
+    creado = client.post("/coordinacion/seguridad/personal/nuevo", data={
+        "nombre": "Persona", "apellido": "Ejemplo",
+        "coordinacion": "Coordinación Administrativa",
+    })
+    assert creado.status_code == 302
+    persona = PersonalInstitucional.query.one()
+    assert persona.nombre_completo == "Persona Ejemplo"
+    r = client.post("/coordinacion/seguridad/equipos/nuevo",
+                    data=_formulario(codigo="SICOIN-TEST-01",
+                                    ip_estatica="192.0.2.15",
+                                    responsable_personal_id=str(persona.id)))
+    assert r.status_code == 302
+    equipo = EquipoInstitucional.query.filter_by(codigo="SICOIN-TEST-01").one()
+    assert equipo.numero_registro.startswith("UCT-EQ-")
+    assert equipo.ip_estatica == "192.0.2.15"
+    assert equipo.nombre_responsable == "Persona Ejemplo"
+    assert equipo.numero_boleta is None
+
+
+def test_rechaza_ip_y_coordinacion_invalidas(contexto):
+    app, usuario_id = contexto
+    client = app.test_client()
+    _sesion(client, usuario_id)
+    assert client.post("/coordinacion/seguridad/equipos/nuevo",
+                       data=_formulario(ip_estatica="999.999.999.999")).status_code == 200
+    assert client.post("/coordinacion/seguridad/equipos/nuevo",
+                       data=_formulario(area="No autorizada")).status_code == 200
+    assert EquipoInstitucional.query.count() == 0
