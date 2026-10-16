@@ -1,17 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Inventario de equipos — SICODE-UCT<script>
-document.addEventListener("DOMContentLoaded", function () {
-  const responsable = document.querySelector('select[name="responsable_personal_id"]');
-  const area = document.querySelector('select[name="area"]');
-  if (responsable && area) {
-    responsable.addEventListener("change", function () {
-      const opcion = responsable.selectedOptions[0];
-      if (opcion && opcion.dataset.coordinacion) area.value = opcion.dataset.coordinacion;
-    });
-  }
-});
-</script>
-{% endblock %}
+{% block title %}Inventario de equipos — SICODE-UCT{% endblock %}
 {% block content %}
 <section class="panel panel-ancho">
   <div class="encabezado-modulo"><div><h1>🖥️ {{ 'Editar equipo' if equipo else 'Registrar equipo' }}</h1>
@@ -43,13 +31,22 @@ document.addEventListener("DOMContentLoaded", function () {
         <option value="{{ valor }}" {% if request.form.get('tipo', equipo.tipo if equipo else 'COMPUTADORA') == valor %}selected{% endif %}>{{ valor.replace('_',' ') }}</option>
       {% endfor %}</select>
     </label>
-    <label>Responsable institucional
+    <label>Responsable de asignación (custodio institucional)
       <select name="responsable_personal_id" style="width:100%">
         <option value="">Sin asignación</option>
         {% for p in personal %}
         <option data-coordinacion="{{ p.coordinacion }}" value="{{ p.id }}" {% if request.form.get('responsable_personal_id', request.args.get('responsable', equipo.responsable_personal_id|string if equipo and equipo.responsable_personal_id else '')) == p.id|string %}selected{% endif %}>{{ p.nombre_completo }} — {{ p.coordinacion }}</option>
         {% endfor %}
       </select>
+    </label>
+    <label>Usuario habitual del equipo
+      <select name="usuario_habitual_personal_id" style="width:100%">
+        <option value="">Sin asignación</option>
+        {% for p in personal %}
+        <option value="{{ p.id }}" data-coordinacion="{{ p.coordinacion }}" {% if request.form.get('usuario_habitual_personal_id', request.args.get('usuario_habitual', equipo.usuario_habitual_personal_id|string if equipo and equipo.usuario_habitual_personal_id else '')) == p.id|string %}selected{% endif %}>{{ p.nombre_completo }} — {{ p.coordinacion }}</option>
+        {% endfor %}
+      </select>
+      <small>Persona que utiliza regularmente el equipo; puede ser distinta del custodio.</small>
     </label>
     <label>Tipo de acceso
       <select name="tipo_acceso" style="width:100%">{% for valor in accesos %}
@@ -72,11 +69,13 @@ document.addEventListener("DOMContentLoaded", function () {
     {% if equipo %}<p><label>Motivo de corrección *<textarea name="motivo" maxlength="500" rows="2" required style="width:100%">{{ request.form.get('motivo','') }}</textarea></label></p>{% endif %}
     <button class="boton" type="submit">Guardar con auditoría</button>
   </form>
-  <details class="tarjeta" style="margin-top:18px" id="agregar-responsable">
-    <summary style="cursor:pointer;font-weight:700">＋ Agregar responsable a Personal Institucional</summary>
-    <p>El responsable se registrará una sola vez para reutilizarlo en equipos y soporte técnico.</p>
+  {% for destino, titulo in [('responsable','Agregar responsable de asignación'),('usuario_habitual','Agregar usuario habitual')] %}
+  <details class="tarjeta" style="margin-top:18px">
+    <summary style="cursor:pointer;font-weight:700">＋ {{ titulo }}</summary>
+    <p>Se guarda en el directorio compartido de Personal Institucional, sin crear una cuenta de acceso a SICODE.</p>
     <form method="post" action="{{ url_for('seguridad.agregar_personal') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="destino" value="{{ destino }}">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
         <label>Nombre *<input name="nombre" maxlength="100" required style="width:100%"></label>
         <label>Apellido *<input name="apellido" maxlength="120" required style="width:100%"></label>
@@ -85,8 +84,20 @@ document.addEventListener("DOMContentLoaded", function () {
           {% for c in coordinaciones %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
         </select></label>
       </div>
-      <button class="boton" type="submit" style="margin-top:12px">Guardar responsable</button>
+      <button class="boton" type="submit" style="margin-top:12px">Guardar en Personal Institucional</button>
     </form>
   </details>
+  {% endfor %}
 </section>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const custodio = document.querySelector('select[name="responsable_personal_id"]');
+  const area = document.querySelector('select[name="area"]');
+  if (custodio && area) custodio.addEventListener("change", function () {
+    const seleccionado = custodio.selectedOptions[0];
+    if (seleccionado && seleccionado.dataset.coordinacion && !area.value)
+      area.value = seleccionado.dataset.coordinacion;
+  });
+});
+</script>
 {% endblock %}
