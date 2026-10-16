@@ -6,6 +6,8 @@ class EquipoInstitucional(db.Model):
     __tablename__ = "equipos_institucionales"
     id = db.Column(db.Integer, primary_key=True)
     codigo = db.Column(db.String(60), nullable=False, unique=True, index=True)  # SICOIN
+    equipo_principal_id = db.Column(db.Integer, db.ForeignKey("equipos_institucionales.id"), nullable=True, index=True)
+    accesorios = db.relationship("EquipoInstitucional", backref=db.backref("equipo_principal", remote_side="EquipoInstitucional.id"), foreign_keys=[equipo_principal_id], order_by="EquipoInstitucional.id")
     tipo = db.Column(db.String(40), nullable=False)
     nombre = db.Column(db.String(120), nullable=False)
     marca = db.Column(db.String(100))
@@ -52,7 +54,7 @@ class EquipoInstitucional(db.Model):
 
     def snapshot(self):
         return {campo: getattr(self, campo) for campo in (
-            "codigo", "tipo", "nombre", "marca", "modelo", "serie",
+            "equipo_principal_id", "codigo", "tipo", "nombre", "marca", "modelo", "serie",
             "numero_inventario", "ip_estatica", "area", "ubicacion", "responsable_usuario_id",
             "responsable_personal_id", "usuario_habitual_personal_id", "acceso_institucional", "tipo_acceso",
             "estado", "observaciones"
