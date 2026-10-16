@@ -9,6 +9,7 @@ from sqlalchemy import or_, func
 from sqlalchemy.exc import IntegrityError
 from app.services.constancia_inventario_service import generar_constancia_inventario
 from app.services.exportacion_inventario_service import CAMPOS, seleccion, excel, pdf
+from app.services.exportacion_personal_service import CAMPOS_PERSONAL, seleccionar_campos, generar_excel, generar_pdf
 
 from app import db
 from app.models.equipo_institucional import EquipoInstitucional
@@ -170,6 +171,43 @@ def personal_uct():
         PersonalInstitucional.apellido).paginate(
         page=max(1, request.args.get("page", 1, type=int)), per_page=25, error_out=False)
     return render_template("seguridad/personal_uct.html", personas=personas, q=q)
+
+
+@seguridad_bp.route("/personal/exportar/", methods=["GET", "POST"])
+@login_required
+def exportar_personal():
+    if request.method == "GET":
+        return render_template("seguridad/exportar_personal.html", campos=CAMPOS_PERSONAL)
+    formato = request.form.get("formato", "")
+    if formato not in ("xlsx", "pdf"):
+        abort(400)
+    try:
+        columnas = seleccionar_campos(request.form.getlist("campos"))
+    except ValueError as error:
+        flash(str(error), "warning")
+        return render_template("seguridad/exportar_personal.html", campos=CAMPOS_PERSONAL), 400
+    # El directorio completo se exporta, no solo los resultados de una página.
+    personas = PersonalInstitucional.query.order_by(
+        PersonalInstitucional.apellido, PersonalInstitucional.nombre, PersonalInstitucional.id
+    ).all()
+    fecha = datetime.now(ZoneInfo("America/Guatemala")).strftime("%d/%m/%Y %H:%M:%S")
+    usuario = current_user.usuario
+    memoria = (generar_excel if formato == "xlsx" else generar_pdf)(
+        personas, columnas, usuario, fecha
+    )
+    registrar_bitacora(
+        accion="EXPORTAR_PERSONAL_UCT", modulo="PERSONAL UCT",
+        descripcion=f"Exportación del directorio PERSONAL UCT en {formato.upper()}",
+        usuario_id=current_user.id, entidad="PersonalInstitucional",
+        datos_posteriores={"formato": formato, "campos": columnas,
+                           "total": len(personas), "fecha": fecha, "usuario": usuario},
+    )
+    mimetype = ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                if formato == "xlsx" else "application/pdf")
+    return send_file(
+        memoria, mimetype=mimetype, as_attachment=True,
+        download_name=f"sicode_personal_uct_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{formato}"
+    )
 
 
 @seguridad_bp.route("/exportar/", methods=["GET", "POST"])
