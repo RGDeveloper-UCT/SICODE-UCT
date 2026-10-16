@@ -214,3 +214,36 @@ def test_rechaza_ip_y_coordinacion_invalidas(contexto):
     assert client.post("/coordinacion/seguridad/equipos/nuevo",
                        data=_formulario(area="No autorizada")).status_code == 200
     assert EquipoInstitucional.query.count() == 0
+
+
+def test_boleta_usa_numero_existente_y_enlace(contexto):
+    from datetime import datetime
+    from app.models.soporte_tecnico import ServicioSoporteTecnico
+    from app.models.coordinacion import RegistroCoordinacion
+    app, usuario_id = contexto
+    equipo = EquipoInstitucional(codigo="SICOIN-BOLETA-001", tipo="COMPUTADORA",
+                                 nombre="Equipo relacionado", creado_por_id=usuario_id)
+    db.session.add(equipo)
+    db.session.flush()
+    registro = RegistroCoordinacion(tipo="ACTIVIDAD",
+                                   fecha_recepcion=datetime.utcnow().date(),
+                                   usuario_id=usuario_id,
+                                   estado="Información pendiente",
+                                   origen_registro="MANUAL")
+    db.session.add(registro)
+    db.session.flush()
+    boleta = ServicioSoporteTecnico(
+        registro_id=registro.id,
+        numero_boleta=f"BST-2026-{registro.id:05d}",
+        fecha_hora_solicitud=datetime.utcnow(),
+        usuario_solicitante="Persona ejemplo",
+        coordinacion_area="Coordinación Administrativa",
+        tecnico_asignado="Técnico ejemplo",
+        descripcion_solicitud="Prueba de enlace",
+        equipo_institucional_id=equipo.id,
+    )
+    db.session.add(boleta)
+    db.session.commit()
+    db.session.refresh(equipo)
+    assert equipo.numero_boleta == boleta.numero_boleta
+    assert equipo.numero_registro != boleta.numero_boleta
