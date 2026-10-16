@@ -344,3 +344,51 @@ def test_grupo_no_guarda_parcial_por_codigo_duplicado(contexto):
     datos.update({"adicional_" + k: v for k, v in plantilla.items()})
     assert client.post("/coordinacion/seguridad/equipos/nuevo", data=datos).status_code == 200
     assert EquipoInstitucional.query.count() == 0
+
+
+def test_panel_inventario_tecnologico_y_personal_uct(contexto):
+    app, usuario_id = contexto
+    client = app.test_client()
+    _sesion(client, usuario_id)
+    panel = client.get("/coordinacion/seguridad/")
+    assert panel.status_code == 200
+    for palabra in ("Inventario Tecnológico", "PERSONAL UCT", "Exportar Excel", "Exportar PDF"):
+        assert palabra in panel.get_data(as_text=True)
+    personal = client.get("/coordinacion/seguridad/personal/")
+    assert personal.status_code == 200
+    assert "PERSONAL UCT" in personal.get_data(as_text=True)
+    seleccion = client.get("/coordinacion/seguridad/exportar/")
+    assert seleccion.status_code == 200
+    assert b'name="campos"' in seleccion.data
+
+
+def test_exportacion_columnas_y_bitacora(contexto):
+    from io import BytesIO
+    from openpyxl import load_workbook
+    from pypdf import PdfReader
+    app, usuario_id = contexto
+    client = app.test_client()
+    _sesion(client, usuario_id)
+    equipo = EquipoInstitucional(
+        codigo="SICOIN-EXPORT-001", nombre="Estación de prueba",
+        tipo="COMPUTADORA", creado_por_id=usuario_id)
+    db.session.add(equipo)
+    db.session.commit()
+    excel = client.post("/coordinacion/seguridad/exportar/",
+                        data={"formato": "xlsx", "campos": ["sicoin", "nombre"]})
+    assert excel.status_code == 200
+    assert excel.data.startswith(b"PK")
+    hoja = load_workbook(BytesIO(excel.data)).active
+    assert [celda.value for celda in hoja[5]] == ["SICOIN", "Nombre"]
+    assert "SICOIN-EXPORT-001" in [row[0] for row in hoja.iter_rows(min_row=6, values_only=True)]
+    pdf = client.post("/coordinacion/seguridad/exportar/",
+                      data={"formato": "pdf", "campos": ["sicoin", "nombre"]})
+    assert pdf.status_code == 200
+    texto = "".join(page.extract_text() for page in PdfReader(BytesIO(pdf.data)).pages)
+    assert "SICOIN-EXPORT-001" in texto
+    assert "SICODE-UCT" in texto
+    assert "Exportado por" in texto
+    assert Bitacora.query.filter_by(accion="EXPORTAR_INVENTARIO_TECNOLOGICO").count() == 2
+    invalido = client.post("/coordinacion/seguridad/exportar/",
+                           data={"formato": "xlsx", "campos": ["__dict__"]})
+    assert invalido.status_code == 400
