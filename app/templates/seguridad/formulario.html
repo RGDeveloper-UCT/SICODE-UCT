@@ -1,5 +1,17 @@
 {% extends "base.html" %}
-{% block title %}Inventario de equipos — SICODE-UCT{% endblock %}
+{% block title %}Inventario de equipos — SICODE-UCT<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const responsable = document.querySelector('select[name="responsable_personal_id"]');
+  const area = document.querySelector('select[name="area"]');
+  if (responsable && area) {
+    responsable.addEventListener("change", function () {
+      const opcion = responsable.selectedOptions[0];
+      if (opcion && opcion.dataset.coordinacion) area.value = opcion.dataset.coordinacion;
+    });
+  }
+});
+</script>
+{% endblock %}
 {% block content %}
 <section class="panel panel-ancho">
   <div class="encabezado-modulo"><div><h1>🖥️ {{ 'Editar equipo' if equipo else 'Registrar equipo' }}</h1>
@@ -35,7 +47,7 @@
       <select name="responsable_personal_id" style="width:100%">
         <option value="">Sin asignación</option>
         {% for p in personal %}
-        <option value="{{ p.id }}" {% if request.form.get('responsable_personal_id', request.args.get('responsable', equipo.responsable_personal_id|string if equipo and equipo.responsable_personal_id else '')) == p.id|string %}selected{% endif %}>{{ p.nombre_completo }} — {{ p.coordinacion }}</option>
+        <option data-coordinacion="{{ p.coordinacion }}" value="{{ p.id }}" {% if request.form.get('responsable_personal_id', request.args.get('responsable', equipo.responsable_personal_id|string if equipo and equipo.responsable_personal_id else '')) == p.id|string %}selected{% endif %}>{{ p.nombre_completo }} — {{ p.coordinacion }}</option>
         {% endfor %}
       </select>
     </label>
