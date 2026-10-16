@@ -2,11 +2,13 @@
 from io import BytesIO
 import ipaddress
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from flask import Blueprint, abort, flash, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import or_, func
 from sqlalchemy.exc import IntegrityError
 from app.services.constancia_inventario_service import generar_constancia_inventario
+from app.services.exportacion_inventario_service import CAMPOS, seleccion, excel, pdf
 
 from app import db
 from app.models.equipo_institucional import EquipoInstitucional
@@ -151,6 +153,56 @@ def inicio():
     pagina = max(1, request.args.get("page", 1, type=int))
     equipos = consulta.order_by(EquipoInstitucional.codigo).paginate(page=pagina, per_page=25, error_out=False)
     return render_template("seguridad/inicio.html", equipos=equipos, q=q)
+
+
+@seguridad_bp.route("/personal/")
+@login_required
+def personal_uct():
+    q = request.args.get("q", "").strip()[:100]
+    consulta = PersonalInstitucional.query
+    if q:
+        patron = f"%{q}%"
+        consulta = consulta.filter(or_(
+            PersonalInstitucional.nombre.ilike(patron),
+            PersonalInstitucional.apellido.ilike(patron),
+            PersonalInstitucional.coordinacion.ilike(patron)))
+    personas = consulta.order_by(PersonalInstitucional.nombre,
+        PersonalInstitucional.apellido).paginate(
+        page=max(1, request.args.get("page", 1, type=int)), per_page=25, error_out=False)
+    return render_template("seguridad/personal_uct.html", personas=personas, q=q)
+
+
+@seguridad_bp.route("/exportar/", methods=["GET", "POST"])
+@login_required
+def exportar():
+    if request.method == "GET":
+        return render_template("seguridad/exportar.html", campos=CAMPOS)
+    formato = request.form.get("formato", "")
+    if formato not in ("xlsx", "pdf"):
+        abort(400)
+    try:
+        columnas = seleccion(request.form.getlist("campos"))
+    except ValueError as e:
+        flash(str(e), "warning")
+        return render_template("seguridad/exportar.html", campos=CAMPOS), 400
+    # Reporte completo, no solamente la página visible.
+    equipos = EquipoInstitucional.query.order_by(EquipoInstitucional.id).all()
+    fecha = datetime.now(ZoneInfo("America/Guatemala")).strftime("%d/%m/%Y %H:%M:%S")
+    usuario = current_user.usuario
+    memoria = excel(equipos, columnas, usuario, fecha) if formato == "xlsx" else pdf(equipos, columnas, usuario, fecha)
+    registrar_bitacora(
+        accion="EXPORTAR_INVENTARIO_TECNOLOGICO",
+        modulo="Inventario Tecnológico",
+        descripcion=f"Exportación de inventario tecnológico en {formato.upper()}",
+        usuario_id=current_user.id,
+        entidad="EquipoInstitucional",
+        datos_posteriores={"formato": formato, "columnas": columnas, "total": len(equipos),
+                           "fecha": fecha, "usuario": usuario},
+    )
+    mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" if formato == "xlsx" else "application/pdf"
+    return send_file(memoria, mimetype=mime, as_attachment=True,
+        download_name=f"sicode_inventario_tecnologico_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{formato}")
+
 
 @seguridad_bp.route("/equipos/nuevo", methods=["GET", "POST"])
 @login_required
