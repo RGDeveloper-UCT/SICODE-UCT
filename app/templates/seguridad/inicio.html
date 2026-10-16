@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Seguridad informática — SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+  <div class="encabezado-modulo">
+    <div><h1>🛡️ Control de Seguridad Informática</h1><p>Coordinación · Panel de Carrete · Control 09</p></div>
+    <a class="boton-secundario" href="{{ url_for('coordinacion.inicio') }}">← Coordinación</a>
+  </div>
+  <div class="tarjeta"><h2>🖥️ Inventario institucional de equipos</h2>
+    <p>Registro maestro reutilizable para software, accesos, actualizaciones y verificaciones posteriores.</p>
+    {% if current_user.puede_modificar %}<a class="boton" href="{{ url_for('seguridad.nuevo') }}">+ Registrar equipo</a>{% endif %}
+  </div>
+  <form method="get" style="margin:18px 0;display:flex;gap:10px">
+    <input name="q" value="{{ q }}" maxlength="120" placeholder="Buscar código, nombre, serie o inventario" style="flex:1">
+    <button class="boton" type="submit">Buscar</button>
+  </form>
+  <div style="overflow-x:auto">
+  <table class="tabla"><thead><tr><th>Código</th><th>Equipo</th><th>Área</th><th>Responsable</th><th>Estado</th><th>Acciones</th></tr></thead>
+  <tbody>{% for equipo in equipos.items %}
+    <tr><td>{{ equipo.codigo }}</td><td>{{ equipo.nombre }}<br><small>{{ equipo.tipo }}</small></td>
+    <td>{{ equipo.area or '—' }}</td><td>{{ equipo.responsable.nombre if equipo.responsable else 'Sin asignar' }}</td>
+    <td>{{ equipo.estado.replace('_',' ') }}</td>
+    <td>{% if current_user.puede_modificar %}<a href="{{ url_for('seguridad.editar', equipo_id=equipo.id) }}">Editar</a> · {% endif %}<a href="{{ url_for('seguridad.constancia', equipo_id=equipo.id) }}">Constancia PDF</a></td></tr>
+    {% else %}<tr><td colspan="6">Todavía no hay equipos registrados.</td></tr>{% endfor %}</tbody></table></div>
+    {% if equipos.pages > 1 %}<p>Página {{ equipos.page }} de {{ equipos.pages }} ·
+    {% if equipos.has_prev %}<a href="{{ url_for('seguridad.inicio', q=q, page=equipos.prev_num) }}">Anterior</a>{% endif %}
+    {% if equipos.has_next %}<a href="{{ url_for('seguridad.inicio', q=q, page=equipos.next_num) }}">Siguiente</a>{% endif %}</p>{% endif %}
+</section>
+{% endblock %}
