@@ -1,5 +1,6 @@
 """Primer control de Seguridad Informática: numeral 9, inventario de equipos."""
 from io import BytesIO
+import ipaddress
 from datetime import datetime
 from flask import Blueprint, abort, flash, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
@@ -11,6 +12,8 @@ from reportlab.pdfgen import canvas
 from app import db
 from app.models.equipo_institucional import EquipoInstitucional
 from app.models.usuario import Usuario
+from app.models.personal_institucional import PersonalInstitucional
+from app.services.catalogo_institucional import COORDINACIONES
 from app.services.bitacora_service import registrar_bitacora
 
 seguridad_bp = Blueprint("seguridad", __name__, url_prefix="/coordinacion/seguridad")
@@ -36,7 +39,7 @@ def _datos():
         "marca": _normalizar(request.form.get("marca"), 100),
         "modelo": _normalizar(request.form.get("modelo"), 120),
         "serie": _normalizar(request.form.get("serie"), 120),
-        "numero_inventario": _normalizar(request.form.get("numero_inventario"), 120),
+        "ip_estatica": _normalizar(request.form.get("ip_estatica"), 45),
         "area": _normalizar(request.form.get("area"), 160),
         "ubicacion": _normalizar(request.form.get("ubicacion"), 160),
         "tipo_acceso": _normalizar(request.form.get("tipo_acceso"), 40),
@@ -48,17 +51,25 @@ def _datos():
         raise ValueError("Código, tipo y nombre son obligatorios.")
     if datos["tipo"] not in TIPOS or datos["estado"] not in ESTADOS or datos["tipo_acceso"] not in ACCESOS:
         raise ValueError("Seleccione opciones válidas para el equipo.")
-    valor = request.form.get("responsable_usuario_id", "").strip()
+    if datos["area"] and datos["area"] not in COORDINACIONES:
+        raise ValueError("Seleccione una coordinación válida.")
+    if datos["ip_estatica"]:
+        try:
+            ipaddress.ip_address(datos["ip_estatica"])
+        except ValueError:
+            raise ValueError("La dirección IP estática no es válida.")
+    valor = request.form.get("responsable_personal_id", "").strip()
     if valor:
         try:
             usuario_id = int(valor)
         except ValueError:
             raise ValueError("Responsable inválido.")
-        if not db.session.get(Usuario, usuario_id):
-            raise ValueError("El responsable no existe.")
-        datos["responsable_usuario_id"] = usuario_id
+        personal = db.session.get(PersonalInstitucional, usuario_id)
+        if not personal or not personal.activo:
+            raise ValueError("El responsable no existe o está inactivo.")
+        datos["responsable_personal_id"] = usuario_id
     else:
-        datos["responsable_usuario_id"] = None
+        datos["responsable_personal_id"] = None
     return datos
 
 def _guardar_auditoria(equipo, accion, anterior=None, motivo=None):
@@ -78,7 +89,7 @@ def inicio():
     if q:
         patron = f"%{q}%"
         consulta = consulta.filter(or_(EquipoInstitucional.codigo.ilike(patron),
-            EquipoInstitucional.nombre.ilike(patron), EquipoInstitucional.numero_inventario.ilike(patron),
+            EquipoInstitucional.nombre.ilike(patron), EquipoInstitucional.ip_estatica.ilike(patron),
             EquipoInstitucional.serie.ilike(patron)))
     pagina = max(1, request.args.get("page", 1, type=int))
     equipos = consulta.order_by(EquipoInstitucional.codigo).paginate(page=pagina, per_page=25, error_out=False)
@@ -100,10 +111,35 @@ def nuevo():
         except (ValueError, IntegrityError) as error:
             db.session.rollback()
             flash("No se guardó: revise los datos y los identificadores únicos." if isinstance(error, IntegrityError) else str(error), "warning")
-    return render_template("seguridad/formulario.html", equipo=None, usuarios=_usuarios(), tipos=TIPOS, estados=ESTADOS, accesos=ACCESOS)
+    return render_template("seguridad/formulario.html", equipo=None, personal=_personal(), coordinaciones=COORDINACIONES, tipos=TIPOS, estados=ESTADOS, accesos=ACCESOS)
 
-def _usuarios():
-    return Usuario.query.filter_by(activo=True).order_by(Usuario.nombre).all()
+def _personal():
+    return PersonalInstitucional.query.filter_by(activo=True).order_by(PersonalInstitucional.nombre, PersonalInstitucional.apellido).all()
+
+@seguridad_bp.route("/personal/nuevo", methods=["POST"])
+@login_required
+def agregar_personal():
+    _editar_permitido()
+    nombre = _normalizar(request.form.get("nombre"), 100)
+    apellido = _normalizar(request.form.get("apellido"), 120)
+    coordinacion = _normalizar(request.form.get("coordinacion"), 160)
+    if not nombre or not apellido or coordinacion not in COORDINACIONES:
+        flash("Nombre, apellido y coordinación son obligatorios.", "warning")
+        return redirect(url_for("seguridad.nuevo"))
+    persona = PersonalInstitucional(nombre=nombre, apellido=apellido, coordinacion=coordinacion)
+    db.session.add(persona)
+    try:
+        db.session.flush()
+        registrar_bitacora(accion="CREAR_PERSONAL_INSTITUCIONAL", modulo="Seguridad Informática",
+            usuario_id=current_user.id, entidad="PersonalInstitucional", entidad_id=persona.id,
+            descripcion=f"Alta de personal: {persona.nombre_completo}",
+            datos_posteriores={"nombre": persona.nombre, "apellido": persona.apellido, "coordinacion": persona.coordinacion}, commit=False)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+    flash("Responsable agregado a Personal Institucional.", "success")
+    return redirect(url_for("seguridad.nuevo", responsable=persona.id))
 
 @seguridad_bp.route("/equipos/<int:equipo_id>/editar", methods=["GET", "POST"])
 @login_required
@@ -148,11 +184,13 @@ def constancia(equipo_id):
         ("Control", "09 - Inventario de equipos con acceso a informacion institucional"),
         ("Referencia", f"UCT-SEG-09-{equipo.id:06d}"),
         ("Fecha de emision", datetime.now().strftime("%d/%m/%Y %H:%M")),
-        ("Codigo", equipo.codigo), ("Tipo", equipo.tipo), ("Nombre", equipo.nombre),
+        ("No. registro", equipo.numero_registro), ("SICOIN", equipo.codigo),
+        ("IP estática", equipo.ip_estatica), ("Boleta soporte", equipo.numero_boleta),
+        ("Tipo", equipo.tipo), ("Nombre", equipo.nombre),
         ("Marca", equipo.marca), ("Modelo", equipo.modelo),
-        ("Serie", equipo.serie), ("Inventario", equipo.numero_inventario),
+        ("Serie", equipo.serie),
         ("Area", equipo.area), ("Ubicacion", equipo.ubicacion),
-        ("Responsable", equipo.responsable.nombre if equipo.responsable else None),
+        ("Responsable", equipo.nombre_responsable),
         ("Tipo de acceso", equipo.tipo_acceso), ("Estado", equipo.estado),
     ]
     y = 716
