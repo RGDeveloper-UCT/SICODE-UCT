@@ -91,3 +91,67 @@ def test_duplicados_y_constancia(contexto):
     pdf = client.get(f"/coordinacion/seguridad/equipos/{equipo.id}/constancia.pdf")
     assert pdf.status_code == 200
     assert pdf.data.startswith(b"%PDF")
+
+
+def test_visor_consulta_pero_no_puede_modificar(contexto):
+    app, usuario_id = contexto
+    usuario = db.session.get(Usuario, usuario_id)
+    usuario.rol = Usuario.ROL_VISOR
+    db.session.commit()
+    client = app.test_client()
+    _sesion(client, usuario_id)
+
+    assert client.get("/coordinacion/seguridad/").status_code == 200
+    assert client.get("/coordinacion/seguridad/equipos/nuevo").status_code == 403
+    assert client.post("/coordinacion/seguridad/equipos/nuevo",
+                       data=_formulario()).status_code == 403
+    assert EquipoInstitucional.query.count() == 0
+
+    # Crear un registro desde el contexto de BD solo para probar edición.
+    equipo = EquipoInstitucional(**{
+        "codigo": "UCT-VISOR-001", "tipo": "COMPUTADORA",
+        "nombre": "Consulta visor", "creado_por_id": usuario_id
+    })
+    db.session.add(equipo)
+    db.session.commit()
+    url = f"/coordinacion/seguridad/equipos/{equipo.id}/editar"
+    assert client.get(url).status_code == 403
+    assert client.post(url, data=_formulario(motivo="Intento")).status_code == 403
+    db.session.refresh(equipo)
+    assert equipo.nombre == "Consulta visor"
+    assert Bitacora.query.filter_by(accion="EDITAR_EQUIPO_INSTITUCIONAL").count() == 0
+
+
+def test_usuario_autorizado_puede_registrar(contexto):
+    app, usuario_id = contexto
+    usuario = db.session.get(Usuario, usuario_id)
+    usuario.rol = Usuario.ROL_AUTORIZADO
+    db.session.commit()
+    client = app.test_client()
+    _sesion(client, usuario_id)
+    respuesta = client.post("/coordinacion/seguridad/equipos/nuevo",
+                            data=_formulario(codigo="UCT-AUT-001"))
+    assert respuesta.status_code == 302
+    assert EquipoInstitucional.query.filter_by(codigo="UCT-AUT-001").count() == 1
+
+
+def test_constancia_requiere_sesion_y_registra_emision(contexto):
+    app, usuario_id = contexto
+    client = app.test_client()
+    equipo = EquipoInstitucional(codigo="UCT-PDF-001", tipo="COMPUTADORA",
+                                 nombre="Equipo constancia", creado_por_id=usuario_id)
+    db.session.add(equipo)
+    db.session.commit()
+    url = f"/coordinacion/seguridad/equipos/{equipo.id}/constancia.pdf"
+    anonimo = client.get(url)
+    assert anonimo.status_code == 302
+    assert "/login" in anonimo.headers["Location"]
+    _sesion(client, usuario_id)
+    pdf = client.get(url)
+    assert pdf.status_code == 200
+    assert pdf.mimetype == "application/pdf"
+    assert pdf.data.startswith(b"%PDF")
+    assert Bitacora.query.filter_by(
+        accion="GENERAR_CONSTANCIA_INVENTARIO_EQUIPO",
+        entidad_id=str(equipo.id)
+    ).count() == 1
