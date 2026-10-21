@@ -15,7 +15,7 @@ from app import db
 from app.models.equipo_institucional import EquipoInstitucional
 from app.models.soporte_tecnico import ServicioSoporteTecnico
 from app.models.mantenimiento_equipo import MantenimientoEquipo
-from app.services.checklist_mantenimiento import plantilla, validar_checklist, validar_cierre, VERSION
+from app.services.checklist_mantenimiento import plantilla, validar_checklist, validar_cierre, actualizar_checklist_pendiente, VERSION
 from app.services.bitacora_service import registrar_bitacora
 from app.services.resumen_mantenimiento import resumen_trabajo
 from app.services.constancia_mantenimiento_service import generar_constancia_mantenimiento
@@ -110,13 +110,14 @@ def editar(mantenimiento_id):
     if m.estado == "FINALIZADO":
         flash("Este mantenimiento está cerrado. El historial es de solo lectura.", "warning")
         return redirect(url_for("mantenimientos.detalle", mantenimiento_id=m.id))
+    checklist_actual = actualizar_checklist_pendiente(m.checklist)
     if request.method == "POST":
         try:
             datos = [{"codigo": f["codigo"],
                       "resultado": request.form.get("resultado_" + f["codigo"], "PENDIENTE"),
                       "observacion": request.form.get("observacion_" + f["codigo"], "")}
-                     for f in m.checklist]
-            validado = validar_checklist(datos, m.checklist)
+                     for f in checklist_actual]
+            validado = validar_checklist(datos, checklist_actual)
             diagnostico = request.form.get("diagnostico", "").strip()
             trabajo = request.form.get("trabajo_realizado", "").strip()
             final = request.form.get("estado_final", "")
@@ -143,6 +144,7 @@ def editar(mantenimiento_id):
                 m.estado = "FINALIZADO"
                 m.cerrado_en = datetime.utcnow()
             m.checklist = validado
+            m.checklist_version = VERSION
             m.diagnostico = diagnostico
             m.trabajo_realizado = trabajo
             m.respaldo_gb = respaldo
@@ -155,7 +157,7 @@ def editar(mantenimiento_id):
         except (ValueError, TypeError) as error:
             db.session.rollback()
             flash(str(error), "warning")
-    return render_template("mantenimientos/editar.html", m=m)
+    return render_template("mantenimientos/editar.html", m=m, checklist=checklist_actual)
 
 @mantenimientos_bp.route("/<int:mantenimiento_id>/reloj", methods=["POST"])
 @login_required
