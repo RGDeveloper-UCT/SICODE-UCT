@@ -33,3 +33,5 @@ from app.models.coordinacion import (
 from app.models.equipo_institucional import EquipoInstitucional
 
 from app.models.personal_institucional import PersonalInstitucional
+
+from app.models.mantenimiento_equipo import MantenimientoEquipo
