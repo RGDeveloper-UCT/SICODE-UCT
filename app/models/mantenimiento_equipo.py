@@ -12,6 +12,7 @@ class MantenimientoEquipo(db.Model):
     estado = db.Column(db.String(20), nullable=False, default="BORRADOR", index=True)
     diagnostico = db.Column(db.Text, nullable=False, default="")
     trabajo_realizado = db.Column(db.Text, nullable=False, default="")
+    respaldo_mb = db.Column(db.Numeric(12, 2), nullable=True)
     estado_final = db.Column(db.String(40), nullable=True)
     requiere_seguimiento = db.Column(db.Boolean, nullable=False, default=False)
     checklist_version = db.Column(db.Integer, nullable=False, default=1)
