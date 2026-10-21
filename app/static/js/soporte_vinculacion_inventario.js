@@ -5,6 +5,17 @@
   const personal = form.querySelector('#personal_institucional_id');
   const equipo = form.querySelector('#equipo_institucional_id');
   const busqueda = form.querySelector('#buscar_equipo_inventario');
+  const fechaFirmaUsuario = campoFecha => form.querySelector('#' + campoFecha);
+  const hoyLocal = () => {
+    const d = new Date(), offset = d.getTimezoneOffset();
+    return new Date(d.getTime() - offset * 60000).toISOString().slice(0, 10);
+  };
+  function fechasFirmas() {
+    for (const id of ['fecha_firma_usuario', 'fecha_firma_tecnico']) {
+      const el = fechaFirmaUsuario(id);
+      if (el && !el.value) el.value = hoyLocal();
+    }
+  }
   const aviso = document.getElementById('mensaje-equipo-asignado');
   const tipos = {COMPUTADORA:'PC', PORTATIL:'LAPTOP', IMPRESORA:'IMPRESORA', ESCANER:'ESCANER'};
   const campo = nombre => form.elements.namedItem(nombre);
@@ -55,6 +66,8 @@
     const asignados = opciones().filter(o => id && id !== '0' &&
       (o.dataset.habitualId === id || o.dataset.custodioId === id));
     if (busqueda) busqueda.value = '';
+    const seccionEquipo = form.querySelector("[data-equipo-section]");
+    if (seccionEquipo && id && id !== "0") seccionEquipo.hidden = false;
     for (const o of opciones()) o.hidden = Boolean(asignados.length && !asignados.includes(o));
     if (asignados.length === 1) {
       equipo.value = asignados[0].value;
@@ -67,6 +80,12 @@
         : 'No hay equipos asignados a esta persona. Puede buscar uno manualmente.';
     }
   }
+  form.querySelector('#usuario_solicitante')?.addEventListener('change', (event) => {
+    if (!campo('nombre_firma_usuario')?.value) escribir('nombre_firma_usuario', event.target.value);
+  });
+  form.querySelector('#tecnico_asignado')?.addEventListener('change', (event) => {
+    if (!campo('nombre_firma_tecnico')?.value) escribir('nombre_firma_tecnico', event.target.value);
+  });
   equipo?.addEventListener('change', actualizarFicha);
   personal?.addEventListener('change', actualizarPorPersonal);
   busqueda?.addEventListener('input', () => {
@@ -79,6 +98,7 @@
     }
   });
   // En edición y al recuperar un borrador, respetar el equipo guardado.
+  fechasFirmas();
   if (equipo?.value && equipo.value !== '0') actualizarFicha();
   else if (personal?.value && personal.value !== '0') actualizarPorPersonal();
 })();
