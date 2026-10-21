@@ -142,14 +142,15 @@
             <div class="soporte-paso-titulo"><span>5</span><div><h2>Identificación del equipo</h2><p>Complete solo lo disponible.</p></div></div>
             <div class="grid-form soporte-grid-5">
                 <div class="campo campo-doble">
-                    <label>Equipo institucional (SICOIN)</label>
+                    <label for="equipo_institucional_id">Equipo institucional (Inventario Tecnológico · SICOIN)</label>
+                    <input type="search" id="buscar_equipo_inventario" placeholder="Buscar SICOIN, serie o nombre" autocomplete="off" aria-label="Buscar equipo del inventario">
                     <select name="equipo_institucional_id" id="equipo_institucional_id">
                         {% for valor,etiqueta in form.equipo_institucional_id.choices %}
                         {% set e = equipos_opciones.get(valor) %}
-                        <option value="{{ valor }}" data-sicoin="{{ e.codigo if e else '' }}" data-serie="{{ e.serie or '' if e else '' }}" data-marca="{{ ((e.marca or '') ~ ' ' ~ (e.modelo or ''))|trim if e else '' }}" data-ip="{{ e.ip_estatica or '' if e else '' }}" {% if form.equipo_institucional_id.data == valor %}selected{% endif %}>{{ etiqueta }}</option>
+                        <option value="{{ valor }}" data-sicoin="{{ e.codigo if e else '' }}" data-serie="{{ e.serie or '' if e else '' }}" data-marca="{{ ((e.marca or '') ~ ' ' ~ (e.modelo or ''))|trim if e else '' }}" data-ip="{{ e.ip_estatica or '' if e else '' }}" data-tipo="{{ e.tipo if e else '' }}" data-nombre="{{ e.nombre if e else '' }}" data-usuario="{{ e.nombre_usuario_habitual if e and e.usuario_habitual else '' }}" data-area="{{ e.area or '' if e else '' }}" data-ubicacion="{{ e.ubicacion or '' if e else '' }}" {% if form.equipo_institucional_id.data == valor %}selected{% endif %}>{{ etiqueta }}</option>
                         {% endfor %}
                     </select>
-                    <small>Vincula la boleta al equipo; el número BST seguirá generándose automáticamente.</small>
+                    <small>Seleccione el equipo del inventario para cargar SICOIN, serie, marca, modelo, IP y tipo automáticamente. Las boletas sin equipo pueden continuar sin vinculación. <a href="{{ url_for('seguridad.inicio') }}">Abrir Inventario Tecnológico</a></small>
                 </div>
                 <div class="campo">{{ form.tipo_equipo.label }}{{ form.tipo_equipo() }}</div>
                 <div class="campo" data-tipo-equipo-otro hidden>{{ form.tipo_equipo_otro.label }}{{ form.tipo_equipo_otro() }}</div>
@@ -218,20 +219,51 @@
 {% block scripts %}
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-  const fields = document.querySelector("form.soporte-form");
-  const bind = (selectId, mapping) => {
-    const select = document.getElementById(selectId);
-    if (!select || !fields) return;
-    select.addEventListener("change", () => {
-      const option = select.selectedOptions[0];
-      if (!option || !option.value || option.value === "0") return;
-      for (const [attr, name] of Object.entries(mapping)) {
-        const input = fields.elements.namedItem(name);
-        if (input && option.dataset[attr]) input.value = option.dataset[attr];
-      }
-    });
-  };
-  bind("personal_institucional_id", {nombre:"usuario_solicitante", area:"coordinacion_area"});
-  bind("equipo_institucional_id", {sicoin:"inventario", serie:"numero_serie", marca:"marca_modelo", ip:"ip_nombre_equipo"});
+  const form = document.querySelector("form.soporte-form");
+  if (!form) return;
+  const equipo = document.getElementById("equipo_institucional_id");
+  const busqueda = document.getElementById("buscar_equipo_inventario");
+  const personal = document.getElementById("personal_institucional_id");
+  function poner(nombre, valor) {
+    const campo = form.elements.namedItem(nombre);
+    if (campo && valor !== undefined && valor !== null) {
+      campo.value = valor;
+      campo.dispatchEvent(new Event("change", {bubbles: true}));
+    }
+  }
+  function aplicarEquipo() {
+    const seleccionado = equipo?.selectedOptions[0];
+    if (!seleccionado || !seleccionado.value || seleccionado.value === "0") return;
+    const d = seleccionado.dataset;
+    const tipos = {COMPUTADORA:"PC",PORTATIL:"LAPTOP",IMPRESORA:"IMPRESORA",ESCANER:"ESCANER"};
+    poner("inventario", d.sicoin || "");
+    poner("numero_serie", d.serie || "");
+    poner("marca_modelo", d.marca || "");
+    poner("ip_nombre_equipo", d.ip || d.nombre || "");
+    poner("tipo_equipo", tipos[d.tipo] || "OTRO");
+    poner("tipo_equipo_otro", tipos[d.tipo] ? "" : (d.tipo || ""));
+    // No cambiar el usuario solicitante: puede ser diferente al usuario habitual.
+  }
+  function aplicarPersonal() {
+    const d = personal?.selectedOptions[0]?.dataset;
+    if (!d || !personal.value || personal.value === "0") return;
+    poner("usuario_solicitante", d.nombre || "");
+    poner("coordinacion_area", d.area || "");
+  }
+  equipo?.addEventListener("change", aplicarEquipo);
+  personal?.addEventListener("change", aplicarPersonal);
+  busqueda?.addEventListener("input", function () {
+    const texto = this.value.trim().toLocaleLowerCase("es");
+    if (!equipo) return;
+    for (const option of equipo.options) {
+      if (!option.value || option.value === "0") continue;
+      option.hidden = !!texto && !(
+        (option.textContent || "") + " " + (option.dataset.serie || "")
+      ).toLocaleLowerCase("es").includes(texto);
+    }
+    if (equipo.selectedOptions[0]?.hidden) equipo.value = "0";
+  });
+  // También sincroniza el selector restaurado tras una validación del formulario.
+  aplicarEquipo();
 });
-</script><script src="{{ url_for('static', filename='js/soporte_tecnico.js') }}" defer></script>{% endblock %}
+<script src="{{ url_for('static', filename='js/soporte_tecnico.js') }}" defer></script>{% endblock %}
