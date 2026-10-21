@@ -24,9 +24,9 @@
  <form method="post" id="form-mantenimiento"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
  <div class="tarjeta"><h2>1. Diagnóstico inicial</h2><textarea name="diagnostico" maxlength="4000" rows="3" style="width:100%">{{ m.diagnostico }}</textarea></div>
  <p>2. Seleccione un resultado directamente para cada actividad. Abra solo la sección que esté trabajando. No cumple requiere descripción del hallazgo.</p>
- <div aria-live="polite" id="avance-mnt">Verificaciones: <strong>0 / {{ m.checklist|length }}</strong></div>
+ <div aria-live="polite" id="avance-mnt">Verificaciones: <strong>0 / {{ checklist|length }}</strong></div>
  {% set ns = namespace(grupo='', abierto=false) %}
- {% for fila in m.checklist %}
+ {% for fila in checklist %}
  {% if fila.grupo != ns.grupo %}
  {% if ns.abierto %}</div></details>{% endif %}
  {% set ns.grupo = fila.grupo %}{% set ns.abierto = true %}
@@ -43,7 +43,7 @@
   </div>
   <input class="mnt-observacion" name="observacion_{{ fila.codigo }}" maxlength="1000" placeholder="Detalle, hallazgo o acción correctiva (obligatorio si No cumple)" value="{{ fila.observacion }}" aria-label="Observación de {{ fila.actividad }}">
  </div>
- {% if fila.grupo == 'respaldo' and (loop.last or m.checklist[loop.index0+1].grupo != 'respaldo') %}
+ {% if fila.grupo == 'respaldo' and (loop.last or checklist[loop.index0+1].grupo != 'respaldo') %}
  <div class="tarjeta"><label for="respaldo_gb"><strong>Tamaño total del respaldo realizado (GB)</strong></label>
  <input type="number" id="respaldo_gb" name="respaldo_gb" min="0" max="9999999999.99" step="0.01" value="{{ m.respaldo_gb if m.respaldo_gb is not none else '' }}" placeholder="Ej. 48.75">
  <small>Ingrese el tamaño total del backup en GB. No se almacena contenido del respaldo.</small></div>
