@@ -255,4 +255,7 @@ def test_vinculacion_inventario_en_formulario_de_boleta(entorno):
     assert 'id="buscar_equipo_inventario"' in html
     assert 'data-sicoin="SICOIN-MNT-01"' in html
     assert "Abrir Inventario Tecnológico" in html
-    assert "aplicarEquipo()" in html
+    assert "soporte_vinculacion_inventario.js" in html
+    js = client.get("/static/js/soporte_vinculacion_inventario.js").get_data(as_text=True)
+    assert "actualizarPorPersonal" in js
+    assert "actualizarFicha" in js
