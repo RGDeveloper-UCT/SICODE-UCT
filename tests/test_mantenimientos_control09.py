@@ -38,11 +38,14 @@ def entorno():
 
 def test_checklist_no_incluye_los_dos_controles_retirados():
     labels = [f["actividad"] for f in plantilla()]
-    assert len(labels) == 39
+    assert len(labels) == 41
     assert "Archivos de correo" not in labels
     assert "Ausencia de extensiones no autorizadas" not in labels
     assert "Extensiones de navegador permitidas" in labels
     assert "Escritorio" in labels
+    assert "Verificación del funcionamiento del antivirus" in labels
+    assert "Verificación de los controles del Firewall de Windows" in labels
+    assert plantilla()[-1]["grupo"] == "final"
 
 
 def test_checklist_rechaza_no_cumple_sin_descripcion():
@@ -64,7 +67,7 @@ def test_alta_reutiliza_equipo_y_generacion_pdf(entorno):
     m = MantenimientoEquipo.query.one()
     assert m.equipo_id == equipo_id
     assert EquipoInstitucional.query.count() == 1
-    assert len(m.checklist) == 39
+    assert len(m.checklist) == 41
     assert client.get(f"/coordinacion/seguridad/mantenimientos/{m.id}/pdf").status_code == 302
 
     client.post(f"/coordinacion/seguridad/mantenimientos/{m.id}/reloj", data={"accion": "iniciar"})
@@ -171,3 +174,37 @@ def test_tamano_respaldo_al_final_de_seccion(entorno):
     html = client.get(f"/coordinacion/seguridad/mantenimientos/{m.id}/editar").get_data(as_text=True)
     assert html.index("Confirmación de respaldo en repositorio autorizado") < html.index('name="respaldo_gb"') < html.index("Mantenimiento de hardware")
     assert 'name="respaldo_mb"' not in html
+
+
+def test_actualizar_borrador_agrega_controles_sin_perder_resultados():
+    from app.services.checklist_mantenimiento import actualizar_checklist_pendiente
+    anterior = [f for f in plantilla() if f["actividad"] not in {
+        "Verificación del funcionamiento del antivirus",
+        "Verificación de los controles del Firewall de Windows"}]
+    anterior[0]["resultado"] = "CUMPLE"
+    actualizado = actualizar_checklist_pendiente(anterior)
+    assert len(actualizado) == 41
+    assert actualizado[0]["resultado"] == "CUMPLE"
+    assert next(f for f in actualizado if f["actividad"] == "Verificación del funcionamiento del antivirus")["grupo"] == "software"
+    assert next(f for f in actualizado if f["actividad"] == "Verificación de los controles del Firewall de Windows")["grupo"] == "seguridad"
+    assert actualizado == actualizar_checklist_pendiente(actualizado)
+
+
+def test_nuevos_controles_aparecen_en_formulario_y_pdf(entorno):
+    from io import BytesIO
+    from pypdf import PdfReader
+    client, _, equipo_id = entorno
+    client.post("/coordinacion/seguridad/mantenimientos/nuevo", data={"equipo_id": str(equipo_id), "tipo": "PREVENTIVO"})
+    m = MantenimientoEquipo.query.one()
+    html = client.get(f"/coordinacion/seguridad/mantenimientos/{m.id}/editar").get_data(as_text=True)
+    assert "Verificación del funcionamiento del antivirus" in html
+    assert "Verificación de los controles del Firewall de Windows" in html
+    client.post(f"/coordinacion/seguridad/mantenimientos/{m.id}/reloj", data={"accion": "iniciar"})
+    form = {"accion": "finalizar", "estado_final": "OPERATIVO"}
+    form.update({"resultado_" + f["codigo"]: "CUMPLE" for f in m.checklist})
+    assert client.post(f"/coordinacion/seguridad/mantenimientos/{m.id}/editar", data=form).status_code == 302
+    pdf = client.get(f"/coordinacion/seguridad/mantenimientos/{m.id}/pdf")
+    assert pdf.status_code == 200
+    texto = "\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(pdf.data)).pages)
+    assert "funcionamiento del antivirus" in texto
+    assert "Firewall de Windows" in texto
