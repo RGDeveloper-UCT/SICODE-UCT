@@ -114,7 +114,7 @@ def test_interfaz_secciones_y_opciones_directas(entorno):
     html = client.get(f"/coordinacion/seguridad/mantenimientos/{m.id}/editar").get_data(as_text=True)
     assert 'class="mnt-seccion"' in html
     assert 'type="radio"' in html
-    assert 'name="respaldo_mb"' in html
+    assert 'name="respaldo_gb"' in html
     assert 'name="resultado_respaldo_0"' in html
     assert 'name="resultado_respaldo_0" value="NO_CUMPLE"' in html
     assert '<select name="resultado_respaldo_0"' not in html
@@ -131,7 +131,7 @@ def test_resumen_y_respaldo_en_pdf(entorno):
     client.post(f"/coordinacion/seguridad/mantenimientos/{m.id}/reloj",
                 data={"accion": "iniciar"})
     data = {"accion": "finalizar", "trabajo_realizado": "",
-            "estado_final": "OBSERVACIONES", "respaldo_mb": "2048.50"}
+            "estado_final": "OBSERVACIONES", "respaldo_gb": "48.75"}
     data.update({"resultado_" + f["codigo"]: "CUMPLE" for f in m.checklist})
     data["resultado_seguridad_0"] = "NO_CUMPLE"
     data["observacion_seguridad_0"] = "Extensión fuera de la lista autorizada"
@@ -139,15 +139,15 @@ def test_resumen_y_respaldo_en_pdf(entorno):
     assert resp.status_code == 302
     db.session.refresh(m)
     assert m.estado == "FINALIZADO"
-    assert str(m.respaldo_mb) == "2048.50"
-    resumen = resumen_trabajo(m.checklist, m.respaldo_mb)
+    assert str(m.respaldo_gb) == "48.75"
+    resumen = resumen_trabajo(m.checklist, m.respaldo_gb)
     assert "Extensiones de navegador permitidas" in resumen
     assert "CONTROLES QUE NO CUMPLIERON" in resumen
-    assert "2048.50 MB" in resumen
     pdf = client.get(f"/coordinacion/seguridad/mantenimientos/{m.id}/pdf")
     assert pdf.status_code == 200
     texto = "\n".join(p.extract_text() or "" for p in PdfReader(BytesIO(pdf.data)).pages)
-    assert "2048.50 MB" in texto
+    assert "48.75 GB" in texto
+    assert len(PdfReader(BytesIO(pdf.data)).pages) == 1
     assert "Extensión fuera de la lista autorizada" in texto
 
 
@@ -158,7 +158,16 @@ def test_tamano_respaldo_invalido_rechazado(entorno):
     m = MantenimientoEquipo.query.one()
     for valor in ("-1", "abc", "NaN", "1.999"):
         response = client.post(f"/coordinacion/seguridad/mantenimientos/{m.id}/editar",
-                               data={"accion": "guardar", "respaldo_mb": valor})
+                               data={"accion": "guardar", "respaldo_gb": valor})
         assert response.status_code == 200
         db.session.refresh(m)
-        assert m.respaldo_mb is None
+        assert m.respaldo_gb is None
+
+
+def test_tamano_respaldo_al_final_de_seccion(entorno):
+    client, _, equipo_id = entorno
+    client.post("/coordinacion/seguridad/mantenimientos/nuevo", data={"equipo_id": str(equipo_id), "tipo": "PREVENTIVO"})
+    m = MantenimientoEquipo.query.one()
+    html = client.get(f"/coordinacion/seguridad/mantenimientos/{m.id}/editar").get_data(as_text=True)
+    assert html.index("Confirmación de respaldo en repositorio autorizado") < html.index('name="respaldo_gb"') < html.index("Mantenimiento de hardware")
+    assert 'name="respaldo_mb"' not in html
