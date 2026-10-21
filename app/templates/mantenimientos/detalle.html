@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ m.numero }} — Detalle{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+<div class="encabezado-modulo"><div><h1>🛠️ Mantenimiento {{ m.numero }}</h1><p>Control 09 · {{ m.equipo.codigo }} · {{ m.estado.replace('_',' ') }}</p></div><a class="boton-secundario" href="{{ url_for('mantenimientos.listado') }}">← Historial</a></div>
+<div class="tarjeta"><h2>{{ m.equipo.nombre }}</h2><p>Tipo: {{ m.tipo }} · Técnico: {{ m.tecnico.nombre }} · SICOIN: {{ m.equipo.codigo }} · Boleta: {{ m.boleta.numero_boleta if m.boleta else 'Sin boleta' }}</p><p>Estado final: {{ m.estado_final or 'Pendiente' }} · Seguimiento: {{ 'Sí' if m.requiere_seguimiento else 'No' }} · Tiempo: {{ '%02d:%02d:%02d'|format(m.segundos()//3600,(m.segundos()%3600)//60,m.segundos()%60) }}</p><p>Inicio: {{ m.iniciado_en.strftime('%d/%m/%Y %H:%M') if m.iniciado_en else '—' }} · Cierre: {{ m.cerrado_en.strftime('%d/%m/%Y %H:%M') if m.cerrado_en else '—' }}</p>
+{% if m.estado == 'FINALIZADO' %}<a class="boton" href="{{ url_for('mantenimientos.pdf', mantenimiento_id=m.id) }}">📄 Generar constancia PDF</a>{% elif current_user.puede_modificar %}<a class="boton" href="{{ url_for('mantenimientos.editar', mantenimiento_id=m.id) }}">Continuar mantenimiento</a>{% endif %}</div>
+<div class="tarjeta"><h2>Diagnóstico</h2><p>{{ m.diagnostico or 'Sin diagnóstico' }}</p><h2>Trabajo realizado</h2><p>{{ m.trabajo_realizado or 'Pendiente' }}</p></div>
+<div class="tarjeta"><h2>Lista de verificación · Versión {{ m.checklist_version }}</h2><div style="overflow-x:auto"><table class="tabla"><thead><tr><th>Grupo</th><th>Actividad</th><th>Resultado</th><th>Observación</th></tr></thead><tbody>{% for f in m.checklist %}<tr><td>{{ f.grupo_nombre }}</td><td>{{ f.actividad }}</td><td>{{ f.resultado.replace('_',' ') }}</td><td>{{ f.observacion or '—' }}</td></tr>{% endfor %}</tbody></table></div></div>
+</section>{% endblock %}
