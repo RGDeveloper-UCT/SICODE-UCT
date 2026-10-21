@@ -46,6 +46,7 @@ def create_app():
         FavoritoUsuario, AnalisisDocumental, SegmentoDocumental, AprendizajeDocumental, PatronAprendizajeDocumental,
     )
     from app.models.equipo_institucional import EquipoInstitucional
+    from app.models.mantenimiento_equipo import MantenimientoEquipo
     from app.services.anexos_integridad_service import AnexoDuplicadoError
     from app.services.integridad_events import registrar_eventos_integridad
     from app.services.version_service import obtener_version
@@ -67,6 +68,7 @@ def create_app():
         cerebro_sicode_bp, nexo_ia_bp, monitoreo_anexos_bp, anexos_inteligentes_bp, instalar_registro_monitoreo,
     )
     from app.routes.seguridad_informatica import seguridad_bp
+    from app.routes.mantenimientos import mantenimientos_bp
     from app.services.referencia_rc_re import instalar_deteccion_rc_re
     instalar_deteccion_rc_re()
 
@@ -81,6 +83,7 @@ def create_app():
         app.register_blueprint(blueprint)
 
     app.register_blueprint(seguridad_bp)
+    app.register_blueprint(mantenimientos_bp)
     instalar_registro_monitoreo(app)
 
     from app.services.sicode_ia_revision_rc_re import revision_rc_re
