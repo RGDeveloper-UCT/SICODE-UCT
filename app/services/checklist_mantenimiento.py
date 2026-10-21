@@ -1,5 +1,5 @@
 """Checklist institucional versionado. Solo resultados técnicos, nunca respaldos ni credenciales."""
-VERSION = 1
+VERSION = 2
 GRUPOS = (
     ("respaldo", "Respaldo de información", (
         "Escritorio", "Documentos", "Descargas institucionales", "Carpetas de trabajo",
@@ -18,12 +18,14 @@ GRUPOS = (
         "Revisión de controladores", "Análisis antivirus o antimalware",
         "Optimización de rendimiento", "Revisión de espacio en disco",
         "Configuración de impresoras o escáneres", "Verificación de línea telefónica (si aplica)",
+        "Verificación del funcionamiento del antivirus",
     )),
     ("seguridad", "Controles de seguridad informática", (
         "Extensiones de navegador permitidas", "Programas instalados permitidos",
         "Detección de programas no autorizados", "Navegación segura activada",
         "Protección frente a sitios maliciosos", "Actualizaciones de seguridad",
         "Configuración de seguridad institucional",
+        "Verificación de los controles del Firewall de Windows",
     )),
     ("final", "Verificación final", (
         "Encendido y funcionamiento general", "Acceso a la red e internet",
@@ -68,3 +70,15 @@ def validar_checklist(datos, plantilla_actual=None):
 def validar_cierre(checklist):
     if any(f["resultado"] == "PENDIENTE" for f in checklist):
         raise ValueError("Para finalizar, evalúe todas las actividades (incluya No aplica cuando corresponda).")
+
+
+def actualizar_checklist_pendiente(checklist):
+    """Añade controles nuevos a registros abiertos sin cambiar respuestas previas.
+
+    Los códigos ya existentes conservan sus posiciones y sus resultados.
+    Las constancias finalizadas mantienen su versión histórica.
+    """
+    actual = list(checklist or [])
+    existentes = {fila["codigo"] for fila in actual}
+    nuevos = [fila for fila in plantilla() if fila["codigo"] not in existentes]
+    return actual + nuevos if nuevos else actual
