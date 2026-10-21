@@ -92,6 +92,21 @@ def _opciones_vinculadas(form):
     ]
 
 
+def _tipo_de_inventario(tipo):
+    """Equivalencia entre los tipos del Control 09 y los de boleta."""
+    return {
+        "COMPUTADORA": "PC", "PORTATIL": "LAPTOP",
+        "IMPRESORA": "IMPRESORA", "ESCANER": "ESCANER",
+    }.get(tipo, "OTRO")
+
+
+def _equipo_vinculado(form):
+    identificador = form.equipo_institucional_id.data or 0
+    if not identificador:
+        return None
+    return db.session.get(EquipoInstitucional, identificador)
+
+
 def _aplicar_formulario(boleta, form):
     boleta.equipo_institucional_id = form.equipo_institucional_id.data or None
     boleta.personal_institucional_id = form.personal_institucional_id.data or None
@@ -119,6 +134,17 @@ def _aplicar_formulario(boleta, form):
     boleta.numero_serie = _limpiar(form.numero_serie.data)
     boleta.inventario = _limpiar(form.inventario.data)
     boleta.ip_nombre_equipo = _limpiar(form.ip_nombre_equipo.data)
+    # Cuando se selecciona un activo existente, su ficha maestra manda.
+    # Evita guardar SICOIN, serie o modelo de un equipo diferente por
+    # datos antiguos del navegador. Las boletas sin activo siguen libres.
+    equipo = _equipo_vinculado(form)
+    if equipo:
+        boleta.inventario = equipo.codigo
+        boleta.numero_serie = equipo.serie
+        boleta.marca_modelo = " ".join(x for x in (equipo.marca, equipo.modelo) if x) or None
+        boleta.ip_nombre_equipo = equipo.ip_estatica or equipo.nombre
+        boleta.tipo_equipo = _tipo_de_inventario(equipo.tipo)
+        boleta.tipo_equipo_otro = equipo.tipo if boleta.tipo_equipo == "OTRO" else None
 
     boleta.descripcion_solicitud = form.descripcion_solicitud.data.strip()
     boleta.diagnostico_trabajo = _limpiar(form.diagnostico_trabajo.data)
@@ -149,6 +175,7 @@ def _preparar_formulario_get(form, boleta=None):
 
     form.seguimiento.data = "SI" if boleta.seguimiento else "NO"
     form.equipo_institucional_id.data = boleta.equipo_institucional_id or 0
+    # La ficha del inventario se refleja siempre durante la edición.
     form.personal_institucional_id.data = boleta.personal_institucional_id or 0
 
 
