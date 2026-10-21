@@ -38,7 +38,7 @@ def entorno():
 
 def test_checklist_no_incluye_los_dos_controles_retirados():
     labels = [f["actividad"] for f in plantilla()]
-    assert len(labels) == 41
+    assert len(labels) == 39
     assert "Archivos de correo" not in labels
     assert "Ausencia de extensiones no autorizadas" not in labels
     assert "Extensiones de navegador permitidas" in labels
@@ -64,7 +64,7 @@ def test_alta_reutiliza_equipo_y_generacion_pdf(entorno):
     m = MantenimientoEquipo.query.one()
     assert m.equipo_id == equipo_id
     assert EquipoInstitucional.query.count() == 1
-    assert len(m.checklist) == 41
+    assert len(m.checklist) == 39
     assert client.get(f"/coordinacion/seguridad/mantenimientos/{m.id}/pdf").status_code == 302
 
     client.post(f"/coordinacion/seguridad/mantenimientos/{m.id}/reloj", data={"accion": "iniciar"})
