@@ -4,6 +4,7 @@ from io import BytesIO
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
+from sqlalchemy import or_
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
@@ -50,7 +51,7 @@ def listado():
     consulta = MantenimientoEquipo.query.join(EquipoInstitucional)
     if q:
         consulta = consulta.filter(
-            db.or_(EquipoInstitucional.codigo.ilike(f"%{q}%"),
+            or_(EquipoInstitucional.codigo.ilike(f"%{q}%"),
                    EquipoInstitucional.nombre.ilike(f"%{q}%")))
     page = max(1, request.args.get("page", 1, type=int))
     registros = consulta.order_by(MantenimientoEquipo.id.desc()).paginate(page=page, per_page=25, error_out=False)
