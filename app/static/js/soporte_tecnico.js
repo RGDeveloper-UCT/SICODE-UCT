@@ -40,7 +40,11 @@
     if (detalleFuncional) {
       detalleFuncional.hidden = ![...activos].some((codigo) => tieneDetalleFuncional.has(codigo));
     }
-    if (equipo) equipo.hidden = ![...activos].some((codigo) => necesitaEquipo.has(codigo));
+    if (equipo) {
+      const hayPersona = Boolean(form.querySelector('#personal_institucional_id')?.value && form.querySelector('#personal_institucional_id')?.value !== '0');
+      const hayEquipo = Boolean(form.querySelector('#equipo_institucional_id')?.value && form.querySelector('#equipo_institucional_id')?.value !== '0');
+      equipo.hidden = !hayPersona && !hayEquipo && ![...activos].some((codigo) => necesitaEquipo.has(codigo));
+    }
 
     const etiquetas = etiquetasSeleccionadas();
     if (resumenServicio) {
@@ -146,6 +150,10 @@
     window.setTimeout(() => cerrarAviso(aviso), 60000 + (indice * 350));
   });
 
+  if (tiempoResolucion) {
+    tiempoResolucion.readOnly = true;
+    tiempoResolucion.placeholder = 'Se calcula automáticamente al iniciar la boleta';
+  }
   const activeTicket = ticketApi?.read();
   if (currentTicketMatches(activeTicket)) {
     if (activeTicket.draft && Object.keys(activeTicket.draft).length) {
@@ -156,6 +164,8 @@
   }
 
   servicios.forEach((item) => item.addEventListener('change', actualizarSecciones));
+  form.querySelector('#personal_institucional_id')?.addEventListener('change', actualizarSecciones);
+  form.querySelector('#equipo_institucional_id')?.addEventListener('change', actualizarSecciones);
   form.querySelectorAll('input[name$="_detalles"]').forEach((item) => item.addEventListener('change', actualizarOtrosDetalles));
   tipoEquipo?.addEventListener('change', actualizarOtroEquipo);
   selectEstado?.addEventListener('change', actualizarCierre);
