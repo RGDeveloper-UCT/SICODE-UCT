@@ -147,11 +147,18 @@
                     <select name="equipo_institucional_id" id="equipo_institucional_id">
                         {% for valor,etiqueta in form.equipo_institucional_id.choices %}
                         {% set e = equipos_opciones.get(valor) %}
-                        <option value="{{ valor }}" data-sicoin="{{ e.codigo if e else '' }}" data-serie="{{ e.serie or '' if e else '' }}" data-marca="{{ ((e.marca or '') ~ ' ' ~ (e.modelo or ''))|trim if e else '' }}" data-ip="{{ e.ip_estatica or '' if e else '' }}" data-tipo="{{ e.tipo if e else '' }}" data-nombre="{{ e.nombre if e else '' }}" data-usuario="{{ e.nombre_usuario_habitual if e and e.usuario_habitual else '' }}" data-area="{{ e.area or '' if e else '' }}" data-ubicacion="{{ e.ubicacion or '' if e else '' }}" {% if form.equipo_institucional_id.data == valor %}selected{% endif %}>{{ etiqueta }}</option>
+                        <option value="{{ valor }}" data-sicoin="{{ e.codigo if e else '' }}" data-serie="{{ e.serie or '' if e else '' }}" data-marca="{{ ((e.marca or '') ~ ' ' ~ (e.modelo or ''))|trim if e else '' }}" data-ip="{{ e.ip_estatica or '' if e else '' }}" data-tipo="{{ e.tipo if e else '' }}" data-nombre="{{ e.nombre if e else '' }}" data-usuario="{{ e.nombre_usuario_habitual if e and e.usuario_habitual else '' }}" data-habitual-id="{{ e.usuario_habitual_personal_id or '' if e else '' }}" data-custodio-id="{{ e.responsable_personal_id or '' if e else '' }}" data-custodio="{{ e.nombre_responsable if e else '' }}" data-acceso="{{ 'Sí' if e and e.acceso_institucional else 'No' }}" data-tipo-acceso="{{ e.tipo_acceso or '' if e else '' }}" data-estado="{{ e.estado or '' if e else '' }}" data-area="{{ e.area or '' if e else '' }}" data-ubicacion="{{ e.ubicacion or '' if e else '' }}" {% if form.equipo_institucional_id.data == valor %}selected{% endif %}>{{ etiqueta }}</option>
                         {% endfor %}
                     </select>
-                    <small>Seleccione el equipo del inventario para cargar SICOIN, serie, marca, modelo, IP y tipo automáticamente. Las boletas sin equipo pueden continuar sin vinculación. <a href="{{ url_for('seguridad.inicio') }}">Abrir Inventario Tecnológico</a></small>
+                    <small>Al elegir personal se buscan sus equipos asignados; elija uno si hay varios. Se completa la ficha del inventario. Las boletas sin equipo pueden continuar sin vinculación. <a href="{{ url_for('seguridad.inicio') }}">Abrir Inventario Tecnológico</a></small>
                 </div>
+                <div class="campo campo-doble"><small id="mensaje-equipo-asignado" role="status" aria-live="polite">Elija un integrante del personal para buscar equipos asignados.</small></div>
+                <div class="campo"><label for="inventario_area">Área del equipo</label><input id="inventario_area" readonly placeholder="Según inventario"></div>
+                <div class="campo"><label for="inventario_ubicacion">Ubicación</label><input id="inventario_ubicacion" readonly placeholder="Según inventario"></div>
+                <div class="campo"><label for="inventario_custodio">Custodio</label><input id="inventario_custodio" readonly placeholder="Según inventario"></div>
+                <div class="campo"><label for="inventario_habitual">Usuario habitual</label><input id="inventario_habitual" readonly placeholder="Según inventario"></div>
+                <div class="campo"><label for="inventario_acceso">Tipo de acceso</label><input id="inventario_acceso" readonly placeholder="Según inventario"></div>
+                <div class="campo"><label for="inventario_estado">Estado del equipo</label><input id="inventario_estado" readonly placeholder="Según inventario"></div>
                 <div class="campo">{{ form.tipo_equipo.label }}{{ form.tipo_equipo() }}</div>
                 <div class="campo" data-tipo-equipo-otro hidden>{{ form.tipo_equipo_otro.label }}{{ form.tipo_equipo_otro() }}</div>
                 <div class="campo">{{ form.marca_modelo.label }}{{ form.marca_modelo() }}</div>
@@ -217,53 +224,5 @@
 </section>
 {% endblock %}
 {% block scripts %}
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-  const form = document.querySelector("form.soporte-form");
-  if (!form) return;
-  const equipo = document.getElementById("equipo_institucional_id");
-  const busqueda = document.getElementById("buscar_equipo_inventario");
-  const personal = document.getElementById("personal_institucional_id");
-  function poner(nombre, valor) {
-    const campo = form.elements.namedItem(nombre);
-    if (campo && valor !== undefined && valor !== null) {
-      campo.value = valor;
-      campo.dispatchEvent(new Event("change", {bubbles: true}));
-    }
-  }
-  function aplicarEquipo() {
-    const seleccionado = equipo?.selectedOptions[0];
-    if (!seleccionado || !seleccionado.value || seleccionado.value === "0") return;
-    const d = seleccionado.dataset;
-    const tipos = {COMPUTADORA:"PC",PORTATIL:"LAPTOP",IMPRESORA:"IMPRESORA",ESCANER:"ESCANER"};
-    poner("inventario", d.sicoin || "");
-    poner("numero_serie", d.serie || "");
-    poner("marca_modelo", d.marca || "");
-    poner("ip_nombre_equipo", d.ip || d.nombre || "");
-    poner("tipo_equipo", tipos[d.tipo] || "OTRO");
-    poner("tipo_equipo_otro", tipos[d.tipo] ? "" : (d.tipo || ""));
-    // No cambiar el usuario solicitante: puede ser diferente al usuario habitual.
-  }
-  function aplicarPersonal() {
-    const d = personal?.selectedOptions[0]?.dataset;
-    if (!d || !personal.value || personal.value === "0") return;
-    poner("usuario_solicitante", d.nombre || "");
-    poner("coordinacion_area", d.area || "");
-  }
-  equipo?.addEventListener("change", aplicarEquipo);
-  personal?.addEventListener("change", aplicarPersonal);
-  busqueda?.addEventListener("input", function () {
-    const texto = this.value.trim().toLocaleLowerCase("es");
-    if (!equipo) return;
-    for (const option of equipo.options) {
-      if (!option.value || option.value === "0") continue;
-      option.hidden = !!texto && !(
-        (option.textContent || "") + " " + (option.dataset.serie || "")
-      ).toLocaleLowerCase("es").includes(texto);
-    }
-    if (equipo.selectedOptions[0]?.hidden) equipo.value = "0";
-  });
-  // También sincroniza el selector restaurado tras una validación del formulario.
-  aplicarEquipo();
-});
+<script src="{{ url_for('static', filename='js/soporte_vinculacion_inventario.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/soporte_tecnico.js') }}" defer></script>{% endblock %}
