@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Mantenimientos — Control 09{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+  <div class="encabezado-modulo"><div><h1>🛠️ Mantenimientos</h1><p>Seguridad Informática · Control 09 · Historial de intervenciones</p></div><a class="boton-secundario" href="{{ url_for('seguridad.inicio') }}">← Inventario Tecnológico</a></div>
+  <div class="tarjeta"><p>Los mantenimientos se vinculan al equipo maestro del Inventario Tecnológico, sin duplicarlo.</p>
+  {% if current_user.puede_modificar %}<a class="boton" href="{{ url_for('mantenimientos.nuevo') }}">+ Registrar mantenimiento</a>{% endif %}</div>
+  <form method="get" style="margin:16px 0;display:flex;gap:10px"><input name="q" value="{{ q }}" placeholder="Buscar SICOIN o nombre de equipo" style="flex:1"><button class="boton">Buscar</button></form>
+  <div style="overflow-x:auto"><table class="tabla"><thead><tr><th>No.</th><th>Equipo</th><th>Tipo</th><th>Estado</th><th>Técnico</th><th>Fecha</th><th>Tiempo</th><th>Acciones</th></tr></thead><tbody>
+  {% for m in registros.items %}<tr><td>{{ m.numero }}</td><td>{{ m.equipo.codigo }} · {{ m.equipo.nombre }}</td><td>{{ m.tipo }}</td><td>{{ m.estado.replace('_',' ') }}</td><td>{{ m.tecnico.nombre }}</td><td>{{ m.creado_en.strftime('%d/%m/%Y %H:%M') }}</td><td>{{ '%02d:%02d:%02d'|format(m.segundos()//3600,(m.segundos()%3600)//60,m.segundos()%60) }}</td><td><a href="{{ url_for('mantenimientos.detalle', mantenimiento_id=m.id) }}">Ver</a>{% if m.estado != 'FINALIZADO' and current_user.puede_modificar %} · <a href="{{ url_for('mantenimientos.editar', mantenimiento_id=m.id) }}">Continuar</a>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="8">Todavía no hay mantenimientos registrados.</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% if registros.pages > 1 %}<p>Página {{ registros.page }} de {{ registros.pages }}{% if registros.has_prev %} · <a href="{{ url_for('mantenimientos.listado', q=q, page=registros.prev_num) }}">Anterior</a>{% endif %}{% if registros.has_next %} · <a href="{{ url_for('mantenimientos.listado', q=q, page=registros.next_num) }}">Siguiente</a>{% endif %}</p>{% endif %}
+</section>{% endblock %}
