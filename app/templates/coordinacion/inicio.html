@@ -146,7 +146,7 @@
             <div class="tarjeta" style="margin:12px 0 18px;padding:18px;border-left:4px solid #2563eb">
               <h2>🛡️ Control de Seguridad Informática</h2>
               <p>Inventario de equipos, verificaciones, seguimiento y constancias institucionales.</p>
-              <a class="boton" href="{{ url_for('seguridad.inicio') }}">🖥️ Abrir inventario de equipos · Control 09</a>
+              <a class="boton" href="{{ url_for('seguridad.inicio') }}">🖥️ Abrir INVENTARIO TECNOLÓGICO Y MANTENIMIENTOS</a>
             </div>
             <div class="resumen-coordinacion-inicio">
                 <div class="tarjeta indicador indicador-coordinacion-compacto">
@@ -195,6 +195,7 @@
                         {% else %}
                         <a class="boton-tarjeta-registro boton-tarjeta-registro-principal" href="{{ url_for('soporte_tecnico.nuevo') }}">Registrar boleta</a>
                         <a class="boton-tarjeta-registro boton-tarjeta-registro-secundario" href="{{ url_for('soporte_tecnico.listado') }}">Ver boletas</a>
+                        <a class="boton-tarjeta-registro boton-tarjeta-registro-secundario" href="{{ url_for('seguridad.inicio') }}">Inventario Tecnológico</a>
                         {% endif %}
                     </div>
                     {% elif clave == 'anexo' %}
