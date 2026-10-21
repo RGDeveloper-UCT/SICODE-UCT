@@ -32,11 +32,7 @@
  {% set ns.grupo = fila.grupo %}{% set ns.abierto = true %}
  <details class="mnt-seccion" {% if loop.first %}open{% endif %}>
  <summary>{{ fila.grupo_nombre }}</summary><div class="mnt-contenido">
- {% if fila.grupo == 'respaldo' %}
- <div class="tarjeta"><label for="respaldo_mb"><strong>Tamaño total del respaldo realizado (MB)</strong></label>
- <input type="number" id="respaldo_mb" name="respaldo_mb" min="0" max="9999999999.99" step="0.01" value="{{ m.respaldo_mb if m.respaldo_mb is not none else '' }}" placeholder="Ej. 2048.50">
- <small>Solo tamaño en MB. No se cargan copias de archivos ni información del usuario.</small></div>
- {% endif %}
+
  {% endif %}
  <div class="mnt-actividad">
   <strong>{{ fila.actividad }}</strong>
@@ -47,6 +43,11 @@
   </div>
   <input class="mnt-observacion" name="observacion_{{ fila.codigo }}" maxlength="1000" placeholder="Detalle, hallazgo o acción correctiva (obligatorio si No cumple)" value="{{ fila.observacion }}" aria-label="Observación de {{ fila.actividad }}">
  </div>
+ {% if fila.grupo == 'respaldo' and (loop.last or m.checklist[loop.index0+1].grupo != 'respaldo') %}
+ <div class="tarjeta"><label for="respaldo_gb"><strong>Tamaño total del respaldo realizado (GB)</strong></label>
+ <input type="number" id="respaldo_gb" name="respaldo_gb" min="0" max="9999999999.99" step="0.01" value="{{ m.respaldo_gb if m.respaldo_gb is not none else '' }}" placeholder="Ej. 48.75">
+ <small>Ingrese el tamaño total del backup en GB. No se almacena contenido del respaldo.</small></div>
+ {% endif %}
  {% if loop.last %}</div></details>{% endif %}
  {% endfor %}
  <div class="tarjeta"><h2>3. Trabajo realizado y cierre</h2>
