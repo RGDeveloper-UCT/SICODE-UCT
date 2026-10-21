@@ -135,8 +135,8 @@ def editar(mantenimiento_id):
                 abort(400)
             if accion == "finalizar":
                 validar_cierre(validado)
-                if not trabajo or not final or not m.iniciado_en:
-                    raise ValueError("Para finalizar indique el trabajo realizado, estado final e inicie el cronómetro.")
+                if not final or not m.iniciado_en:
+                    raise ValueError("Para finalizar indique el estado final e inicie el cronómetro.")
                 if m.tramo_iniciado_en:
                     m.cambiar_reloj("pausar")
                 m.estado = "FINALIZADO"
@@ -196,9 +196,9 @@ def pdf(mantenimiento_id):
         Spacer(1, 10),
         Paragraph("Diagnóstico", styles["Heading3"]), Paragraph(escape(m.diagnostico or "—"), styles["Normal"]),
         Paragraph("Trabajo realizado — consolidado de verificaciones", styles["Heading3"]),
-        Paragraph(escape(resumen_trabajo(m.checklist, m.respaldo_mb)).replace("\\n", "<br/>"), styles["Normal"]),
+        Paragraph(escape(resumen_trabajo(m.checklist, m.respaldo_mb)).replace(chr(10), "<br/>"), styles["Normal"]),
         Paragraph("Detalle adicional indicado por el técnico", styles["Heading3"]),
-        Paragraph(escape(m.trabajo_realizado or "—").replace("\\n", "<br/>"), styles["Normal"]),
+        Paragraph(escape(m.trabajo_realizado or "—").replace(chr(10), "<br/>"), styles["Normal"]),
         Paragraph(f"Estado final: {escape(m.estado_final or '—')} | Seguimiento: {'Sí' if m.requiere_seguimiento else 'No'}", styles["Normal"]),
         Paragraph(f"Boleta vinculada: {escape(m.boleta.numero_boleta) if m.boleta else 'Sin boleta'}", styles["Normal"]),
         Spacer(1, 12), Paragraph(f"Lista de verificación (versión {m.checklist_version})", styles["Heading3"]),
