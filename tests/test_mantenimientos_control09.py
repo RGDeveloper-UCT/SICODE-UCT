@@ -259,3 +259,21 @@ def test_vinculacion_inventario_en_formulario_de_boleta(entorno):
     js = client.get("/static/js/soporte_vinculacion_inventario.js").get_data(as_text=True)
     assert "actualizarPorPersonal" in js
     assert "actualizarFicha" in js
+
+
+def test_selector_mantenimiento_muestra_persona_asignada_en_lugar_de_serie(entorno):
+    from app.models.personal_institucional import PersonalInstitucional
+    client, _, equipo_id = entorno
+    persona = PersonalInstitucional(nombre="Luis", apellido="Prueba", coordinacion="Coordinación")
+    db.session.add(persona)
+    db.session.flush()
+    equipo = db.session.get(EquipoInstitucional, equipo_id)
+    equipo.responsable_personal_id = persona.id
+    equipo.serie = "SERIE-NO-VISIBLE-999"
+    db.session.commit()
+    html = client.get("/coordinacion/seguridad/mantenimientos/nuevo").get_data(as_text=True)
+    assert "Luis Prueba" in html
+    assert "SICOIN-MNT-01" in html
+    assert "SERIE-NO-VISIBLE-999" not in html
+    assert "Buscar SICOIN, equipo o persona asignada" in html
+    assert 'data-busqueda="' in html
