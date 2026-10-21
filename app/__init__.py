@@ -174,7 +174,7 @@ def create_app():
     def cabeceras_seguridad(respuesta):
         respuesta.headers.setdefault("X-Content-Type-Options", "nosniff")
         respuesta.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
-        respuesta.headers.setdefault("Referrer-Policy", "no-referrer")
+        respuesta.headers.setdefault("Referrer-Policy", "same-origin")
         respuesta.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
         if request.is_secure:
             respuesta.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
