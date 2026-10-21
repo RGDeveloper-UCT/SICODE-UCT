@@ -18,6 +18,7 @@ from app.models.mantenimiento_equipo import MantenimientoEquipo
 from app.services.checklist_mantenimiento import plantilla, validar_checklist, validar_cierre, VERSION
 from app.services.bitacora_service import registrar_bitacora
 from app.services.resumen_mantenimiento import resumen_trabajo
+from app.services.constancia_mantenimiento_service import generar_constancia_mantenimiento
 
 mantenimientos_bp = Blueprint("mantenimientos", __name__, url_prefix="/coordinacion/seguridad/mantenimientos")
 TIPOS = {"PREVENTIVO", "CORRECTIVO", "MIXTO"}
@@ -119,11 +120,11 @@ def editar(mantenimiento_id):
             diagnostico = request.form.get("diagnostico", "").strip()
             trabajo = request.form.get("trabajo_realizado", "").strip()
             final = request.form.get("estado_final", "")
-            respaldo_texto = request.form.get("respaldo_mb", "").strip()
+            respaldo_texto = request.form.get("respaldo_gb", "").strip()
             try:
                 respaldo = Decimal(respaldo_texto) if respaldo_texto else None
             except InvalidOperation:
-                raise ValueError("El tamaño del respaldo debe ser un número válido en MB.")
+                raise ValueError("El tamaño del respaldo debe ser un número válido en GB.")
             if respaldo is not None and (not respaldo.is_finite() or respaldo < 0 or respaldo > Decimal("9999999999.99") or respaldo.as_tuple().exponent < -2):
                 raise ValueError("Indique un tamaño de respaldo válido, no negativo y con máximo dos decimales.")
             accion = request.form.get("accion", "guardar")
@@ -144,7 +145,7 @@ def editar(mantenimiento_id):
             m.checklist = validado
             m.diagnostico = diagnostico
             m.trabajo_realizado = trabajo
-            m.respaldo_mb = respaldo
+            m.respaldo_gb = respaldo
             m.estado_final = final or None
             m.requiere_seguimiento = request.form.get("requiere_seguimiento") == "si"
             _auditar(m, "FINALIZAR_MANTENIMIENTO_EQUIPO" if accion == "finalizar" else "GUARDAR_MANTENIMIENTO_EQUIPO")
@@ -181,37 +182,7 @@ def pdf(mantenimiento_id):
     if m.estado != "FINALIZADO":
         flash("El PDF definitivo solo se genera al finalizar el mantenimiento.", "warning")
         return redirect(url_for("mantenimientos.detalle", mantenimiento_id=m.id))
-    styles = getSampleStyleSheet()
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, leftMargin=38, rightMargin=38)
-    story = [
-        Paragraph("SICODE-UCT | CONTROL 09 | CONSTANCIA DE MANTENIMIENTO", styles["Heading2"]),
-        Paragraph(f"Número: {m.numero} | Tipo: {escape(m.tipo)} | Estado: FINALIZADO", styles["Normal"]),
-        Paragraph(f"Inicio: {m.iniciado_en.strftime('%d/%m/%Y %H:%M') if m.iniciado_en else '—'} | Cierre: {m.cerrado_en.strftime('%d/%m/%Y %H:%M') if m.cerrado_en else '—'} | Tiempo: {m.segundos() // 3600:02d}:{(m.segundos() % 3600) // 60:02d}:{m.segundos() % 60:02d}", styles["Normal"]),
-        Spacer(1, 12),
-    ]
-    for clave, valor in m.datos_equipo.items():
-        story.append(Paragraph(f"<b>{escape(clave.replace('_',' ').capitalize())}:</b> {escape(str(valor or '—'))}", styles["Normal"]))
-    story.extend([
-        Spacer(1, 10),
-        Paragraph("Diagnóstico", styles["Heading3"]), Paragraph(escape(m.diagnostico or "—"), styles["Normal"]),
-        Paragraph("Trabajo realizado — consolidado de verificaciones", styles["Heading3"]),
-        Paragraph(escape(resumen_trabajo(m.checklist, m.respaldo_mb)).replace(chr(10), "<br/>"), styles["Normal"]),
-        Paragraph("Detalle adicional indicado por el técnico", styles["Heading3"]),
-        Paragraph(escape(m.trabajo_realizado or "—").replace(chr(10), "<br/>"), styles["Normal"]),
-        Paragraph(f"Estado final: {escape(m.estado_final or '—')} | Seguimiento: {'Sí' if m.requiere_seguimiento else 'No'}", styles["Normal"]),
-        Paragraph(f"Boleta vinculada: {escape(m.boleta.numero_boleta) if m.boleta else 'Sin boleta'}", styles["Normal"]),
-        Spacer(1, 12), Paragraph(f"Lista de verificación (versión {m.checklist_version})", styles["Heading3"]),
-    ])
-    for fila in m.checklist:
-        story.append(Paragraph(
-            f"<b>{escape(fila['grupo_nombre'])} — {escape(fila['actividad'])}:</b> "
-            f"{escape(fila['resultado'].replace('_', ' '))}" +
-            (f" | {escape(fila['observacion'])}" if fila.get("observacion") else ""), styles["Normal"]))
-        story.append(Spacer(1, 4))
-    story.extend([Spacer(1, 30), Paragraph("Firma del técnico: ____________________     Firma del usuario: ____________________", styles["Normal"])])
-    doc.build(story)
-    buffer.seek(0)
+    buffer = generar_constancia_mantenimiento(m)
     registrar_bitacora(
         accion="EXPORTAR_MANTENIMIENTO_PDF", modulo="Seguridad Informática",
         usuario_id=current_user.id, entidad="MantenimientoEquipo", entidad_id=m.id,
