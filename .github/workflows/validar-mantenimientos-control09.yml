@@ -29,4 +29,4 @@ jobs:
       - name: Validar migraciones
         run: python -m flask --app run.py db heads
       - name: Probar Control 09, boletas y mantenimientos
-        run: pytest -q tests/test_seguridad_inventario_09.py tests/test_soporte_tecnico.py tests/test_mantenimientos_control09.py
+        run: pytest -q tests/test_seguridad_inventario_09.py tests/test_soporte_tecnico.py tests/test_mantenimientos_control09.py tests/test_csrf_referer.py
