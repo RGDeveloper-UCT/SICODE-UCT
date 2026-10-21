@@ -1,14 +1,12 @@
 """Control 09: mantenimientos con checklist persistente y cronómetro de servidor."""
 from datetime import datetime
 from io import BytesIO
-import json
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
-from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from xml.sax.saxutils import escape
 
 from app import db
@@ -110,7 +108,10 @@ def editar(mantenimiento_id):
         return redirect(url_for("mantenimientos.detalle", mantenimiento_id=m.id))
     if request.method == "POST":
         try:
-            datos = json.loads(request.form.get("checklist", "[]"))
+            datos = [{"codigo": f["codigo"],
+                      "resultado": request.form.get("resultado_" + f["codigo"], "PENDIENTE"),
+                      "observacion": request.form.get("observacion_" + f["codigo"], "")}
+                     for f in m.checklist]
             validado = validar_checklist(datos, m.checklist)
             diagnostico = request.form.get("diagnostico", "").strip()
             trabajo = request.form.get("trabajo_realizado", "").strip()
@@ -139,7 +140,7 @@ def editar(mantenimiento_id):
             db.session.commit()
             flash("Mantenimiento finalizado." if accion == "finalizar" else "Borrador guardado.", "success")
             return redirect(url_for("mantenimientos.detalle" if accion == "finalizar" else "mantenimientos.editar", mantenimiento_id=m.id))
-        except (ValueError, TypeError, json.JSONDecodeError) as error:
+        except (ValueError, TypeError) as error:
             db.session.rollback()
             flash(str(error), "warning")
     return render_template("mantenimientos/editar.html", m=m)
