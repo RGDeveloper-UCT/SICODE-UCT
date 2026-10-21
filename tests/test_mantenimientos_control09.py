@@ -208,3 +208,51 @@ def test_nuevos_controles_aparecen_en_formulario_y_pdf(entorno):
     texto = "\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(pdf.data)).pages)
     assert "funcionamiento del antivirus" in texto
     assert "Firewall de Windows" in texto
+
+
+def test_boleta_usa_datos_maestros_del_equipo_vinculado(entorno):
+    from app.forms.soporte_tecnico_form import SoporteTecnicoForm
+    from app.routes.soporte_tecnico import _aplicar_formulario
+    from app.models.soporte_tecnico import ServicioSoporteTecnico
+    from datetime import datetime
+    client, usuario_id, equipo_id = entorno
+    equipo = db.session.get(EquipoInstitucional, equipo_id)
+    equipo.marca = "Dell"
+    equipo.modelo = "OptiPlex"
+    equipo.serie = "SERIE-CANONICA"
+    equipo.ip_estatica = "192.0.2.10"
+    db.session.commit()
+    with client.application.test_request_context("/"):
+        formulario = SoporteTecnicoForm(data={
+            "equipo_institucional_id": equipo_id,
+            "personal_institucional_id": 0,
+            "fecha_hora_solicitud": datetime(2026, 10, 21, 10, 0),
+            "usuario_solicitante": "Usuario de prueba",
+            "coordinacion_area": "Área de prueba",
+            "tecnico_asignado": "Técnico de prueba",
+            "descripcion_solicitud": "Revisión",
+            "tipos_servicio": ["HARDWARE"],
+            "estado_final": "PENDIENTE",
+            "seguimiento": "NO",
+            "inventario": "SICOIN-EQUIVOCADO",
+            "numero_serie": "SERIE-EQUIVOCADA",
+            "marca_modelo": "Marca incorrecta",
+            "tipo_equipo": "LAPTOP",
+        })
+        boleta = ServicioSoporteTecnico()
+        _aplicar_formulario(boleta, formulario)
+        assert boleta.equipo_institucional_id == equipo_id
+        assert boleta.inventario == equipo.codigo
+        assert boleta.numero_serie == "SERIE-CANONICA"
+        assert boleta.marca_modelo == "Dell OptiPlex"
+        assert boleta.tipo_equipo == "PC"
+        assert boleta.ip_nombre_equipo == "192.0.2.10"
+
+
+def test_vinculacion_inventario_en_formulario_de_boleta(entorno):
+    client, _, _ = entorno
+    html = client.get("/coordinacion/soporte-tecnico/nuevo").get_data(as_text=True)
+    assert 'id="buscar_equipo_inventario"' in html
+    assert 'data-sicoin="SICOIN-MNT-01"' in html
+    assert "Abrir Inventario Tecnológico" in html
+    assert "aplicarEquipo()" in html
