@@ -81,4 +81,8 @@ def actualizar_checklist_pendiente(checklist):
     actual = list(checklist or [])
     existentes = {fila["codigo"] for fila in actual}
     nuevos = [fila for fila in plantilla() if fila["codigo"] not in existentes]
-    return actual + nuevos if nuevos else actual
+    for nuevo in nuevos:
+        posiciones = [i for i, fila in enumerate(actual) if fila["grupo"] == nuevo["grupo"]]
+        indice = posiciones[-1] + 1 if posiciones else len(actual)
+        actual.insert(indice, nuevo)
+    return actual
