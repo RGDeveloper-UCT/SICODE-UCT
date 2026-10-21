@@ -47,3 +47,5 @@ from app.routes import coordinacion_monitoreo_masivo_fisico as _coordinacion_mon
 from app.routes import aprendizaje_documental as _aprendizaje_documental
 
 from app.routes.seguridad_informatica import seguridad_bp
+
+from app.routes.mantenimientos import mantenimientos_bp
