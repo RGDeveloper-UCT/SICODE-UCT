@@ -107,6 +107,34 @@ def _equipo_vinculado(form):
     return db.session.get(EquipoInstitucional, identificador)
 
 
+def _completar_vinculacion(form):
+    """El servidor resuelve la ficha del personal/equipo antes de validar el POST."""
+    personal_id = form.personal_institucional_id.data or 0
+    persona = db.session.get(PersonalInstitucional, personal_id) if personal_id else None
+    if persona:
+        form.usuario_solicitante.data = persona.nombre_completo
+        form.coordinacion_area.data = persona.coordinacion
+        if not (form.nombre_firma_usuario.data or "").strip():
+            form.nombre_firma_usuario.data = persona.nombre_completo
+        # Solo asignación inequívoca: si hay varios equipos debe escoger uno.
+        if not form.equipo_institucional_id.data:
+            candidatos = EquipoInstitucional.query.filter(
+                or_(EquipoInstitucional.responsable_personal_id == persona.id,
+                    EquipoInstitucional.usuario_habitual_personal_id == persona.id)
+            ).limit(2).all()
+            if len(candidatos) == 1:
+                form.equipo_institucional_id.data = candidatos[0].id
+    if not (form.nombre_firma_tecnico.data or "").strip():
+        form.nombre_firma_tecnico.data = form.tecnico_asignado.data or current_user.nombre
+    hoy = datetime.now().date()
+    if not form.fecha_firma_tecnico.data:
+        form.fecha_firma_tecnico.data = hoy
+    if not form.fecha_firma_usuario.data and form.nombre_firma_usuario.data:
+        form.fecha_firma_usuario.data = hoy
+    if form.estado_final.data != "PENDIENTE" and not form.fecha_hora_cierre.data:
+        form.fecha_hora_cierre.data = datetime.now().replace(second=0, microsecond=0)
+
+
 def _aplicar_formulario(boleta, form):
     boleta.equipo_institucional_id = form.equipo_institucional_id.data or None
     boleta.personal_institucional_id = form.personal_institucional_id.data or None
@@ -171,6 +199,8 @@ def _preparar_formulario_get(form, boleta=None):
         form.nombre_firma_tecnico.data = current_user.nombre
         form.estado_final.data = "PENDIENTE"
         form.seguimiento.data = "NO"
+        form.fecha_firma_usuario.data = datetime.now().date()
+        form.fecha_firma_tecnico.data = datetime.now().date()
         return
 
     form.seguimiento.data = "SI" if boleta.seguimiento else "NO"
@@ -250,6 +280,8 @@ def nuevo():
     if request.method == "GET":
         _preparar_formulario_get(form)
 
+    if request.method == "POST":
+        _completar_vinculacion(form)
     if form.validate_on_submit():
         registro = RegistroCoordinacion(
             tipo="ACTIVIDAD",
@@ -329,6 +361,8 @@ def editar(boleta_id):
     if request.method == "GET":
         _preparar_formulario_get(form, boleta)
 
+    if request.method == "POST":
+        _completar_vinculacion(form)
     if form.validate_on_submit():
         anteriores = _datos_bitacora(boleta)
         _aplicar_formulario(boleta, form)
