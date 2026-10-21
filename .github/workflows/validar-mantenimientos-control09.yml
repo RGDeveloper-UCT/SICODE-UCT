@@ -22,6 +22,10 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Validar sintaxis
         run: python -m compileall -q app migrations tests
+      - name: Validar JavaScript de boletas
+        run: |
+          node --check app/static/js/soporte_vinculacion_inventario.js
+          node --check app/static/js/soporte_tecnico.js
       - name: Validar migraciones
         run: python -m flask --app run.py db heads
       - name: Probar Control 09, boletas y mantenimientos
