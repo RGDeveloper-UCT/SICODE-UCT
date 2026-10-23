@@ -44,7 +44,7 @@
         <small>${x.prioridad==="alta"?"● PRIORIDAD ALTA — ROJO":"● PRIORIDAD MEDIA — AMARILLO"}</small>
         <h3>${escapeHtml(x.titulo)}</h3><p>${escapeHtml(x.mensaje)}</p>
         <button type="button" data-confirmar-aviso="${x.id}">✓ Confirmar enterado</button>
-        ${x.actividad_id?`<a href="/agenda/#tablero">Ver actividad en Agenda UCT</a>`:""}
+        ${x.actividad_id?`<span class="agenda-recordatorio-referencia">Referencia de actividad: #${x.actividad_id}</span>`:""}
       </article>`).join("");
     }
     pintar();
