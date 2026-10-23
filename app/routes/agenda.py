@@ -3,7 +3,7 @@ import csv
 from datetime import date, datetime
 from io import StringIO
 
-from flask import Blueprint, abort, jsonify, make_response, render_template, request, session
+from flask import Blueprint, abort, jsonify, make_response, render_template, request, session, send_file
 from flask_login import current_user, login_required
 from sqlalchemy import or_
 from app import db
@@ -16,6 +16,7 @@ from app.services.agenda_service import (
     fecha_local, notificar, puede_editar, puede_ver, siguiente_repeticion, visible_query,
 )
 from app.services.bitacora_service import registrar_bitacora
+from app.services.agenda_reports import generar_pdf, generar_xlsx, celda_segura
 
 agenda_bp = Blueprint("agenda", __name__, url_prefix="/agenda")
 TIPOS = {"tarea", "evento", "capacitacion", "gestion", "mantenimiento"}
@@ -397,6 +398,29 @@ def guardar_cumpleanos():
     return jsonify({"ok": True})
 
 
+@agenda_bp.get("/api/reporte.xlsx")
+@login_required
+def reporte_excel():
+    registros = visible_query(current_user).order_by(AgendaActividad.id.desc()).limit(5000).all()
+    resultado = generar_xlsx(registros)
+    registrar_bitacora("AGENDA_EXPORTAR_XLSX", "Agenda UCT", "Exportación de Excel de actividades",
+                      usuario_id=current_user.id)
+    return send_file(resultado,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True, download_name="agenda_uct.xlsx")
+
+
+@agenda_bp.get("/api/reporte.pdf")
+@login_required
+def reporte_pdf():
+    registros = visible_query(current_user).order_by(AgendaActividad.id.desc()).limit(500).all()
+    resultado = generar_pdf(registros)
+    registrar_bitacora("AGENDA_EXPORTAR_PDF", "Agenda UCT", "Exportación PDF de actividades",
+                      usuario_id=current_user.id)
+    return send_file(resultado, mimetype="application/pdf", as_attachment=True,
+                     download_name="agenda_uct.pdf")
+
+
 @agenda_bp.get("/api/reporte.csv")
 @login_required
 def reporte():
@@ -406,11 +430,12 @@ def reporte():
     escritor.writerow(["ID", "Tipo", "Título", "Estado", "Prioridad",
                        "Responsable", "Inicio", "Vencimiento", "Referencia SP"])
     for a in actividades:
-        escritor.writerow([a.id, a.tipo, a.titulo, a.estado, a.prioridad,
-                           a.responsable.nombre if a.responsable else "",
-                           a.inicio.isoformat() if a.inicio else "",
-                           a.vencimiento.isoformat() if a.vencimiento else "",
-                           a.referencia_sp or ""])
+        escritor.writerow([celda_segura(v) for v in (
+            a.id, a.tipo, a.titulo, a.estado, a.prioridad,
+            a.responsable.nombre if a.responsable else "",
+            a.inicio.isoformat() if a.inicio else "",
+            a.vencimiento.isoformat() if a.vencimiento else "",
+            a.referencia_sp or "")])
     respuesta = make_response("\ufeff" + buffer.getvalue())
     respuesta.headers["Content-Type"] = "text/csv; charset=utf-8"
     respuesta.headers["Content-Disposition"] = "attachment; filename=agenda_uct.csv"
