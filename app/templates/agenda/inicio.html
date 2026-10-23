@@ -97,7 +97,7 @@
   </section>
   <section class="agenda-contenido" data-agenda-panel="reportes" hidden>
     <div class="agenda-ancho"><h2>Reportes de seguimiento</h2><p>Exporta la información administrativa que tiene permitido consultar.</p>
-    <a class="agenda-boton agenda-primario" href="{{ url_for('agenda.reporte') }}">↓ Exportar CSV compatible con Excel</a></div>
+    <div class="agenda-acciones"><a class="agenda-boton agenda-primario" href="{{ url_for('agenda.reporte_excel') }}">↓ Exportar Excel</a><a class="agenda-boton" href="{{ url_for('agenda.reporte_pdf') }}">↓ Exportar PDF</a><a class="agenda-boton" href="{{ url_for('agenda.reporte') }}">↓ CSV</a></div></div>
   </section>
 </section>
 
