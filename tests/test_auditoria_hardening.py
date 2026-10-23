@@ -283,7 +283,8 @@ def test_cabeceras_de_seguridad_en_respuesta_autenticada(cliente_auditoria):
     assert respuesta.status_code == 200
     assert respuesta.headers["X-Content-Type-Options"] == "nosniff"
     assert respuesta.headers["X-Frame-Options"] == "SAMEORIGIN"
-    assert respuesta.headers["Referrer-Policy"] == "no-referrer"
+    # Control09 conserva referer solo entre páginas del mismo origen institucional.
+    assert respuesta.headers["Referrer-Policy"] == "same-origin"
     assert "no-store" in respuesta.headers["Cache-Control"]
 
 
