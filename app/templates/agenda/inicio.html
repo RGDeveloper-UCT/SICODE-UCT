@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Agenda UCT y Tablón — SICODE-UCT{% endblock %}
+{% block body_class %}vista-agenda{% endblock %}
+{% block content %}
+<section class="agenda-modulo" data-agenda-root data-user="{{ current_user.id }}" data-puede-modificar="{{ '1' if current_user.puede_modificar else '0' }}">
+  <div class="agenda-titulo">
+    <div><h1>▣ Agenda UCT y Tablón de Actividades</h1><p>Organización institucional · Tareas, subtareas, eventos, capacitaciones, gestiones y mantenimientos.</p></div>
+    {% if current_user.puede_modificar %}<button class="agenda-boton agenda-primario" type="button" data-agenda-crear>＋ Nueva actividad</button>{% endif %}
+  </div>
+  <div class="agenda-tabs" role="tablist" aria-label="Secciones Agenda UCT">
+    <button type="button" data-agenda-tab="hoy" class="activo">⌂ Mi día</button>
+    <button type="button" data-agenda-tab="tablero">▥ Tablón</button>
+    <button type="button" data-agenda-tab="calendario">▦ Calendario</button>
+    <button type="button" data-agenda-tab="tareas">☑ Tareas</button>
+    <button type="button" data-agenda-tab="eventos">◇ Eventos</button>
+    <button type="button" data-agenda-tab="cumpleanos">♧ Cumpleaños</button>
+    <button type="button" data-agenda-tab="avisos">♧ Notificaciones</button>
+    <button type="button" data-agenda-tab="reportes">▤ Reportes</button>
+  </div>
+  <div class="agenda-resumen" id="agenda-resumen" aria-live="polite">
+    <div><small>Mis tareas pendientes</small><strong data-kpi="pendientes">0</strong></div>
+    <div><small>En proceso</small><strong data-kpi="proceso">0</strong></div>
+    <div><small>Eventos próximos</small><strong data-kpi="eventos">0</strong></div>
+    <div><small>Por vencer</small><strong data-kpi="vencimientos">0</strong></div>
+    <div><small>Finalizadas</small><strong data-kpi="finalizadas">0</strong></div>
+  </div>
+  <section class="agenda-contenido" data-agenda-panel="hoy">
+    <div class="agenda-columna">
+      <h2>Mi día</h2><p>Los compromisos de hoy y los pendientes que necesitan atención.</p>
+      <div id="agenda-hoy" class="agenda-lista"></div>
+    </div>
+    <aside class="agenda-lateral">
+      <h2>Atajos</h2>
+      <div class="agenda-atajos">{% if current_user.puede_modificar %}
+        <button type="button" data-agenda-crear data-agenda-tipo="tarea">☑ Tarea</button>
+        <button type="button" data-agenda-crear data-agenda-tipo="evento">▦ Evento</button>
+        <button type="button" data-agenda-crear data-agenda-tipo="capacitacion">♢ Capacitación</button>
+        <button type="button" data-agenda-crear data-agenda-tipo="gestion">▤ Gestión</button>
+        <button type="button" data-agenda-crear data-agenda-tipo="mantenimiento">⚒ Mantenimiento</button>
+      {% endif %}</div>
+      <h3>Próximos cumpleaños</h3><div id="agenda-proximos-cumple" class="agenda-lista"></div>
+    </aside>
+  </section>
+  <section class="agenda-contenido" data-agenda-panel="tablero" hidden>
+    <div class="agenda-ancho">
+      <div class="agenda-filtros">
+        <label for="agenda-buscar">Buscar</label><input id="agenda-buscar" type="search" placeholder="Título, tarea o gestión…">
+        <label for="agenda-filtro-tipo">Tipo</label>
+        <select id="agenda-filtro-tipo"><option value="">Todos</option><option value="tarea">Tareas</option><option value="evento">Eventos</option><option value="capacitacion">Capacitaciones</option><option value="gestion">Gestiones</option><option value="mantenimiento">Mantenimientos</option></select>
+        <label><input id="agenda-solo-mias" type="checkbox"> Mis actividades</label>
+      </div>
+      <div class="agenda-kanban" id="agenda-kanban">
+        <div class="agenda-kanban-col agenda-estado-pendiente"><h2>● Pendientes</h2><div data-agenda-estado="pendiente"></div></div>
+        <div class="agenda-kanban-col agenda-estado-proceso"><h2>● En proceso</h2><div data-agenda-estado="en_proceso"></div></div>
+        <div class="agenda-kanban-col agenda-estado-revision"><h2>● En revisión</h2><div data-agenda-estado="en_revision"></div></div>
+        <div class="agenda-kanban-col agenda-estado-finalizada"><h2>● Finalizadas</h2><div data-agenda-estado="finalizada"></div></div>
+      </div>
+      <div class="agenda-otros-estados"><h3>Bloqueadas y canceladas</h3><div id="agenda-otros" class="agenda-lista"></div></div>
+    </div>
+  </section>
+  <section class="agenda-contenido" data-agenda-panel="calendario" hidden>
+    <div class="agenda-ancho"><div class="agenda-calendario-barra">
+      <button type="button" class="agenda-boton" id="agenda-mes-anterior" aria-label="Mes anterior">‹</button>
+      <h2 id="agenda-calendario-titulo">Calendario</h2>
+      <button type="button" class="agenda-boton" id="agenda-mes-siguiente" aria-label="Mes siguiente">›</button>
+      <button type="button" class="agenda-boton" id="agenda-ir-hoy">Hoy</button>
+      <select id="agenda-vista-calendario" aria-label="Vista del calendario">
+        <option value="mes">Mes</option><option value="semana">Semana</option><option value="dia">Día</option><option value="agenda">Agenda</option><option value="laboral">Laboral</option>
+      </select>
+    </div><div id="agenda-calendario" class="agenda-calendario" aria-live="polite"></div>
+    <p class="agenda-ayuda">Haga clic en una actividad para ver detalles. Haga clic sobre una fecha para crear un evento.</p></div>
+  </section>
+  <section class="agenda-contenido" data-agenda-panel="tareas" hidden>
+    <div class="agenda-ancho"><h2>Tareas y subtareas</h2><div id="agenda-tareas" class="agenda-lista"></div></div>
+  </section>
+  <section class="agenda-contenido" data-agenda-panel="eventos" hidden>
+    <div class="agenda-ancho"><h2>Eventos, capacitaciones, gestiones y mantenimientos</h2><div id="agenda-eventos" class="agenda-lista"></div></div>
+  </section>
+  <section class="agenda-contenido" data-agenda-panel="cumpleanos" hidden>
+    <div class="agenda-columna"><h2>Cumpleaños del equipo</h2>
+      <p>Solo se muestran los cumpleaños que cada persona decidió compartir.</p>
+      <div id="agenda-cumpleanos-lista" class="agenda-lista"></div></div>
+    <aside class="agenda-lateral">
+      <h2>Mi cumpleaños</h2><p>Registre día y mes voluntariamente. No solicitamos año de nacimiento.</p>
+      {% if current_user.puede_modificar %}
+      <form id="agenda-cumpleanos-form">
+        <div class="agenda-campos-dos"><label>Día<input name="dia" type="number" min="1" max="31" required value="{{ cumple.dia if cumple else '' }}"></label>
+        <label>Mes<select name="mes" required>{% for mes in range(1,13) %}<option value="{{ mes }}" {% if cumple and cumple.mes == mes %}selected{% endif %}>{{ mes }}</option>{% endfor %}</select></label></div>
+        <label class="agenda-check"><input name="visible" type="checkbox" {% if cumple and cumple.visible %}checked{% endif %}> Compartir mi cumpleaños con mis compañeros</label>
+        <button class="agenda-boton agenda-primario" type="submit">Guardar cumpleaños</button>
+      </form>{% endif %}
+    </aside>
+  </section>
+  <section class="agenda-contenido" data-agenda-panel="avisos" hidden>
+    <div class="agenda-ancho"><h2>Notificaciones</h2><p>Las confirmaciones se guardan con usuario, fecha y hora.</p><div id="agenda-avisos-lista" class="agenda-lista"></div></div>
+  </section>
+  <section class="agenda-contenido" data-agenda-panel="reportes" hidden>
+    <div class="agenda-ancho"><h2>Reportes de seguimiento</h2><p>Exporta la información administrativa que tiene permitido consultar.</p>
+    <a class="agenda-boton agenda-primario" href="{{ url_for('agenda.reporte') }}">↓ Exportar CSV compatible con Excel</a></div>
+  </section>
+</section>
+
+{% if current_user.puede_modificar %}
+<dialog id="agenda-form-dialog" class="agenda-dialog" aria-labelledby="agenda-form-titulo">
+  <form id="agenda-actividad-form">
+    <div class="agenda-dialog-cabecera"><h2 id="agenda-form-titulo">Nueva actividad</h2><button type="button" data-agenda-cerrar aria-label="Cerrar">✕</button></div>
+    <input type="hidden" name="actividad_id"><input type="hidden" name="padre_id">
+    <label>Título *<input name="titulo" maxlength="180" required placeholder="¿Qué se necesita realizar?"></label>
+    <label>Descripción<textarea name="descripcion" rows="3" maxlength="5000"></textarea></label>
+    <div class="agenda-campos-dos">
+      <label>Tipo<select name="tipo"><option value="tarea">Tarea</option><option value="evento">Evento</option><option value="capacitacion">Capacitación</option><option value="gestion">Gestión</option><option value="mantenimiento">Mantenimiento</option></select></label>
+      <label>Prioridad<select name="prioridad"><option value="alta">Alta · roja</option><option value="media" selected>Media · amarilla</option><option value="baja">Baja · verde</option></select></label>
+      <label>Inicio<input name="inicio" type="datetime-local"></label>
+      <label>Vencimiento / final<input name="vencimiento" type="datetime-local"></label>
+      <label>Responsable<select name="responsable_id">{% for persona in usuarios %}<option value="{{ persona.id }}" {% if persona.id == current_user.id %}selected{% endif %}>{{ persona.nombre }}</option>{% endfor %}</select></label>
+      <label>Repetición<select name="recurrencia"><option value="ninguna">No repetir</option><option value="diaria">Diaria</option><option value="laboral">Días laborales</option><option value="semanal">Semanal</option><option value="mensual">Mensual</option><option value="anual">Anual</option></select></label>
+      <label>Visibilidad<select name="visibilidad"><option value="equipo">Institucional / equipo</option><option value="personal">Privada / participantes</option></select></label>
+      <label>Referencia SP (opcional)<input name="referencia_sp" maxlength="40"></label>
+      <label>Lugar / enlace interno<input name="lugar" maxlength="180"></label>
+      <label>Modalidad<select name="modalidad"><option value="">Sin definir</option><option value="presencial">Presencial</option><option value="virtual">Virtual</option><option value="mixta">Mixta</option></select></label>
+    </div>
+    <fieldset class="agenda-participantes"><legend>Participantes / colaboradores</legend>
+      {% for persona in usuarios %}<label><input type="checkbox" name="participantes" value="{{ persona.id }}"> {{ persona.nombre }}</label>{% endfor %}
+    </fieldset>
+    <label class="agenda-check"><input name="requiere_revision" type="checkbox"> Requiere validación del creador al finalizar</label>
+    <label class="agenda-check"><input name="todo_el_dia" type="checkbox"> Evento de todo el día</label>
+    <div class="agenda-acciones"><button type="button" class="agenda-boton" data-agenda-cerrar>Cancelar</button><button class="agenda-boton agenda-primario" type="submit">Guardar actividad</button></div>
+  </form>
+</dialog>{% endif %}
+
+<dialog id="agenda-detalle-dialog" class="agenda-dialog" aria-labelledby="agenda-detalle-titulo">
+  <div class="agenda-dialog-cabecera"><h2 id="agenda-detalle-titulo">Detalle de actividad</h2><button type="button" data-agenda-cerrar aria-label="Cerrar">✕</button></div>
+  <div id="agenda-detalle-contenido"></div>
+</dialog>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/agenda.js') }}" defer></script>{% endblock %}
