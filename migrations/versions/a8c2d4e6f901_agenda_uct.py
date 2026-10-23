@@ -32,10 +32,11 @@ def upgrade():
         sa.Column("recurrencia", sa.String(20), nullable=False),
         sa.Column("requiere_revision", sa.Boolean(), nullable=False),
         sa.Column("referencia_sp", sa.String(40)),
+        sa.Column("recurrencia_origen_id", sa.Integer(), unique=True),
         sa.Column("creado_en", sa.DateTime(), nullable=False),
         sa.Column("actualizado_en", sa.DateTime(), nullable=False),
         sa.Column("finalizado_en", sa.DateTime()))
-    for name in ("tipo", "estado", "prioridad", "creado_por_id", "responsable_id", "padre_id", "vencimiento", "referencia_sp"):
+    for name in ("tipo", "estado", "prioridad", "creado_por_id", "responsable_id", "padre_id", "vencimiento", "referencia_sp", "recurrencia_origen_id"):
         op.create_index("ix_agenda_actividades_" + name, "agenda_actividades", [name])
     op.create_table("agenda_participantes",
         sa.Column("id", sa.Integer(), primary_key=True),
