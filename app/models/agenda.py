@@ -23,6 +23,7 @@ class AgendaActividad(db.Model):
     recurrencia = db.Column(db.String(20), nullable=False, default="ninguna")
     requiere_revision = db.Column(db.Boolean, nullable=False, default=False)
     referencia_sp = db.Column(db.String(40), index=True)
+    recurrencia_origen_id = db.Column(db.Integer, unique=True, index=True)
     creado_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     actualizado_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     finalizado_en = db.Column(db.DateTime)
