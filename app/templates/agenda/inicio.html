@@ -2,7 +2,7 @@
 {% block title %}Agenda UCT y Tablón — SICODE-UCT{% endblock %}
 {% block body_class %}vista-agenda{% endblock %}
 {% block content %}
-<section class="agenda-modulo" data-agenda-root data-user="{{ current_user.id }}" data-puede-modificar="{{ '1' if current_user.puede_modificar else '0' }}">
+<section class="agenda-modulo" data-agenda-root data-user="{{ current_user.id }}" data-puede-modificar="{{ '1' if current_user.puede_modificar else '0' }}" data-cumple-registrado="{{ '1' if cumple else '0' }}">
   <div class="agenda-titulo">
     <div><h1>▣ Agenda UCT y Tablón de Actividades</h1><p>Organización institucional · Tareas, subtareas, eventos, capacitaciones, gestiones y mantenimientos.</p></div>
     {% if current_user.puede_modificar %}<button class="agenda-boton agenda-primario" type="button" data-agenda-crear>＋ Nueva actividad</button>{% endif %}
@@ -68,6 +68,7 @@
         <option value="mes">Mes</option><option value="semana">Semana</option><option value="dia">Día</option><option value="agenda">Agenda</option><option value="laboral">Laboral</option>
       </select>
     </div><div id="agenda-calendario" class="agenda-calendario" aria-live="polite"></div>
+    {% if current_user.puede_modificar and not cumple %}<div class="agenda-cumple-invitacion"><div><strong>♧ Completa tu cumpleaños</strong><p>Agrega voluntariamente el día y mes, y decide si quieres compartirlo con tus compañeros.</p></div><button class="agenda-boton agenda-primario" type="button" data-agenda-tab="cumpleanos">Registrar mi cumpleaños</button></div>{% endif %}
     <p class="agenda-ayuda">Haga clic en una actividad para ver detalles. Haga clic sobre una fecha para crear un evento.</p></div>
   </section>
   <section class="agenda-contenido" data-agenda-panel="tareas" hidden>
