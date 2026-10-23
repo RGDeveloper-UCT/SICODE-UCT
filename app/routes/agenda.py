@@ -415,6 +415,7 @@ def guardar_cumpleanos():
 @agenda_bp.get("/api/reporte.xlsx")
 @login_required
 def reporte_excel():
+    permitido()
     registros = visible_query(current_user).order_by(AgendaActividad.id.desc()).limit(5000).all()
     resultado = generar_xlsx(registros)
     registrar_bitacora("AGENDA_EXPORTAR_XLSX", "Agenda UCT", "Exportación de Excel de actividades",
@@ -427,6 +428,7 @@ def reporte_excel():
 @agenda_bp.get("/api/reporte.pdf")
 @login_required
 def reporte_pdf():
+    permitido()
     registros = visible_query(current_user).order_by(AgendaActividad.id.desc()).limit(500).all()
     resultado = generar_pdf(registros)
     registrar_bitacora("AGENDA_EXPORTAR_PDF", "Agenda UCT", "Exportación PDF de actividades",
@@ -438,6 +440,7 @@ def reporte_pdf():
 @agenda_bp.get("/api/reporte.csv")
 @login_required
 def reporte():
+    permitido()
     actividades = visible_query(current_user).order_by(AgendaActividad.id.desc()).limit(5000).all()
     buffer = StringIO()
     escritor = csv.writer(buffer)
