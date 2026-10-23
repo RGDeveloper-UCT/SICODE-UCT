@@ -345,7 +345,7 @@ def confirmar_aviso(id_):
             "Confirmación de lectura de aviso " + str(id_), usuario_id=current_user.id,
             entidad="AgendaNotificacion", entidad_id=id_, commit=False)
     db.session.commit()
-    return jsonify({"ok": True, "confirmada_en": notificacion.confirmada_en.isoformat()})
+    return jsonify({"ok": True, "confirmada_en": ahora.isoformat()})
 
 
 @agenda_bp.post("/api/avisos/<int:id_>/leer")
