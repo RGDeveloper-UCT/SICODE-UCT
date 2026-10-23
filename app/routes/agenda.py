@@ -337,9 +337,7 @@ def confirmar_aviso(id_):
     notificacion = AgendaNotificacion.query.filter_by(
         id=id_, usuario_id=current_user.id).first_or_404()
     ahora = datetime.utcnow()
-    if notificacion.leida_en:
-        pass
-    else:
+    if not notificacion.leida_en:
         notificacion.leida_en = ahora
     if notificacion.confirmada_en:
         notificacion.confirmada_en = ahora
