@@ -1,0 +1,35 @@
+name: Validar Agenda UCT
+
+on:
+  pull_request:
+    paths:
+      - "app/models/agenda.py"
+      - "app/routes/agenda.py"
+      - "app/services/agenda_service.py"
+      - "app/static/js/agenda*.js"
+      - "app/templates/agenda/**"
+      - "migrations/versions/a8c2d4e6f901_agenda_uct.py"
+      - "tests/test_agenda_uct.py"
+      - ".github/workflows/validar-agenda-uct.yml"
+  push:
+    branches: [main]
+    paths: ["app/**", "migrations/**", "tests/test_agenda_uct.py"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: python -m compileall -q app migrations tests
+      - run: pytest -q tests/test_agenda_uct.py
+      - run: node --check app/static/js/agenda.js && node --check app/static/js/agenda_global.js
+      - run: pytest -q
+      - run: python -m flask --app run.py db heads
+        env:
+          SECRET_KEY: test-ci-secret-local
+          DATABASE_URL: sqlite:////tmp/sicode_agenda_ci.sqlite3
+          SESSION_COOKIE_SECURE: "false"

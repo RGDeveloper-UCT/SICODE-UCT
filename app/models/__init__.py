@@ -29,3 +29,5 @@ from app.models.coordinacion import (
     RemisionCoordinacion,
     RemisionExpediente,
 )
+
+from app.models.agenda import AgendaActividad, AgendaParticipante, AgendaComentario, AgendaNotificacion, AgendaCumpleanos
