@@ -80,12 +80,13 @@
     refrescarContador();
     // Solo se invoca 5 s después de mostrar el dashboard; el servidor exige
     // una marca de login reciente y la consume una única vez por sesión.
-    if(document.body.classList.contains("vista-dashboard")){
-      setTimeout(async()=>{
-        try{const d=await get("/avisos/inicio");mostrarPendientes(d.avisos||[]);}
-        catch(_){/* El dashboard continúa operativo si el API no responde. */}
-      },5000);
-    }
+    // Se presenta 5 s después de la carga inicial. Si el login lleva a una
+    // URL de retorno, también se exige acuse. El servidor conserva pendientes
+    // tras recargar la página y solo habilita los avisos de un login reciente.
+    setTimeout(async()=>{
+      try{const d=await get("/avisos/inicio");mostrarPendientes(d.avisos||[]);}
+      catch(_){/* El sistema conserva el aviso pendiente para otro intento. */}
+    },5000);
     setInterval(refrescarContador,60000);
   });
 })();
