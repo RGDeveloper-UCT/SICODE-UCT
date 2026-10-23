@@ -157,6 +157,8 @@ def siguiente_repeticion(actividad):
     }.get(actividad.recurrencia)
     if not intervalo or not actividad.vencimiento:
         return None
+    if AgendaActividad.query.filter_by(recurrencia_origen_id=actividad.id).first():
+        return None
     nueva_fecha = actividad.vencimiento + intervalo
     if actividad.recurrencia == "laboral":
         while nueva_fecha.weekday() >= 5:
@@ -169,6 +171,7 @@ def siguiente_repeticion(actividad):
         inicio=comienzo, vencimiento=nueva_fecha, todo_el_dia=actividad.todo_el_dia,
         lugar=actividad.lugar, modalidad=actividad.modalidad, recurrencia=actividad.recurrencia,
         requiere_revision=actividad.requiere_revision, referencia_sp=actividad.referencia_sp,
+        recurrencia_origen_id=actividad.id,
     )
     db.session.add(siguiente)
     db.session.flush()
