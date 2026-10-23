@@ -26,6 +26,8 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python -m compileall -q app migrations tests
       - run: pytest -q tests/test_agenda_uct.py
+      - run: node --check app/static/js/agenda.js && node --check app/static/js/agenda_global.js
+      - run: pytest -q
       - run: python -m flask --app run.py db heads
         env:
           SECRET_KEY: test-ci-secret-local
