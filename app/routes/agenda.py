@@ -326,10 +326,13 @@ def avisos():
 @agenda_bp.get("/api/avisos/inicio")
 @login_required
 def avisos_inicio():
-    if not session.pop("agenda_login_pendiente", False):
+    if not session.get("agenda_login_pendiente", False):
         return jsonify({"avisos": []})
     alertas_de_plazo(current_user.id)
-    return jsonify({"avisos": [aviso_json(n) for n in avisos_usuario(current_user.id, True)]})
+    pendientes = avisos_usuario(current_user.id, True)
+    if not pendientes:
+        session.pop("agenda_login_pendiente", None)
+    return jsonify({"avisos": [aviso_json(n) for n in pendientes]})
 
 
 @agenda_bp.post("/api/avisos/<int:id_>/confirmar")
