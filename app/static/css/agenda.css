@@ -102,3 +102,6 @@
 @media(max-width:1150px){.agenda-resumen{grid-template-columns:repeat(3,1fr)}.agenda-kanban{grid-template-columns:repeat(4,minmax(220px,1fr))}}
 @media(max-width:720px){.agenda-resumen{grid-template-columns:repeat(2,1fr)}.agenda-contenido:not([hidden]){flex-direction:column}.agenda-columna,.agenda-lateral{width:100%;box-sizing:border-box}.agenda-campos-dos,.agenda-participantes{grid-template-columns:1fr}.agenda-cal-dia{min-height:75px}.agenda-cal-item{font-size:9px}}
 @media(prefers-reduced-motion:reduce){.agenda-modulo *, .agenda-dialog *, .agenda-nav-link *,#agenda-toast{animation:none!important;transition:none!important}}
+
+.agenda-cumple-invitacion{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:14px 0;padding:16px;background:#252f49;border:1px solid #43578a;border-radius:10px}
+.agenda-cumple-invitacion strong{color:#f9e5ff}.agenda-cumple-invitacion p{margin:3px 0;font-size:12px}
