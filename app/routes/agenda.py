@@ -221,6 +221,8 @@ def modificar(id_):
     actividad = editable(id_)
     datos = datos_json() or {}
     original = actividad.responsable_id
+    fechas_anteriores = (actividad.inicio, actividad.vencimiento)
+    titulo_anterior = actividad.titulo
     try:
         llenar(actividad, datos)
         nuevos = miembros_ids(datos) if "participantes" in datos else None
@@ -239,6 +241,15 @@ def modificar(id_):
     if original != actividad.responsable_id:
         notificar({actividad.responsable_id}, actividad, "Nueva responsabilidad",
                  actividad.titulo, actividad.prioridad)
+    if fechas_anteriores != (actividad.inicio, actividad.vencimiento):
+        notificar(destinatarios(actividad) | ({original} if original else set()),
+                 actividad, "Se reprogramó una actividad",
+                 current_user.nombre + " actualizó las fechas de «" + actividad.titulo + "».",
+                 actividad.prioridad, omitir=current_user.id)
+    elif titulo_anterior != actividad.titulo:
+        notificar(destinatarios(actividad), actividad, "Cambio de nombre de actividad",
+                 current_user.nombre + " actualizó «" + actividad.titulo + "».",
+                 actividad.prioridad, omitir=current_user.id)
     auditoria("AGENDA_EDITAR", actividad, "Actividad editada: " + actividad.titulo)
     db.session.commit()
     return jsonify({"actividad": actividad.as_dict()})
