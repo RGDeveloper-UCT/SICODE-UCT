@@ -49,3 +49,5 @@ from app.routes import aprendizaje_documental as _aprendizaje_documental
 from app.routes.seguridad_informatica import seguridad_bp
 
 from app.routes.mantenimientos import mantenimientos_bp
+
+from app.routes.agenda import agenda_bp
