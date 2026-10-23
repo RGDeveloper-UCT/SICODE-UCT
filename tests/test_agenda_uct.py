@@ -117,11 +117,13 @@ def test_avisos_tras_login_una_vez_y_confirmacion(sistema):
     primero=c.get("/agenda/api/avisos/inicio").get_json()["avisos"]
     assert len(primero)==1
     assert primero[0]["prioridad"] in {"alta","media"}
-    assert not c.get("/agenda/api/avisos/inicio").get_json()["avisos"]
+    # Recargar el dashboard NO omite avisos obligatorios pendientes.
+    assert len(c.get("/agenda/api/avisos/inicio").get_json()["avisos"]) == 1
     id_=primero[0]["id"]
     assert c.post(f"/agenda/api/avisos/{id_}/leer").status_code==409
     assert c.post(f"/agenda/api/avisos/{id_}/confirmar").status_code==200
     assert not c.get("/agenda/api/avisos") .get_json()["avisos"]
+    assert not c.get("/agenda/api/avisos/inicio").get_json()["avisos"]
     with sistema.app_context():
         assert AgendaNotificacion.query.get(id_).confirmada_en is not None
 
