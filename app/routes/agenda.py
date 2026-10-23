@@ -339,7 +339,7 @@ def confirmar_aviso(id_):
     ahora = datetime.utcnow()
     if not notificacion.leida_en:
         notificacion.leida_en = ahora
-    if notificacion.confirmada_en:
+    if not notificacion.confirmada_en:
         notificacion.confirmada_en = ahora
         registrar_bitacora("AGENDA_CONFIRMAR_AVISO", "Agenda UCT",
             "Confirmación de lectura de aviso " + str(id_), usuario_id=current_user.id,
