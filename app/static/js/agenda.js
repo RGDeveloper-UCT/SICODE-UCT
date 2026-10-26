@@ -12,12 +12,44 @@
   const safe = val => String(val ?? "").replace(/[&<>"']/g, x => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
   }[x]));
+  // Nunca insertar URL ni texto de usuario sin escaparlo. Solo http(s) es clicable.
+  function conEnlaces(valor) {
+    const texto = String(valor ?? "");
+    const patron = /\b(?:https?:\/\/|www\.)[^\s<>"']+/gi;
+    let salida = "", posicion = 0;
+    for (const hallazgo of texto.matchAll(patron)) {
+      const inicio = hallazgo.index;
+      const visible = hallazgo[0].replace(/[.,;:!?)}\]]+$/, "");
+      salida += safe(texto.slice(posicion, inicio));
+      const destinoTexto = /^www\./i.test(visible) ? "https://" + visible : visible;
+      try {
+        const destino = new URL(destinoTexto);
+        if (["http:", "https:"].includes(destino.protocol) && destino.hostname) {
+          salida += '<a href="' + safe(destino.href) +
+            '" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">' +
+            safe(visible) + "</a>";
+        } else {
+          salida += safe(visible);
+        }
+      } catch (_) {
+        salida += safe(visible);
+      }
+      posicion = inicio + visible.length;
+    }
+    return salida + safe(texto.slice(posicion));
+  }
+  const campoDetalle = (titulo, contenido) =>
+    '<div class="agenda-detalle-dato"><dt>' + safe(titulo) + '</dt><dd>' + contenido + '</dd></div>';
+  const fechaInicio = x => (x.inicio || x.vencimiento || "").slice(0, 10);
+  const fechaFin = x => (x.vencimiento || x.inicio || "").slice(0, 10);
+  const ocupaDia = (x, dia) => Boolean(fechaInicio(x) && fechaInicio(x) <= dia && fechaFin(x) >= dia);
+
   const dias = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
   const meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
   const p = (num) => String(num).padStart(2, "0");
   const localIso = d => `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
   const hoy = () => localIso(new Date());
-  const fecha = iso => iso ? new Date(iso).toLocaleString("es-GT", {dateStyle:"medium", timeStyle:"short"}) : "Sin fecha";
+  const fecha = (iso, todoElDia=false) => iso ? new Date(iso).toLocaleString("es-GT", todoElDia ? {dateStyle:"medium"} : {dateStyle:"medium", timeStyle:"short"}) : "Sin fecha";
   const datetimeInput = val => val ? val.substring(0, 16) : "";
   const notification = msg => {
     let e = $("#agenda-toast");
@@ -61,7 +93,7 @@
     const cuenta = {
       pendientes:mis.filter(x=> x.estado === "pendiente").length,
       proceso:mis.filter(x=> x.estado === "en_proceso").length,
-      eventos:mis.filter(x=> x.tipo !== "tarea" && x.vencimiento && x.vencimiento.slice(0,10) >= hoyFecha && x.estado !== "cancelada").length,
+      eventos:mis.filter(x=> x.tipo !== "tarea" && !x.padre_id && fechaFin(x) >= hoyFecha && !["cancelada","finalizada"].includes(x.estado)).length,
       vencimientos:mis.filter(x=> x.vencimiento && x.vencimiento.slice(0,10) <= localIso(limite) && x.estado !== "finalizada" && x.estado !== "cancelada").length,
       finalizadas:mis.filter(x=> x.estado === "finalizada").length
     };
@@ -85,7 +117,7 @@
       (x.vencimiento && x.vencimiento.slice(0,10) <= fechaHoy || x.inicio && x.inicio.slice(0,10) === fechaHoy));
     $("#agenda-hoy").innerHTML = actividadesDia.map(x=>tarjeta(x)).join("") || '<p class="agenda-vacio">Sin actividades urgentes para hoy.</p>';
     $("#agenda-tareas").innerHTML = items.filter(x=> x.tipo === "tarea").map(x=>tarjeta(x)).join("") || '<p class="agenda-vacio">No hay tareas registradas.</p>';
-    $("#agenda-eventos").innerHTML = items.filter(x=> x.tipo !== "tarea").map(x=>tarjeta(x)).join("") || '<p class="agenda-vacio">No hay eventos registrados.</p>';
+    $("#agenda-eventos").innerHTML = items.filter(x=> x.tipo !== "tarea" && !x.padre_id).map(x=>tarjeta(x)).join("") || '<p class="agenda-vacio">No hay eventos registrados.</p>';
   }
   const distanciaCumple = c => {
     const d = new Date(), actual = new Date(d.getFullYear(), c.mes-1, c.dia);
@@ -109,8 +141,7 @@
     const cont = $("#agenda-calendario");
     const y = fechaCalendario.getFullYear(), m = fechaCalendario.getMonth();
     $("#agenda-calendario-titulo").textContent = `${meses[m]} ${y}`;
-    const porDia = (fechaISO) => items.filter(x=>
-      (x.inicio && x.inicio.slice(0,10) === fechaISO) || (x.vencimiento && x.vencimiento.slice(0,10) === fechaISO));
+    const porDia = fechaISO => items.filter(x => ocupaDia(x, fechaISO));
     const celda = d => {
       const k = localIso(d), seleccion = k === hoy() ? " agenda-hoy-dia" : "";
       const lista = porDia(k).slice(0,4).map(x=>`<button type="button" class="agenda-cal-item agenda-p-${safe(x.prioridad)}" data-agenda-detalle="${x.id}" title="${safe(x.titulo)}">${safe(x.titulo)}</button>`).join("");
@@ -118,7 +149,11 @@
     };
     if (vista === "agenda") {
       cont.className = "agenda-calendario agenda-cal-lista";
-      cont.innerHTML = items.filter(x=>x.vencimiento && x.vencimiento.slice(0,7) === `${y}-${p(m+1)}`).sort((a,b)=>a.vencimiento.localeCompare(b.vencimiento)).map(x=>tarjeta(x)).join("") || '<p class="agenda-vacio">Sin eventos para este mes.</p>';
+      const inicioMes = localIso(new Date(y, m, 1));
+      const finMes = localIso(new Date(y, m + 1, 0));
+      cont.innerHTML = items.filter(x => fechaInicio(x) && fechaInicio(x) <= finMes && fechaFin(x) >= inicioMes)
+        .sort((a,b) => fechaInicio(a).localeCompare(fechaInicio(b)))
+        .map(x => tarjeta(x)).join("") || '<p class="agenda-vacio">Sin actividades para este mes.</p>';
       return;
     }
     if (vista === "dia") {
@@ -180,20 +215,36 @@
       const puede = editable && miActividad(x);
       $("#agenda-detalle-titulo").textContent=x.titulo;
       $("#agenda-detalle-contenido").innerHTML = `
-        <p>${safe(x.descripcion)}</p>
-        <div class="agenda-detalle-datos"><span>Tipo: ${safe(tituloTipo[x.tipo])}</span><span>Prioridad: ${safe(x.prioridad)}</span>
-        <span>Estado: ${safe(textoEstado(x.estado))}</span><span>Responsable: ${safe(x.responsable)}</span>
-        <span>Inicio: ${safe(fecha(x.inicio))}</span><span>Vencimiento: ${safe(fecha(x.vencimiento))}</span>
-        <span>Creador: ${safe(x.creado_por)}</span><span>SP: ${safe(x.referencia_sp || "No aplica")}</span>
-        <span>Repetición: ${safe(x.recurrencia)}</span></div>
+        <h3>Descripción</h3>
+        <div class="agenda-texto-enlaces">${x.descripcion ? conEnlaces(x.descripcion) : "Sin descripción."}</div>
+        <dl class="agenda-detalle-datos">
+          ${campoDetalle("Tipo", safe(tituloTipo[x.tipo] || x.tipo))}
+          ${campoDetalle("Prioridad", safe(x.prioridad))}
+          ${campoDetalle("Estado", safe(textoEstado(x.estado)))}
+          ${campoDetalle("Responsable", safe(x.responsable))}
+          ${campoDetalle("Inicio", safe(fecha(x.inicio, x.todo_el_dia)))}
+          ${campoDetalle("Vencimiento / final", safe(fecha(x.vencimiento, x.todo_el_dia)))}
+          ${campoDetalle("Creador", safe(x.creado_por))}
+          ${campoDetalle("SP", safe(x.referencia_sp || "No aplica"))}
+          ${campoDetalle("Repetición", safe(x.recurrencia))}
+          ${campoDetalle("Visibilidad", x.visibilidad === "personal" ? "Privada / participantes" : "Institucional / equipo")}
+          ${campoDetalle("Lugar / enlace", x.lugar ? conEnlaces(x.lugar) : "No especificado")}
+          ${campoDetalle("Modalidad", safe(({presencial:"Presencial",virtual:"Virtual",mixta:"Mixta"})[x.modalidad] || x.modalidad || "Sin definir"))}
+          ${campoDetalle("Requiere revisión del creador", x.requiere_revision ? "Sí" : "No")}
+          ${campoDetalle("Todo el día", x.todo_el_dia ? "Sí" : "No")}
+          ${campoDetalle("Progreso", safe(x.progreso) + "%")}
+          ${x.padre_id ? campoDetalle("Actividad principal", "#" + safe(x.padre_id)) : ""}
+        </dl>
         ${puede ? `<div class="agenda-acciones"><button type="button" class="agenda-boton" data-agenda-editar>Editar</button>
         <select id="agenda-estado-nuevo" aria-label="Estado">${["pendiente","en_proceso","en_revision","finalizada","bloqueada","cancelada"].map(e=>`<option value="${e}" ${e===x.estado?"selected":""}>${textoEstado(e)}</option>`).join("")}</select>
         <button type="button" class="agenda-boton agenda-primario" data-agenda-guardar-estado>Cambiar estado</button></div>` : ""}
         <h3>Subtareas (${subtareas.length})</h3><div class="agenda-lista">${subtareas.map(s=>`<button type="button" class="agenda-subtarea" data-agenda-detalle="${s.id}">☑ ${safe(s.titulo)} — ${safe(textoEstado(s.estado))}</button>`).join("") || "<p>Sin subtareas.</p>"}</div>
         ${puede && !x.padre_id ? '<button type="button" class="agenda-boton" data-agenda-subtarea>＋ Añadir subtarea</button>':""}
+        ${x.tipo === "tarea" ? `<h3>Participantes / colaboradores</h3><div class="agenda-lista">${data.asistencias.map(a=>`<p>${safe(a.nombre)}</p>`).join("") || "<p>Sin colaboradores adicionales.</p>"}</div>` : ""}
+        ${x.tipo !== "tarea" && !data.asistencias.length ? "<h3>Confirmaciones de asistencia</h3><p>Sin participantes registrados.</p>" : ""}
         ${x.tipo !== "tarea" && data.asistencias.length ? `<h3>Confirmaciones de asistencia</h3><div>${data.asistencias.map(a=>`<p>${safe(a.nombre)} — ${safe(a.respuesta)}</p>`).join("")}</div>
         ${data.asistencias.some(a=>a.usuario_id===currentId)?'<div class="agenda-acciones"><button type="button" class="agenda-boton" data-agenda-rsvp="aceptada">Asistiré</button><button type="button" class="agenda-boton" data-agenda-rsvp="rechazada">No asistiré</button></div>':""}` : ""}
-        <h3>Comentarios</h3><div class="agenda-lista">${notas.map(n=>`<p><strong>${safe(n.usuario)}:</strong> ${safe(n.texto)} <small>${safe(fecha(n.fecha))}</small></p>`).join("") || '<p>Sin comentarios todavía.</p>'}</div>
+        <h3>Comentarios</h3><div class="agenda-lista">${notas.map(n=>`<p class="agenda-texto-enlaces"><strong>${safe(n.usuario)}:</strong> ${conEnlaces(n.texto)} <small>${safe(fecha(n.fecha))}</small></p>`).join("") || '<p>Sin comentarios todavía.</p>'}</div>
         ${puede ? '<form id="agenda-form-comentario"><textarea name="texto" maxlength="2000" placeholder="Escriba una actualización…" required></textarea><button type="submit" class="agenda-boton">Agregar comentario</button></form>' : ""}`;
       $("#agenda-detalle-dialog").showModal();
     } catch(error) { notification(error.message); }
