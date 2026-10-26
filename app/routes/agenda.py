@@ -211,6 +211,8 @@ def crear():
              "Nueva actividad asignada", "Se le asignó: " + actividad.titulo,
              actividad.prioridad, omitir=current_user.id)
     auditoria("AGENDA_CREAR", actividad, "Actividad creada: " + actividad.titulo)
+    if actividad.lugar:
+        auditoria("AGENDA_LUGAR_ENLACE", actividad, "Campo lugar/enlace registrado al crear la actividad.")
     db.session.commit()
     return jsonify({"actividad": actividad.as_dict()}), 201
 
@@ -223,6 +225,7 @@ def modificar(id_):
     original = actividad.responsable_id
     fechas_anteriores = (actividad.inicio, actividad.vencimiento)
     titulo_anterior = actividad.titulo
+    lugar_anterior = actividad.lugar
     try:
         llenar(actividad, datos)
         nuevos = miembros_ids(datos) if "participantes" in datos else None
@@ -251,6 +254,8 @@ def modificar(id_):
                  current_user.nombre + " actualizó «" + actividad.titulo + "».",
                  actividad.prioridad, omitir=current_user.id)
     auditoria("AGENDA_EDITAR", actividad, "Actividad editada: " + actividad.titulo)
+    if lugar_anterior != actividad.lugar:
+        auditoria("AGENDA_LUGAR_ENLACE", actividad, "Campo lugar/enlace actualizado.")
     db.session.commit()
     return jsonify({"actividad": actividad.as_dict()})
 

@@ -139,3 +139,65 @@ def test_repeticion_semana_y_exportacion(sistema):
     respuesta=c.get("/agenda/api/reporte.csv")
     assert respuesta.status_code==200
     assert "text/csv" in respuesta.headers["Content-Type"]
+
+
+def test_detalle_con_enlaces_campos_y_auditoria_del_actor(sistema):
+    """Los eventos y tareas conservan el enlace y los metadatos completos."""
+    from app.models.bitacora import Bitacora
+
+    c = cliente(sistema, "uno")
+    enlace = "https://drive.google.com/drive/folders/ejemplo123"
+    r = crear(
+        c, titulo="Reunión de validación", tipo="evento",
+        descripcion="Material de apoyo:\nhttps://drive.google.com/file/d/referencia/view",
+        lugar=enlace, modalidad="virtual", referencia_sp="SP-001",
+        inicio="2099-10-26T08:00", vencimiento="2099-10-28T16:00",
+        todo_el_dia=True, requiere_revision=True, visibilidad="equipo",
+        recurrencia="ninguna", participantes=[2],
+    )
+    assert r.status_code == 201, r.get_data(as_text=True)
+    id_ = r.get_json()["actividad"]["id"]
+
+    detalle = c.get(f"/agenda/api/actividades/{id_}")
+    assert detalle.status_code == 200
+    datos = detalle.get_json()
+    actividad = datos["actividad"]
+    assert actividad["lugar"] == enlace
+    assert "drive.google.com/file/" in actividad["descripcion"]
+    for campo in ("tipo", "titulo", "descripcion", "prioridad", "estado", "visibilidad",
+                  "creado_por", "responsable", "inicio", "vencimiento", "todo_el_dia",
+                  "lugar", "modalidad", "recurrencia", "requiere_revision",
+                  "referencia_sp", "participantes", "progreso"):
+        assert campo in actividad, campo
+    assert actividad["tipo"] == "evento"
+    assert actividad["todo_el_dia"] is True
+    assert actividad["requiere_revision"] is True
+    assert actividad["modalidad"] == "virtual"
+    assert actividad["referencia_sp"] == "SP-001"
+    assert any(p["usuario_id"] == 2 for p in datos["asistencias"])
+
+    nuevo = "https://drive.google.com/drive/folders/actualizado456"
+    edicion = c.patch(f"/agenda/api/actividades/{id_}", json={"lugar": nuevo})
+    assert edicion.status_code == 200, edicion.get_data(as_text=True)
+    assert c.get(f"/agenda/api/actividades/{id_}").get_json()["actividad"]["lugar"] == nuevo
+    with sistema.app_context():
+        acciones = Bitacora.query.filter_by(accion="AGENDA_LUGAR_ENLACE", entidad_id=str(id_)).all()
+        assert len(acciones) == 2
+        assert all(a.usuario_id == 1 for a in acciones)
+        # La bitácora identifica al autor, pero no replica los enlaces en texto plano.
+        assert all("drive.google.com" not in (a.descripcion or "") for a in acciones)
+
+
+def test_detalle_frontend_incluye_enlaces_y_eventos_multidia(sistema):
+    c = cliente(sistema, "uno")
+    codigo = c.get("/static/js/agenda.js").get_data(as_text=True)
+    assert "function conEnlaces" in codigo
+    assert 'rel="noopener noreferrer"' in codigo
+    assert 'referrerpolicy="no-referrer"' in codigo
+    assert "conEnlaces(x.descripcion)" in codigo
+    assert "conEnlaces(x.lugar)" in codigo
+    assert "conEnlaces(n.texto)" in codigo
+    assert "ocupaDia(x, fechaISO)" in codigo
+    assert "fechaFin(x) >= inicioMes" in codigo
+    assert "Requiere revisión del creador" in codigo
+    assert "Todo el día" in codigo

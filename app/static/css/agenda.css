@@ -78,7 +78,13 @@
 .agenda-dialog .agenda-participantes label,.agenda-dialog .agenda-check,.agenda-modulo .agenda-check{display:flex;align-items:center;gap:7px}
 .agenda-participantes input,.agenda-check input{width:auto!important}
 .agenda-dialog .agenda-acciones{justify-content:flex-end}
-.agenda-detalle-datos{display:grid;grid-template-columns:1fr 1fr;gap:9px;background:#22334a;padding:12px;border-radius:8px}
+.agenda-detalle-datos{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;background:#22334a;padding:14px;border-radius:8px}
+.agenda-detalle-dato{min-width:0}
+.agenda-detalle-dato dt{font-size:12px;font-weight:600;color:#a9c8ed}
+.agenda-detalle-dato dd{margin:4px 0 0;overflow-wrap:anywhere;line-height:1.5}
+.agenda-texto-enlaces{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55}
+.agenda-texto-enlaces a,.agenda-detalle-dato a{color:#9fd8ff;text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere}
+@media(max-width:720px){.agenda-detalle-datos{grid-template-columns:minmax(0,1fr)}}
 .agenda-subtarea{display:block;text-align:left;background:#243850;color:#f5f8ff;border:1px solid #405876;border-radius:8px;padding:11px}
 #agenda-form-comentario textarea{width:100%;box-sizing:border-box}
 #agenda-toast{position:fixed;bottom:24px;right:24px;z-index:999999;background:#1f3d61;color:#fff;border:1px solid #6da6df;border-radius:10px;padding:15px 19px;opacity:0;pointer-events:none;transform:translateY(10px);transition:all 180ms}
