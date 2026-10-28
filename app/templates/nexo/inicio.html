@@ -20,8 +20,9 @@
   </div>
 
   <div class="nexo-kpis">
-    <article><span>Madurez de aprendizaje</span><strong data-kpi-level>0%</strong><i><b data-meter></b></i></article>
+    <article><span>Madurez documental estimada</span><strong data-kpi-level>0%</strong><i><b data-meter></b></i></article>
     <article><span>Verificaciones aprendidas</span><strong data-kpi-samples>0</strong><small>retroalimentación humana segura</small></article>
+    <article><span>Precisión de clasificación</span><strong data-kpi-precision>0%</strong><small>confirmaciones correctas</small></article>
     <article><span>Hallazgos técnicos</span><strong data-kpi-findings>0</strong><small>oportunidades detectadas</small></article>
     <article><span>Objetos estudiados</span><strong data-kpi-objects>0</strong><small>metadatos revisados</small></article>
   </div>
@@ -50,6 +51,46 @@
       </div>
       <div class="nexo-principle"><strong>NEXO recomienda; una persona decide.</strong><p>No modifica expedientes, no elimina información y no aplica cambios de código automáticamente. Los hallazgos quedan disponibles para revisión técnica.</p></div>
     </aside>
+  </div>
+
+
+  <div class="nexo-v2-grid">
+    <section class="nexo-card nexo-assistant" aria-labelledby="nexo-asistente-titulo">
+      <div class="section-head">
+        <div><span class="nexo-eyebrow dark">ASISTENTE ADMINISTRATIVO · IA LOCAL</span>
+          <h2 id="nexo-asistente-titulo">Conversar con NEXO</h2></div>
+        <span class="nexo-ai-label">Consultas agregadas · Solo lectura</span>
+      </div>
+      <p>Pregunta por incidencias, anexos, rectificaciones, alertas o mejoras. NEXO utiliza sólo indicadores agregados y propuestas validadas por reglas. Las preguntas no quedan almacenadas.</p>
+      <div class="nexo-chat-history" data-chat-history role="log" aria-live="polite">
+        <div class="nexo-chat-message nexo-chat-bot">Soy NEXO. Puedo explicar los indicadores disponibles, identificar prioridades y ayudarte a revisar propuestas de mejora, sin modificar los expedientes.</div>
+      </div>
+      <form class="nexo-chat-form" data-chat-form>
+        <label for="nexo-pregunta">Consulta administrativa</label>
+        <textarea id="nexo-pregunta" data-chat-input maxlength="600" minlength="3" rows="3" placeholder="¿Qué procesos necesitan mejoras y por qué?" required></textarea>
+        <div class="nexo-chat-actions">
+          <small data-chat-status>El análisis generativo requiere Ollama; hay un resumen de respaldo si no está disponible.</small>
+          <button class="nexo-refresh" data-chat-send type="submit">Preguntar a NEXO</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="nexo-card nexo-proposals" aria-labelledby="nexo-propuestas-titulo">
+      <div class="section-head">
+        <div><span class="nexo-eyebrow dark">MEMORIA Y REVISIÓN HUMANA</span>
+          <h2 id="nexo-propuestas-titulo">Propuestas administrativas</h2></div>
+        <button type="button" class="nexo-refresh" data-revision>Ejecutar revisión</button>
+      </div>
+      <p>Las propuestas se deduplican, conservan su decisión y sólo cambian de estado por un administrador. No ejecutan correcciones automáticas.</p>
+      <div class="nexo-indicadores" data-indicators aria-live="polite"></div>
+      <div class="nexo-review-summary" data-proposals-summary>Consultando memoria de NEXO…</div>
+      <p class="nexo-activity" data-nexo-activity>Sin historial de revisiones programadas.</p>
+      <div class="nexo-proposals-list" data-proposals-list></div>
+      <div class="nexo-report-footer">
+        <small data-last-review>Último análisis programado: sin confirmar.</small>
+        <a class="nexo-refresh" href="{{ url_for('nexo_ia.informe') }}" target="_blank" rel="noopener">Informe JSON</a>
+      </div>
+    </section>
   </div>
 
   <section class="nexo-card nexo-roadmap">

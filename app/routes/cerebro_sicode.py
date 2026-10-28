@@ -16,7 +16,7 @@ cerebro_sicode_bp = Blueprint(
 @cerebro_sicode_bp.route("/estado")
 @login_required
 def estado():
-    if not current_user.puede_modificar:
+    if current_user.rol != "administrador":
         abort(403)
 
     aprendidas = absorber_verificaciones_pendientes(usuario_id=current_user.id)
@@ -27,21 +27,4 @@ def estado():
     resultado["hallazgos_guardados_nuevos"] = nuevos_hallazgos
     resultado["esquema"] = esquema
 
-    # El detalle de recomendaciones es una superficie de desarrollo. Usuarios
-    # no administradores ven el estado y métricas, no el inventario técnico.
-    if current_user.rol != "administrador":
-        resultado["hallazgos"] = [
-            {
-                "categoria": h["categoria"],
-                "titulo": h["titulo"],
-                "prioridad": h["prioridad"],
-                "detalle": "Hallazgo registrado para revisión técnica del sistema.",
-            }
-            for h in resultado.get("hallazgos", [])[:5]
-        ]
-        resultado["esquema"] = {
-            "tablas_total": esquema["tablas_total"],
-            "columnas_total": esquema["columnas_total"],
-            "cambio_detectado": esquema["cambio_detectado"],
-        }
     return jsonify(resultado)

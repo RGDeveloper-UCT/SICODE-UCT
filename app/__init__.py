@@ -1,5 +1,7 @@
 from time import time
 
+import click
+
 from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 from flask_login import LoginManager, current_user
 from flask_migrate import Migrate
@@ -44,6 +46,7 @@ def create_app():
         PrestamoGrupo, PrestamoGrupoDetalle, TrasladoVirtualExpediente, ImportacionPortadores,
         VerificacionExpediente, PresenciaUsuario, AnexoRectificado, ServicioSoporteTecnico, AccesoCCT,
         FavoritoUsuario, AnalisisDocumental, SegmentoDocumental, AprendizajeDocumental, PatronAprendizajeDocumental,
+        NexoPropuesta,
     )
     from app.services.anexos_integridad_service import AnexoDuplicadoError
     from app.services.integridad_events import registrar_eventos_integridad
@@ -79,6 +82,19 @@ def create_app():
         app.register_blueprint(blueprint)
 
     instalar_registro_monitoreo(app)
+
+    @click.command("nexo-revisar")
+    def nexo_revisar():
+        """Analiza NEXO de manera controlada; invocable desde systemd/cron."""
+        from app.services.nexo_v2_service import ejecutar_revision
+        resultado = ejecutar_revision(usuario_id=None, origen="programada")
+        click.echo(
+            "NEXO: aprendizajes={aprendizajes_nuevos}, hallazgos={hallazgos_nuevos}, "
+            "propuestas={propuestas_nuevas}".format(**resultado)
+        )
+
+    app.cli.add_command(nexo_revisar)
+
 
     from app.services.sicode_ia_revision_rc_re import revision_rc_re
     app.view_functions["sicode_ia.revision"] = revision_rc_re

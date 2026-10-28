@@ -1,9 +1,10 @@
 import json
 from datetime import datetime
+from time import time
 from urllib import request as urlrequest
 from urllib.error import URLError
 
-from flask import Blueprint, Response, abort, current_app, jsonify, render_template
+from flask import Blueprint, Response, abort, current_app, jsonify, render_template, request, session
 from flask_login import current_user, login_required
 from sqlalchemy import text
 
@@ -12,6 +13,11 @@ from app.services.cerebro_sicode_absorber import absorber_verificaciones_pendien
 from app.services.cerebro_sicode_schema import inventariar_esquema_sicode
 from app.services.cerebro_sicode_service import analizar_sicode, guardar_hallazgos
 from app.services.nexo_export_service import construir_exportacion_nexo
+from app.services.nexo_v2_service import (
+    actividad_reciente, actualizar_estado, detectar_propuestas, ejecutar_revision, guardar_propuestas,
+    indicadores, resumen_propuestas, ultima_revision,
+)
+from app.services.nexo_chat_service import consultar_nexo
 
 
 nexo_ia_bp = Blueprint("nexo_ia", __name__, url_prefix="/nexo")
@@ -100,14 +106,13 @@ def _estado_postgresql():
 
 def _estado_ollama():
     base = current_app.config.get("OLLAMA_URL", "http://127.0.0.1:11434").rstrip("/")
-    modelo = current_app.config.get(
-        "DOCUMENT_ANALYSIS_AI_MODEL",
-        current_app.config.get("OLLAMA_MODEL", "qwen3:1.7b"),
-    )
+    modelo = current_app.config.get("NEXO_OLLAMA_MODEL") or current_app.config.get("OLLAMA_MODEL", "qwen3:1.7b")
     try:
         req = urlrequest.Request(f"{base}/api/tags", headers={"Accept": "application/json"})
         with urlrequest.urlopen(req, timeout=1.5) as response:
-            disponible = 200 <= response.status < 300
+            modelos = json.load(response).get("models", [])
+            disponible = (200 <= response.status < 300
+                          and any(m.get("name") == modelo or m.get("model") == modelo for m in modelos))
     except (URLError, TimeoutError, OSError, ValueError):
         disponible = False
     return {
@@ -143,7 +148,7 @@ def _identidad():
 @nexo_ia_bp.route("/")
 @login_required
 def inicio():
-    _exigir_acceso()
+    _exigir_administrador()
     return render_template("nexo/inicio.html")
 
 
@@ -209,7 +214,7 @@ def estado():
     las etapas, recupera la sesión de SQLAlchemy y muestra qué componente requiere
     revisión sin exponer SQL, credenciales ni contenido documental.
     """
-    _exigir_acceso()
+    _exigir_administrador()
 
     errores = []
     omitidas = []
@@ -256,6 +261,26 @@ def estado():
             if error:
                 errores.append(error)
 
+    # La inteligencia administrativa usa exclusivamente cifras agregadas.
+    # Una migración pendiente queda diagnosticada sin ocultar el panel histórico.
+    nexo_v2 = {
+        "indicadores": {}, "memoria": {"total": 0, "por_estado": {}, "propuestas": []},
+        "propuestas_nuevas": 0, "ultima_revision": None, "actividad": {},
+    }
+    if not error_db:
+        def analizar_v2():
+            cifras = indicadores()
+            nuevas = guardar_propuestas(detectar_propuestas(cifras))
+            return {
+                "indicadores": cifras, "propuestas_nuevas": nuevas,
+                "memoria": resumen_propuestas(), "ultima_revision": ultima_revision(),
+                "actividad": actividad_reciente(),
+            }
+        nexo_v2, error = _ejecutar_etapa("nexo_v2", analizar_v2, nexo_v2)
+        if error:
+            errores.append(error)
+
+    resultado["nexo_v2"] = nexo_v2
     resultado["retroalimentaciones_nuevas"] = aprendidas
     resultado["hallazgos_guardados_nuevos"] = nuevos_hallazgos
     resultado["esquema"] = esquema
@@ -299,3 +324,81 @@ def estado():
         }
 
     return jsonify(resultado)
+
+
+
+@nexo_ia_bp.route("/propuestas", methods=["GET"])
+@login_required
+def propuestas():
+    _exigir_administrador()
+    return jsonify(resumen_propuestas())
+
+
+@nexo_ia_bp.route("/propuestas/<int:propuesta_id>/estado", methods=["POST"])
+@login_required
+def revisar_propuesta(propuesta_id):
+    _exigir_administrador()
+    datos = request.get_json(silent=True) or {}
+    try:
+        resultado = actualizar_estado(
+            propuesta_id, str(datos.get("estado") or "").strip(),
+            current_user.id, str(datos.get("resultado") or "")[:240],
+        )
+    except ValueError:
+        return jsonify({"error": "Estado no válido"}), 400
+    if resultado is None:
+        abort(404)
+    return jsonify({"propuesta": resultado})
+
+
+@nexo_ia_bp.route("/chat", methods=["POST"])
+@login_required
+def chat():
+    _exigir_administrador()
+    if not request.is_json or request.content_length and request.content_length > 3000:
+        return jsonify({"error": "Se requiere JSON de tamaño limitado"}), 400
+    datos = request.get_json(silent=True) or {}
+    pregunta = datos.get("pregunta")
+    if not isinstance(pregunta, str) or not 3 <= len(pregunta.strip()) <= 600:
+        return jsonify({"error": "La consulta debe tener entre 3 y 600 caracteres"}), 400
+
+    # Límite sencillo por sesión para proteger el modelo local de solicitudes rápidas.
+    ahora = time()
+    if ahora - float(session.get("nexo_chat_ultimo", 0)) < 3:
+        return jsonify({"error": "Espere unos segundos antes de enviar otra consulta"}), 429
+    session["nexo_chat_ultimo"] = ahora
+    try:
+        cifras = indicadores()
+        memoria = resumen_propuestas(limite=12)
+        respuesta = consultar_nexo(pregunta, cifras, memoria["propuestas"])
+    except Exception as exc:
+        _registrar_error_etapa("chat", exc)
+        return jsonify({"error": "No fue posible consultar el asistente"}), 503
+    # No se guarda la pregunta, la respuesta ni el historial conversacional.
+    return jsonify(respuesta)
+
+
+@nexo_ia_bp.route("/revision", methods=["POST"])
+@login_required
+def revision_manual():
+    _exigir_administrador()
+    try:
+        resultado = ejecutar_revision(usuario_id=current_user.id, origen="manual")
+    except Exception as exc:
+        _registrar_error_etapa("revision_manual", exc)
+        return jsonify({"error": "No fue posible completar la revisión"}), 503
+    return jsonify({"revision": resultado, "memoria": resumen_propuestas()})
+
+
+@nexo_ia_bp.route("/informe", methods=["GET"])
+@login_required
+def informe():
+    _exigir_administrador()
+    return jsonify({
+        "version": "NEXO-2.0", "generado_en": datetime.utcnow().isoformat() + "Z",
+        "ultima_revision": ultima_revision(),
+        "actividad": actividad_reciente(),
+        "indicadores": indicadores(),
+        "memoria": resumen_propuestas(limite=100),
+        "nota": "Indicadores agregados y propuestas para revisión administrativa; no contiene expedientes.",
+    })

@@ -29,3 +29,4 @@ from app.models.coordinacion import (
     RemisionCoordinacion,
     RemisionExpediente,
 )
+from app.models.nexo import NexoPropuesta

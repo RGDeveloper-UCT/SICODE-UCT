@@ -1,0 +1,11 @@
+[Unit]
+Description=SICODE NEXO - Análisis administrativo diario
+
+[Timer]
+OnCalendar=*-*-* 04:20:00
+Persistent=true
+RandomizedDelaySec=10m
+Unit=sicode-nexo.service
+
+[Install]
+WantedBy=timers.target

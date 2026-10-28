@@ -44,6 +44,10 @@ class Config:
     OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:1.7b")
     OLLAMA_TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT", "60"))
 
+    # NEXO 2.0: consulta conversacional exclusivamente local y limitada.
+    NEXO_OLLAMA_MODEL = os.getenv("NEXO_OLLAMA_MODEL") or OLLAMA_MODEL
+    NEXO_OLLAMA_TIMEOUT = float(os.getenv("NEXO_OLLAMA_TIMEOUT", "25"))
+
     DOCUMENT_ANALYSIS_AI_ENABLED = os.getenv("DOCUMENT_ANALYSIS_AI_ENABLED", "true").lower() in {"1", "true", "yes", "si"}
     DOCUMENT_ANALYSIS_AI_MODEL = os.getenv("DOCUMENT_ANALYSIS_AI_MODEL", OLLAMA_MODEL)
     # El llamado puntual a IA debe tener un límite conservador. El worker RQ
