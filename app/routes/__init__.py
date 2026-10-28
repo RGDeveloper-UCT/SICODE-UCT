@@ -7,6 +7,7 @@ from app.routes.verificaciones import verificaciones_bp
 from app.routes.bitacora import bitacora_bp
 from app.routes.indice_documental import indice_documental_bp
 from app.routes import indice_documental_edicion as _indice_documental_edicion
+from app.routes import indice_documental_importacion as _indice_documental_importacion
 from app.routes.alertas import alertas_bp
 from app.routes.prestamos import prestamos_bp
 from app.routes.prestamos_grupales import prestamos_grupales_bp
@@ -44,3 +45,9 @@ from app.routes import admin_sicodeiav3 as _admin_sicodeiav3
 from app.routes import coordinacion_monitoreo_masivo as _coordinacion_monitoreo_masivo
 from app.routes import coordinacion_monitoreo_masivo_fisico as _coordinacion_monitoreo_masivo_fisico
 from app.routes import aprendizaje_documental as _aprendizaje_documental
+
+from app.routes.seguridad_informatica import seguridad_bp
+
+from app.routes.mantenimientos import mantenimientos_bp
+
+from app.routes.agenda import agenda_bp

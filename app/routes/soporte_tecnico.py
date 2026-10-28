@@ -28,6 +28,8 @@ from app.forms.soporte_tecnico_form import (
 )
 from app.models.coordinacion import ActividadCoordinacion, RegistroCoordinacion
 from app.models.soporte_tecnico import ServicioSoporteTecnico
+from app.models.equipo_institucional import EquipoInstitucional
+from app.models.personal_institucional import PersonalInstitucional
 from app.services.bitacora_service import registrar_bitacora
 
 
@@ -80,7 +82,62 @@ def _datos_bitacora(boleta):
     }
 
 
+def _opciones_vinculadas(form):
+    form.equipo_institucional_id.choices = [(0, "Sin vincular")] + [
+        (e.id, f"{e.codigo} — {e.nombre}") for e in EquipoInstitucional.query.order_by(EquipoInstitucional.codigo).all()
+    ]
+    form.personal_institucional_id.choices = [(0, "Sin vincular")] + [
+        (p.id, f"{p.nombre_completo} — {p.coordinacion}") for p in
+        PersonalInstitucional.query.filter_by(activo=True).order_by(PersonalInstitucional.nombre).all()
+    ]
+
+
+def _tipo_de_inventario(tipo):
+    """Equivalencia entre los tipos del Control 09 y los de boleta."""
+    return {
+        "COMPUTADORA": "PC", "PORTATIL": "LAPTOP",
+        "IMPRESORA": "IMPRESORA", "ESCANER": "ESCANER",
+    }.get(tipo, "OTRO")
+
+
+def _equipo_vinculado(form):
+    identificador = form.equipo_institucional_id.data or 0
+    if not identificador:
+        return None
+    return db.session.get(EquipoInstitucional, identificador)
+
+
+def _completar_vinculacion(form):
+    """El servidor resuelve la ficha del personal/equipo antes de validar el POST."""
+    personal_id = form.personal_institucional_id.data or 0
+    persona = db.session.get(PersonalInstitucional, personal_id) if personal_id else None
+    if persona:
+        form.usuario_solicitante.data = persona.nombre_completo
+        form.coordinacion_area.data = persona.coordinacion
+        if not (form.nombre_firma_usuario.data or "").strip():
+            form.nombre_firma_usuario.data = persona.nombre_completo
+        # Solo asignación inequívoca: si hay varios equipos debe escoger uno.
+        if not form.equipo_institucional_id.data:
+            candidatos = EquipoInstitucional.query.filter(
+                or_(EquipoInstitucional.responsable_personal_id == persona.id,
+                    EquipoInstitucional.usuario_habitual_personal_id == persona.id)
+            ).limit(2).all()
+            if len(candidatos) == 1:
+                form.equipo_institucional_id.data = candidatos[0].id
+    if not (form.nombre_firma_tecnico.data or "").strip():
+        form.nombre_firma_tecnico.data = form.tecnico_asignado.data or current_user.nombre
+    hoy = datetime.now().date()
+    if not form.fecha_firma_tecnico.data:
+        form.fecha_firma_tecnico.data = hoy
+    if not form.fecha_firma_usuario.data and form.nombre_firma_usuario.data:
+        form.fecha_firma_usuario.data = hoy
+    if form.estado_final.data != "PENDIENTE" and not form.fecha_hora_cierre.data:
+        form.fecha_hora_cierre.data = datetime.now().replace(second=0, microsecond=0)
+
+
 def _aplicar_formulario(boleta, form):
+    boleta.equipo_institucional_id = form.equipo_institucional_id.data or None
+    boleta.personal_institucional_id = form.personal_institucional_id.data or None
     boleta.fecha_hora_solicitud = form.fecha_hora_solicitud.data
     boleta.usuario_solicitante = form.usuario_solicitante.data.strip()
     boleta.puesto_cargo = _limpiar(form.puesto_cargo.data)
@@ -105,6 +162,17 @@ def _aplicar_formulario(boleta, form):
     boleta.numero_serie = _limpiar(form.numero_serie.data)
     boleta.inventario = _limpiar(form.inventario.data)
     boleta.ip_nombre_equipo = _limpiar(form.ip_nombre_equipo.data)
+    # Cuando se selecciona un activo existente, su ficha maestra manda.
+    # Evita guardar SICOIN, serie o modelo de un equipo diferente por
+    # datos antiguos del navegador. Las boletas sin activo siguen libres.
+    equipo = _equipo_vinculado(form)
+    if equipo:
+        boleta.inventario = equipo.codigo
+        boleta.numero_serie = equipo.serie
+        boleta.marca_modelo = " ".join(x for x in (equipo.marca, equipo.modelo) if x) or None
+        boleta.ip_nombre_equipo = equipo.ip_estatica or equipo.nombre
+        boleta.tipo_equipo = _tipo_de_inventario(equipo.tipo)
+        boleta.tipo_equipo_otro = equipo.tipo if boleta.tipo_equipo == "OTRO" else None
 
     boleta.descripcion_solicitud = form.descripcion_solicitud.data.strip()
     boleta.diagnostico_trabajo = _limpiar(form.diagnostico_trabajo.data)
@@ -125,13 +193,20 @@ def _aplicar_formulario(boleta, form):
 def _preparar_formulario_get(form, boleta=None):
     if boleta is None:
         form.fecha_hora_solicitud.data = datetime.now().replace(second=0, microsecond=0)
+        form.equipo_institucional_id.data = 0
+        form.personal_institucional_id.data = 0
         form.tecnico_asignado.data = current_user.nombre
         form.nombre_firma_tecnico.data = current_user.nombre
         form.estado_final.data = "PENDIENTE"
         form.seguimiento.data = "NO"
+        form.fecha_firma_usuario.data = datetime.now().date()
+        form.fecha_firma_tecnico.data = datetime.now().date()
         return
 
     form.seguimiento.data = "SI" if boleta.seguimiento else "NO"
+    form.equipo_institucional_id.data = boleta.equipo_institucional_id or 0
+    # La ficha del inventario se refleja siempre durante la edición.
+    form.personal_institucional_id.data = boleta.personal_institucional_id or 0
 
 
 @soporte_tecnico_bp.route("")
@@ -201,9 +276,12 @@ def listado():
 @login_required
 def nuevo():
     form = SoporteTecnicoForm()
+    _opciones_vinculadas(form)
     if request.method == "GET":
         _preparar_formulario_get(form)
 
+    if request.method == "POST":
+        _completar_vinculacion(form)
     if form.validate_on_submit():
         registro = RegistroCoordinacion(
             tipo="ACTIVIDAD",
@@ -257,6 +335,8 @@ def nuevo():
         "soporte_tecnico/formulario.html",
         form=form,
         boleta=None,
+        personal_opciones={p.id:p for p in PersonalInstitucional.query.all()},
+        equipos_opciones={e.id:e for e in EquipoInstitucional.query.all()},
     )
 
 
@@ -277,9 +357,12 @@ def detalle(boleta_id):
 def editar(boleta_id):
     boleta = ServicioSoporteTecnico.query.get_or_404(boleta_id)
     form = SoporteTecnicoForm(obj=boleta)
+    _opciones_vinculadas(form)
     if request.method == "GET":
         _preparar_formulario_get(form, boleta)
 
+    if request.method == "POST":
+        _completar_vinculacion(form)
     if form.validate_on_submit():
         anteriores = _datos_bitacora(boleta)
         _aplicar_formulario(boleta, form)
@@ -315,6 +398,8 @@ def editar(boleta_id):
         "soporte_tecnico/formulario.html",
         form=form,
         boleta=boleta,
+        personal_opciones={p.id:p for p in PersonalInstitucional.query.all()},
+        equipos_opciones={e.id:e for e in EquipoInstitucional.query.all()},
     )
 
 

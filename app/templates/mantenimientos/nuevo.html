@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Registrar mantenimiento — Control 09{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+ <div class="encabezado-modulo"><div><h1>🛠️ Registrar mantenimiento</h1><p>Control 09 · Identificar activo institucional</p></div><a class="boton-secundario" href="{{ url_for('mantenimientos.listado') }}">← Mantenimientos</a></div>
+ <div class="tarjeta"><p><b>Inventario único:</b> seleccione un equipo existente. Si aún no está inventariado, regístrelo primero con el formulario completo del Control 09. Allí se validará SICOIN y serie para impedir duplicados.</p><a class="boton-secundario" href="{{ url_for('seguridad.nuevo') }}">+ Registrar equipo nuevo en inventario</a></div>
+ <form method="post" class="tarjeta" style="margin-top:16px">
+ <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+ <div class="campo"><label for="busqueda_equipo">Buscar SICOIN, equipo o persona asignada</label><input id="busqueda_equipo" type="search" placeholder="Filtrar equipos de inventario" autocomplete="off"></div>
+ <div class="campo"><label for="equipo_id">Equipo del inventario *</label><select required name="equipo_id" id="equipo_id"><option value="">Seleccionar equipo</option>
+ {% for e in equipos %}
+ {% set asignado = e.nombre_responsable if e.nombre_responsable != 'Sin asignación' else e.nombre_usuario_habitual %}
+ <option value="{{ e.id }}" data-busqueda="{{ (e.codigo ~ ' ' ~ e.nombre ~ ' ' ~ asignado ~ ' ' ~ e.nombre_usuario_habitual)|lower }}">{{ e.codigo }} · {{ e.nombre }} · {{ asignado }}</option>
+ {% endfor %}
+ </select></div>
+ <div class="campo"><label for="tipo">Tipo de mantenimiento</label><select name="tipo" id="tipo"><option value="PREVENTIVO">Preventivo</option><option value="CORRECTIVO">Correctivo</option><option value="MIXTO">Mixto</option></select></div>
+ <div class="campo"><label for="boleta_id">ID interno de boleta de soporte vinculada (opcional)</label><input type="number" min="1" name="boleta_id" id="boleta_id"><small>Solo se permite vincular una boleta asociada al mismo equipo.</small></div>
+ <button type="submit" class="boton">Crear borrador de mantenimiento</button>
+ </form>
+</section>
+<script>
+(()=>{const q=document.getElementById('busqueda_equipo'),s=document.getElementById('equipo_id');q.addEventListener('input',()=>{const v=q.value.toLowerCase().trim();for(const o of s.options){if(!o.value)continue;o.hidden=!!v&&!o.dataset.busqueda.includes(v)}if(s.selectedOptions[0]?.hidden)s.value='';});})();
+</script>
+{% endblock %}

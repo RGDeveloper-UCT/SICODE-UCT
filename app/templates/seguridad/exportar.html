@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Exportar Inventario Tecnológico — SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+  <div class="encabezado-modulo"><div><h1>📤 Exportar Inventario Tecnológico</h1>
+    <p>Seleccione el formato y los campos que desea incluir en el reporte.</p></div>
+    <a class="boton-secundario" href="{{ url_for('seguridad.inicio') }}">← Inventario Tecnológico</a>
+  </div>
+  <form method="post" class="tarjeta">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <fieldset style="border:1px solid #475569;border-radius:8px;padding:14px;margin:12px 0">
+      <legend>Formato de exportación</legend>
+      <label style="margin-right:22px"><input type="radio" name="formato" value="xlsx" {% if request.args.get('formato','xlsx')=='xlsx' %}checked{% endif %}> Excel (.xlsx)</label>
+      <label><input type="radio" name="formato" value="pdf" {% if request.args.get('formato')=='pdf' %}checked{% endif %}> PDF (.pdf)</label>
+    </fieldset>
+    <fieldset style="border:1px solid #475569;border-radius:8px;padding:14px;margin:12px 0">
+      <legend>Campos del inventario</legend>
+      <label style="font-weight:700"><input type="checkbox" name="campos" value="todos" id="todos-campos" checked> Todos los campos</label>
+      <p>O seleccione solamente uno o varios campos:</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px">
+        {% for clave, item in campos.items() %}
+        <label><input type="checkbox" class="campo-individual" name="campos" value="{{ clave }}" checked> {{ item[0] }}</label>
+        {% endfor %}
+      </div>
+    </fieldset>
+    <p>El reporte incluye los registros del inventario, tanto equipos principales como equipos adicionales, respetando los campos seleccionados. Se registrará la exportación en bitácora.</p>
+    <button type="submit" class="boton">Generar archivo de exportación</button>
+  </form>
+</section>
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+ const todos=document.getElementById("todos-campos"), campos=[...document.querySelectorAll(".campo-individual")];
+ todos.addEventListener("change",()=>campos.forEach(c=>c.checked=todos.checked));
+ campos.forEach(c=>c.addEventListener("change",()=>{todos.checked=campos.every(x=>x.checked);}));
+});
+</script>
+{% endblock %}

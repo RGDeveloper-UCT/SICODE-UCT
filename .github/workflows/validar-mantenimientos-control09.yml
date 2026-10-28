@@ -1,0 +1,32 @@
+name: Validar Mantenimientos Control 09
+on:
+  push:
+    branches:
+      - feature/control09-mantenimientos-20261021
+  workflow_dispatch:
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: sqlite:///sicode_mantenimientos_test.sqlite3
+      SECRET_KEY: ci-mantenimientos-test
+      SESSION_COOKIE_SECURE: "false"
+      AI_SEARCH_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Validar sintaxis
+        run: python -m compileall -q app migrations tests
+      - name: Validar JavaScript de boletas
+        run: |
+          node --check app/static/js/soporte_vinculacion_inventario.js
+          node --check app/static/js/soporte_tecnico.js
+      - name: Validar migraciones
+        run: python -m flask --app run.py db heads
+      - name: Probar Control 09, boletas y mantenimientos
+        run: pytest -q tests/test_seguridad_inventario_09.py tests/test_soporte_tecnico.py tests/test_mantenimientos_control09.py tests/test_csrf_referer.py

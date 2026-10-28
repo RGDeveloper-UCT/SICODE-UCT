@@ -60,6 +60,16 @@
                     {% for error in form.coordinacion_area.errors %}<span class="error-campo">{{ error }}</span>{% endfor %}
                 </div>
                 <div class="campo campo-doble">
+                    <label>Personal institucional (registro compartido)</label>
+                    <select name="personal_institucional_id" id="personal_institucional_id">
+                        {% for valor,etiqueta in form.personal_institucional_id.choices %}
+                        {% set p = personal_opciones.get(valor) %}
+                        <option value="{{ valor }}" data-nombre="{{ p.nombre_completo if p else '' }}" data-area="{{ p.coordinacion if p else '' }}" {% if form.personal_institucional_id.data == valor %}selected{% endif %}>{{ etiqueta }}</option>
+                        {% endfor %}
+                    </select>
+                    <small>Al seleccionar, reutiliza nombre y coordinación.</small>
+                </div>
+                <div class="campo campo-doble">
                     {{ form.tecnico_asignado.label }}
                     {{ form.tecnico_asignado() }}
                     <small>Por defecto se usa el usuario que inició sesión.</small>
@@ -131,6 +141,24 @@
         <section class="soporte-paso soporte-paso-equipo" data-equipo-section hidden>
             <div class="soporte-paso-titulo"><span>5</span><div><h2>Identificación del equipo</h2><p>Complete solo lo disponible.</p></div></div>
             <div class="grid-form soporte-grid-5">
+                <div class="campo campo-doble">
+                    <label for="equipo_institucional_id">Equipo institucional (Inventario Tecnológico · SICOIN)</label>
+                    <input type="search" id="buscar_equipo_inventario" placeholder="Buscar SICOIN, serie o nombre" autocomplete="off" aria-label="Buscar equipo del inventario">
+                    <select name="equipo_institucional_id" id="equipo_institucional_id">
+                        {% for valor,etiqueta in form.equipo_institucional_id.choices %}
+                        {% set e = equipos_opciones.get(valor) %}
+                        <option value="{{ valor }}" data-sicoin="{{ e.codigo if e else '' }}" data-serie="{{ e.serie or '' if e else '' }}" data-marca="{{ ((e.marca or '') ~ ' ' ~ (e.modelo or ''))|trim if e else '' }}" data-ip="{{ e.ip_estatica or '' if e else '' }}" data-tipo="{{ e.tipo if e else '' }}" data-nombre="{{ e.nombre if e else '' }}" data-usuario="{{ e.nombre_usuario_habitual if e and e.usuario_habitual else '' }}" data-habitual-id="{{ e.usuario_habitual_personal_id or '' if e else '' }}" data-custodio-id="{{ e.responsable_personal_id or '' if e else '' }}" data-custodio="{{ e.nombre_responsable if e else '' }}" data-acceso="{{ 'Sí' if e and e.acceso_institucional else 'No' }}" data-tipo-acceso="{{ e.tipo_acceso or '' if e else '' }}" data-estado="{{ e.estado or '' if e else '' }}" data-area="{{ e.area or '' if e else '' }}" data-ubicacion="{{ e.ubicacion or '' if e else '' }}" {% if form.equipo_institucional_id.data == valor %}selected{% endif %}>{{ etiqueta }}</option>
+                        {% endfor %}
+                    </select>
+                    <small>Al elegir personal se buscan sus equipos asignados; elija uno si hay varios. Se completa la ficha del inventario. Las boletas sin equipo pueden continuar sin vinculación. <a href="{{ url_for('seguridad.inicio') }}">Abrir Inventario Tecnológico</a></small>
+                </div>
+                <div class="campo campo-doble"><small id="mensaje-equipo-asignado" role="status" aria-live="polite">Elija un integrante del personal para buscar equipos asignados.</small></div>
+                <div class="campo"><label for="inventario_area">Área del equipo</label><input id="inventario_area" readonly placeholder="Según inventario"></div>
+                <div class="campo"><label for="inventario_ubicacion">Ubicación</label><input id="inventario_ubicacion" readonly placeholder="Según inventario"></div>
+                <div class="campo"><label for="inventario_custodio">Custodio</label><input id="inventario_custodio" readonly placeholder="Según inventario"></div>
+                <div class="campo"><label for="inventario_habitual">Usuario habitual</label><input id="inventario_habitual" readonly placeholder="Según inventario"></div>
+                <div class="campo"><label for="inventario_acceso">Tipo de acceso</label><input id="inventario_acceso" readonly placeholder="Según inventario"></div>
+                <div class="campo"><label for="inventario_estado">Estado del equipo</label><input id="inventario_estado" readonly placeholder="Según inventario"></div>
                 <div class="campo">{{ form.tipo_equipo.label }}{{ form.tipo_equipo() }}</div>
                 <div class="campo" data-tipo-equipo-otro hidden>{{ form.tipo_equipo_otro.label }}{{ form.tipo_equipo_otro() }}</div>
                 <div class="campo">{{ form.marca_modelo.label }}{{ form.marca_modelo() }}</div>
@@ -195,4 +223,6 @@
     </form>
 </section>
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('static', filename='js/soporte_tecnico.js') }}" defer></script>{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/soporte_vinculacion_inventario.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/soporte_tecnico.js') }}" defer></script>{% endblock %}

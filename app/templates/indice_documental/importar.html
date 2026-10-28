@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Importar índice documental — SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+  <div class="encabezado-modulo">
+    <div><h1>Importar índice documental</h1><p>SP {{ expediente.no_sp }} · {{ expediente.codigo_interno }}</p></div>
+    <a class="boton-cancelar" href="{{ url_for('indice_documental.listado', expediente_id=expediente.id) }}">Volver al índice</a>
+  </div>
+  <div class="aviso">Solo metadatos. Adjunte el Excel generado para el SP, hoja <strong>Indice</strong>. Cada anexo conserva su foliación independiente. La importación no reemplaza documentos existentes.</div>
+  <form method="post" enctype="multipart/form-data" class="formulario">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="accion" value="previsualizar">
+    <div class="campo"><label for="archivo">Archivo .xlsx o .csv (máximo 1 MB)</label>
+    <input id="archivo" type="file" name="archivo" accept=".xlsx,.csv" required></div>
+    <div class="acciones"><button type="submit" class="boton">Validar y previsualizar</button></div>
+  </form>
+  {% if registros %}
+    <h2>Vista previa — {{ registros|length }} registros</h2>
+    {% if alertas %}
+      <div class="aviso"><strong>Importación bloqueada:</strong><ul>{% for alerta in alertas %}<li>{{ alerta }}</li>{% endfor %}</ul></div>
+    {% else %}
+      <div class="aviso">Los rangos son consecutivos y no se detectaron traslapes internos. Los documentos quedarán <strong>pendientes de revisión</strong> según el Excel; confirme únicamente tras revisar los datos.</div>
+    {% endif %}
+    <div class="tabla-contenedor" style="max-height:420px;overflow:auto"><table>
+      <thead><tr><th>Ámbito</th><th>Orden</th><th>Documento</th><th>Folios</th><th>Estado</th></tr></thead>
+      <tbody>{% for r in registros %}
+        <tr><td>{{ ('Anexo ' ~ r.numero ~ ' — ' ~ r.titulo) if r.numero else 'Principal' }}</td>
+        <td>{{ r.orden }}</td><td>{{ r.nombre }}</td><td>{{ r.inicio }}–{{ r.fin }}</td><td>{{ r.estado }}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% if not alertas %}
+      <form method="post" onsubmit="return confirm('¿Confirma importar todos los metadatos al SP {{ expediente.no_sp }}?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="accion" value="confirmar">
+        <input type="hidden" name="token" value="{{ token }}">
+        <div class="acciones"><button type="submit" class="boton">Confirmar importación de {{ registros|length }} registros</button></div>
+      </form>
+    {% endif %}
+  {% endif %}
+</section>
+{% endblock %}
