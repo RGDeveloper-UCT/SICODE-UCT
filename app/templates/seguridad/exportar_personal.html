@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Exportar PERSONAL UCT — SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+  <div class="encabezado-modulo"><div>
+    <h1>📤 Exportar PERSONAL UCT</h1>
+    <p>Seleccione el formato y los campos que desea incluir en el reporte institucional.</p>
+  </div>
+  <a class="boton-secundario" href="{{ url_for('seguridad.personal_uct') }}">← PERSONAL UCT</a></div>
+  <form method="post" class="tarjeta">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <fieldset style="border:1px solid #475569;border-radius:8px;padding:14px;margin:12px 0">
+      <legend>Formato</legend>
+      <label style="margin-right:22px"><input type="radio" name="formato" value="xlsx"
+        {% if request.args.get('formato','xlsx') == 'xlsx' %}checked{% endif %}> Excel (.xlsx)</label>
+      <label><input type="radio" name="formato" value="pdf"
+        {% if request.args.get('formato') == 'pdf' %}checked{% endif %}> PDF (.pdf)</label>
+    </fieldset>
+    <fieldset style="border:1px solid #475569;border-radius:8px;padding:14px;margin:12px 0">
+      <legend>Campos a exportar</legend>
+      <label><input type="checkbox" id="todos" name="campos" value="todos" checked> <strong>Todos los campos</strong></label>
+      <p>O elija uno o varios:</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
+      {% for clave, item in campos.items() %}
+        <label><input type="checkbox" class="campo" name="campos" value="{{ clave }}" checked> {{ item[0] }}</label>
+      {% endfor %}
+      </div>
+    </fieldset>
+    <p>La descarga incluye el directorio completo y lleva fecha, hora, origen y usuario exportador. La actividad quedará registrada en bitácora.</p>
+    <button class="boton" type="submit">Generar reporte</button>
+  </form>
+</section>
+<script>
+document.addEventListener("DOMContentLoaded",function(){
+  const todos=document.getElementById("todos");
+  const campos=[...document.querySelectorAll(".campo")];
+  todos.addEventListener("change",()=>campos.forEach(c=>c.checked=todos.checked));
+  campos.forEach(c=>c.addEventListener("change",()=>{todos.checked=campos.every(x=>x.checked);}));
+});
+</script>
+{% endblock %}

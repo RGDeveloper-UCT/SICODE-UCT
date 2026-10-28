@@ -217,3 +217,69 @@ def test_pdf_limpio_y_ruta_nueva(app_soporte, cliente_soporte):
         auditoria = Bitacora.query.filter_by(accion="EXPORTAR_BOLETA_SOPORTE_PDF").order_by(Bitacora.id.desc()).first()
         assert auditoria is not None
         assert auditoria.datos_posteriores["modo"] == "solo_campos_con_datos_una_hoja"
+
+
+def test_boleta_autocompleta_desde_personal_y_equipo_unico(app_soporte, cliente_soporte):
+    from app.models.personal_institucional import PersonalInstitucional
+    from app.models.equipo_institucional import EquipoInstitucional
+    with app_soporte.app_context():
+        persona = PersonalInstitucional(nombre="Elena", apellido="Ejemplo",
+                                        coordinacion="Coordinación de pruebas")
+        db.session.add(persona)
+        db.session.flush()
+        tecnico = Usuario.query.filter_by(usuario="tecnico-prueba").one()
+        equipo = EquipoInstitucional(
+            codigo="SICOIN-AUTOMATICO-01", nombre="PC Control 09",
+            tipo="COMPUTADORA", marca="Dell", modelo="OptiPlex",
+            serie="SERIE-AUTO-01", ip_estatica="192.0.2.22",
+            area="Coordinación de pruebas", responsable_personal_id=persona.id,
+            usuario_habitual_personal_id=persona.id, creado_por_id=tecnico.id)
+        db.session.add(equipo)
+        db.session.commit()
+        persona_id = persona.id
+        equipo_id = equipo.id
+    html = cliente_soporte.get("/coordinacion/soporte-tecnico/nuevo").get_data(as_text=True)
+    assert "soporte_vinculacion_inventario.js" in html
+    assert "inventario_custodio" in html
+    assert f'data-habitual-id="{persona_id}"' in html
+    datos = _datos_boleta()
+    datos.update(personal_institucional_id=str(persona_id), equipo_institucional_id="0",
+                 usuario_solicitante="", coordinacion_area="",
+                 numero_serie="INCORRECTA", inventario="INCORRECTO",
+                 nombre_firma_usuario="", nombre_firma_tecnico="",
+                 fecha_firma_usuario="", fecha_firma_tecnico="")
+    respuesta = cliente_soporte.post("/coordinacion/soporte-tecnico/nuevo", data=datos)
+    assert respuesta.status_code == 302
+    with app_soporte.app_context():
+        boleta = ServicioSoporteTecnico.query.one()
+        assert boleta.personal_institucional_id == persona_id
+        assert boleta.equipo_institucional_id == equipo_id
+        assert boleta.usuario_solicitante == "Elena Ejemplo"
+        assert boleta.coordinacion_area == "Coordinación de pruebas"
+        assert boleta.numero_serie == "SERIE-AUTO-01"
+        assert boleta.inventario == "SICOIN-AUTOMATICO-01"
+        assert boleta.ip_nombre_equipo == "192.0.2.22"
+        assert boleta.nombre_firma_usuario == "Elena Ejemplo"
+        assert boleta.nombre_firma_tecnico == "Técnico Prueba"
+        assert boleta.fecha_firma_usuario is not None
+        assert boleta.fecha_firma_tecnico is not None
+
+
+def test_personal_con_varios_equipos_no_se_asigna_arbitrariamente(app_soporte, cliente_soporte):
+    from app.models.personal_institucional import PersonalInstitucional
+    from app.models.equipo_institucional import EquipoInstitucional
+    with app_soporte.app_context():
+        persona = PersonalInstitucional(nombre="Pablo", apellido="Prueba", coordinacion="Área")
+        db.session.add(persona)
+        db.session.flush()
+        tecnico = Usuario.query.filter_by(usuario="tecnico-prueba").one()
+        for codigo in ("MULTI-A", "MULTI-B"):
+            db.session.add(EquipoInstitucional(codigo=codigo, nombre="Equipo "+codigo,
+                tipo="COMPUTADORA", responsable_personal_id=persona.id, creado_por_id=tecnico.id))
+        db.session.commit()
+        persona_id = persona.id
+    datos = _datos_boleta()
+    datos.update(personal_institucional_id=str(persona_id), equipo_institucional_id="0")
+    assert cliente_soporte.post("/coordinacion/soporte-tecnico/nuevo", data=datos).status_code == 302
+    with app_soporte.app_context():
+        assert ServicioSoporteTecnico.query.one().equipo_institucional_id is None

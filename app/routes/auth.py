@@ -65,6 +65,7 @@ def login():
         if usuario and check_password_hash(usuario.password_hash, password):
             login_user(usuario)
             session.permanent = True
+            session['agenda_login_pendiente'] = True
 
             registrar_bitacora(
                 accion="LOGIN_EXITOSO",

@@ -158,7 +158,7 @@ def exportar_excel():
     )
 
 
-    
+
 @bitacora_bp.route("/bitacora/exportar/completo")
 @login_required
 def exportar_completo():
