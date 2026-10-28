@@ -111,3 +111,25 @@
 
 .agenda-cumple-invitacion{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:14px 0;padding:16px;background:#252f49;border:1px solid #43578a;border-radius:10px}
 .agenda-cumple-invitacion strong{color:#f9e5ff}.agenda-cumple-invitacion p{margin:3px 0;font-size:12px}
+
+
+/* Papelera recuperable de tareas, eventos y subtareas */
+.agenda-titulo-acciones{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.agenda-papelera{position:relative}
+.agenda-papelera>summary{list-style:none;cursor:pointer;display:flex;gap:8px;align-items:center;justify-content:center;color:#e4edfc;background:#26364c;border:1px solid #526887;border-radius:9px;padding:10px 14px;font-size:13px;font-weight:700}
+.agenda-papelera>summary::-webkit-details-marker{display:none}
+.agenda-papelera>summary:hover,.agenda-papelera[open]>summary{background:#304562;border-color:#84a5d5}
+.agenda-papelera>summary:focus-visible{outline:2px solid #7eb1fa;outline-offset:3px}
+#agenda-total-eliminadas{background:#152337;border-radius:10px;padding:2px 8px;font-variant-numeric:tabular-nums}
+.agenda-papelera-panel{position:absolute;right:0;top:calc(100% + 9px);width:min(440px,86vw);max-height:min(520px,70vh);overflow-y:auto;z-index:110;background:#152233;border:1px solid #556c8b;border-radius:11px;padding:15px;box-shadow:0 16px 42px #020810b8}
+.agenda-papelera-panel h2{font-size:16px;margin:0 0 5px}
+.agenda-papelera-panel p{font-size:12px;margin:0 0 12px}
+.agenda-papelera-item{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #38506f;background:#1b2a3e;border-radius:9px;padding:11px;margin:7px 0}
+.agenda-papelera-item>div{min-width:0;display:grid;gap:5px}
+.agenda-papelera-item strong{overflow-wrap:anywhere;color:#f3f6ff}
+.agenda-papelera-item small{color:#bbcce4;font-size:11px}
+.agenda-restaurar{white-space:nowrap;color:#e6fff5;border-color:#328875;background:#1a5749}
+.agenda-restaurar:hover{background:#226958;border-color:#58bfa8}
+.agenda-peligro{background:#4a2331;border-color:#a74d62;color:#ffdee5}
+.agenda-peligro:hover{background:#673043;border-color:#d26984}
+@media(max-width:720px){.agenda-titulo{align-items:flex-start;flex-wrap:wrap}.agenda-titulo-acciones{width:100%}.agenda-papelera-panel{left:0;right:auto;width:min(410px,88vw)}.agenda-papelera-item{align-items:stretch;flex-direction:column}}

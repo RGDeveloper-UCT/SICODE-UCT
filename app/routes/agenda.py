@@ -40,7 +40,7 @@ def permitido():
 
 def actividad_visible(id_):
     actividad = db.session.get(AgendaActividad, id_)
-    if not actividad:
+    if not actividad or actividad.eliminado_en is not None:
         abort(404)
     if not puede_ver(current_user, actividad):
         abort(403)
@@ -173,13 +173,79 @@ def listar():
     return jsonify({"actividades": [a.as_dict() for a in actividades]})
 
 
+@agenda_bp.get("/api/eliminadas")
+@login_required
+def listar_eliminadas():
+    """Papelera del usuario: solo registros que puede restaurar."""
+    if not current_user.puede_modificar:
+        return jsonify({"actividades": []})
+    consulta = visible_query(current_user, incluir_eliminadas=True).filter(
+        AgendaActividad.eliminado_en.isnot(None))
+    registros = consulta.order_by(AgendaActividad.eliminado_en.desc(), AgendaActividad.id.desc()).limit(500).all()
+    return jsonify({"actividades": [a.as_dict() for a in registros
+        if puede_editar(current_user, a) and
+        (not a.padre or a.padre.eliminado_en is None)]})
+
+
+@agenda_bp.post("/api/actividades/<int:id_>/eliminar")
+@login_required
+def eliminar_actividad(id_):
+    """Eliminación lógica: no se pierden asistentes, comentarios ni fechas."""
+    actividad = editable(id_)
+    instante = ahora_gt()
+
+    def marcar(a):
+        a.eliminado_en = instante
+        a.eliminado_por_id = current_user.id
+
+    marcar(actividad)
+    # Si se elimina una tarea padre, sus subtareas activas se ocultan juntas.
+    # Se conservan las subtareas previamente eliminadas para no restaurarlas por error.
+    if not actividad.padre_id:
+        for subtarea in actividad.subtareas:
+            if subtarea.eliminado_en is None:
+                marcar(subtarea)
+    auditoria("AGENDA_ELIMINAR", actividad, "Actividad enviada a Eliminadas: " + actividad.titulo)
+    db.session.commit()
+    return jsonify({"ok": True, "actividad": actividad.as_dict()})
+
+
+@agenda_bp.post("/api/actividades/<int:id_>/restaurar")
+@login_required
+def restaurar_actividad(id_):
+    actividad = db.session.get(AgendaActividad, id_)
+    if not actividad:
+        abort(404)
+    if not puede_ver(current_user, actividad) or not puede_editar(current_user, actividad):
+        abort(403)
+    if actividad.eliminado_en is None:
+        return json_error("La actividad ya está activa.", 409)
+    if actividad.padre and actividad.padre.eliminado_en is not None:
+        return json_error("Debe restaurar primero la actividad principal.", 409)
+
+    instante, actor = actividad.eliminado_en, actividad.eliminado_por_id
+
+    def recuperar(a):
+        a.eliminado_en = None
+        a.eliminado_por_id = None
+
+    recuperar(actividad)
+    if not actividad.padre_id:
+        for subtarea in actividad.subtareas:
+            if subtarea.eliminado_en == instante and subtarea.eliminado_por_id == actor:
+                recuperar(subtarea)
+    auditoria("AGENDA_RESTAURAR", actividad, "Actividad restaurada: " + actividad.titulo)
+    db.session.commit()
+    return jsonify({"ok": True, "actividad": actividad.as_dict()})
+
+
 @agenda_bp.get("/api/actividades/<int:id_>")
 @login_required
 def detalle(id_):
     actividad = actividad_visible(id_)
     return jsonify({
         "actividad": actividad.as_dict(),
-        "subtareas": [a.as_dict() for a in actividad.subtareas if puede_ver(current_user, a)],
+        "subtareas": [a.as_dict() for a in actividad.subtareas if a.eliminado_en is None and puede_ver(current_user, a)],
         "comentarios": [{
             "id": c.id, "usuario": c.usuario.nombre if c.usuario else "",
             "texto": c.texto, "fecha": c.creado_en.isoformat()
@@ -270,7 +336,7 @@ def cambiar_estado(id_):
         return json_error("Estado inválido.")
     if estado == "finalizada" and actividad.requiere_revision and current_user.id != actividad.creado_por_id:
         estado = "en_revision"
-    if estado == "finalizada" and any(s.estado not in ("finalizada", "cancelada") for s in actividad.subtareas):
+    if estado == "finalizada" and any(s.eliminado_en is None and s.estado not in ("finalizada", "cancelada") for s in actividad.subtareas):
         return json_error("Complete las subtareas antes de finalizar la actividad.")
     anterior = actividad.estado
     actividad.estado = estado
