@@ -27,7 +27,7 @@ def fecha_local(texto):
         raise ValueError("La fecha u hora no tiene un formato válido.")
 
 
-def visible_query(usuario):
+def visible_query(usuario, incluir_eliminadas=False):
     compartidas = AgendaActividad.visibilidad == "equipo"
     vinculadas = or_(
         AgendaActividad.creado_por_id == usuario.id,
@@ -38,9 +38,10 @@ def visible_query(usuario):
             )
         ),
     )
-    if not usuario.puede_modificar:
-        return AgendaActividad.query.filter(compartidas)
-    return AgendaActividad.query.filter(or_(compartidas, vinculadas))
+    consulta = AgendaActividad.query.filter(compartidas if not usuario.puede_modificar else or_(compartidas, vinculadas))
+    if not incluir_eliminadas:
+        consulta = consulta.filter(AgendaActividad.eliminado_en.is_(None))
+    return consulta
 
 
 def puede_ver(usuario, actividad):
@@ -88,6 +89,7 @@ def alertas_de_plazo(usuario_id):
     trabajos = (
         AgendaActividad.query
         .filter(AgendaActividad.estado.notin_(("finalizada", "cancelada")))
+        .filter(AgendaActividad.eliminado_en.is_(None))
         .filter(AgendaActividad.vencimiento.isnot(None),
                 AgendaActividad.vencimiento <= limite,
                 AgendaActividad.prioridad.in_(("alta", "media")))
@@ -130,10 +132,13 @@ def avisos_usuario(usuario_id, obligatorios=False):
         consulta = consulta.filter(AgendaNotificacion.leida_en.is_(None))
     avisos = consulta.order_by(AgendaNotificacion.creada_en.desc()).limit(100).all()
     # Ignorar recordatorios correspondientes a vencimientos anteriores tras reprogramación.
-    return [a for a in avisos if not a.clave.startswith("plazo:") or (
-        a.actividad is not None and a.actividad.estado not in ("finalizada", "cancelada") and
-        a.actividad.vencimiento and a.actividad.vencimiento.isoformat() in a.clave
-    )]
+    return [a for a in avisos if
+        (a.actividad is None or a.actividad.eliminado_en is None) and
+        (not a.clave.startswith("plazo:") or (
+            a.actividad is not None and a.actividad.estado not in ("finalizada", "cancelada") and
+            a.actividad.vencimiento and a.actividad.vencimiento.isoformat() in a.clave
+        ))
+    ]
 
 
 def aviso_json(aviso):
