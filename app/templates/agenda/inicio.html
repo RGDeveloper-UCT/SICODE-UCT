@@ -5,7 +5,19 @@
 <section class="agenda-modulo" data-agenda-root data-user="{{ current_user.id }}" data-puede-modificar="{{ '1' if current_user.puede_modificar else '0' }}" data-cumple-registrado="{{ '1' if cumple else '0' }}">
   <div class="agenda-titulo">
     <div><h1>▣ Agenda UCT y Tablón de Actividades</h1><p>Organización institucional · Tareas, subtareas, eventos, capacitaciones, gestiones y mantenimientos.</p></div>
-    {% if current_user.puede_modificar %}<button class="agenda-boton agenda-primario" type="button" data-agenda-crear>＋ Nueva actividad</button>{% endif %}
+    {% if current_user.puede_modificar %}
+    <div class="agenda-titulo-acciones">
+      <details class="agenda-papelera" id="agenda-papelera">
+        <summary aria-label="Abrir actividades eliminadas">▤ Eliminadas <span id="agenda-total-eliminadas">0</span></summary>
+        <div class="agenda-papelera-panel">
+          <h2>Actividades eliminadas</h2>
+          <p>Las tareas y eventos pueden reactivarse sin perder su historial.</p>
+          <div id="agenda-eliminadas-lista" class="agenda-lista" aria-live="polite"><p class="agenda-vacio">Sin actividades eliminadas.</p></div>
+        </div>
+      </details>
+      <button class="agenda-boton agenda-primario" type="button" data-agenda-crear>＋ Nueva actividad</button>
+    </div>
+    {% endif %}
   </div>
   <div class="agenda-tabs" role="tablist" aria-label="Secciones Agenda UCT">
     <button type="button" data-agenda-tab="hoy" class="activo">⌂ Mi día</button>
