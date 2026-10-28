@@ -16,13 +16,13 @@ def upgrade():
         sa.Column("usuario_habitual_personal_id", sa.Integer(), nullable=True))
     op.create_index("ix_equipos_institucionales_usuario_habitual_personal_id",
         "equipos_institucionales", ["usuario_habitual_personal_id"])
-    op.create_foreign_key("fk_equipos_usuario_habitual",
-        "equipos_institucionales", "personal_institucional",
-        ["usuario_habitual_personal_id"], ["id"])
+    with op.batch_alter_table("equipos_institucionales") as batch:
+        batch.create_foreign_key("fk_equipos_usuario_habitual",
+            "personal_institucional", ["usuario_habitual_personal_id"], ["id"])
 
 def downgrade():
-    op.drop_constraint("fk_equipos_usuario_habitual",
-        "equipos_institucionales", type_="foreignkey")
+    with op.batch_alter_table("equipos_institucionales") as batch:
+        batch.drop_constraint("fk_equipos_usuario_habitual", type_="foreignkey")
     op.drop_index("ix_equipos_institucionales_usuario_habitual_personal_id",
         table_name="equipos_institucionales")
     op.drop_column("equipos_institucionales", "usuario_habitual_personal_id")

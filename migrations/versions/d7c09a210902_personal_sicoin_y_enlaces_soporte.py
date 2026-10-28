@@ -27,22 +27,26 @@ def upgrade():
     op.add_column("equipos_institucionales", sa.Column("responsable_personal_id", sa.Integer(), nullable=True))
     op.create_index("ix_equipos_institucionales_ip_estatica", "equipos_institucionales", ["ip_estatica"])
     op.create_index("ix_equipos_institucionales_responsable_personal_id", "equipos_institucionales", ["responsable_personal_id"])
-    op.create_foreign_key("fk_equipos_personal", "equipos_institucionales", "personal_institucional", ["responsable_personal_id"], ["id"])
+    with op.batch_alter_table("equipos_institucionales") as batch:
+        batch.create_foreign_key("fk_equipos_personal", "personal_institucional", ["responsable_personal_id"], ["id"])
     op.add_column("servicios_soporte_tecnico", sa.Column("equipo_institucional_id", sa.Integer(), nullable=True))
     op.add_column("servicios_soporte_tecnico", sa.Column("personal_institucional_id", sa.Integer(), nullable=True))
     op.create_index("ix_servicios_soporte_tecnico_equipo_institucional_id", "servicios_soporte_tecnico", ["equipo_institucional_id"])
     op.create_index("ix_servicios_soporte_tecnico_personal_institucional_id", "servicios_soporte_tecnico", ["personal_institucional_id"])
-    op.create_foreign_key("fk_soporte_equipo", "servicios_soporte_tecnico", "equipos_institucionales", ["equipo_institucional_id"], ["id"])
-    op.create_foreign_key("fk_soporte_personal", "servicios_soporte_tecnico", "personal_institucional", ["personal_institucional_id"], ["id"])
+    with op.batch_alter_table("servicios_soporte_tecnico") as batch:
+        batch.create_foreign_key("fk_soporte_equipo", "equipos_institucionales", ["equipo_institucional_id"], ["id"])
+        batch.create_foreign_key("fk_soporte_personal", "personal_institucional", ["personal_institucional_id"], ["id"])
 
 def downgrade():
-    op.drop_constraint("fk_soporte_personal", "servicios_soporte_tecnico", type_="foreignkey")
-    op.drop_constraint("fk_soporte_equipo", "servicios_soporte_tecnico", type_="foreignkey")
+    with op.batch_alter_table("servicios_soporte_tecnico") as batch:
+        batch.drop_constraint("fk_soporte_personal", type_="foreignkey")
+        batch.drop_constraint("fk_soporte_equipo", type_="foreignkey")
     op.drop_index("ix_servicios_soporte_tecnico_personal_institucional_id", table_name="servicios_soporte_tecnico")
     op.drop_index("ix_servicios_soporte_tecnico_equipo_institucional_id", table_name="servicios_soporte_tecnico")
     op.drop_column("servicios_soporte_tecnico", "personal_institucional_id")
     op.drop_column("servicios_soporte_tecnico", "equipo_institucional_id")
-    op.drop_constraint("fk_equipos_personal", "equipos_institucionales", type_="foreignkey")
+    with op.batch_alter_table("equipos_institucionales") as batch:
+        batch.drop_constraint("fk_equipos_personal", type_="foreignkey")
     op.drop_index("ix_equipos_institucionales_responsable_personal_id", table_name="equipos_institucionales")
     op.drop_index("ix_equipos_institucionales_ip_estatica", table_name="equipos_institucionales")
     op.drop_column("equipos_institucionales", "responsable_personal_id")

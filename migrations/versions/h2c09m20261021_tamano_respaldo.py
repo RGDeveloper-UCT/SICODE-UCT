@@ -13,8 +13,10 @@ depends_on = None
 
 def upgrade():
     op.add_column("mantenimientos_equipos", sa.Column("respaldo_mb", sa.Numeric(12, 2), nullable=True))
-    op.create_check_constraint("ck_mantenimiento_respaldo_no_negativo", "mantenimientos_equipos", "respaldo_mb IS NULL OR respaldo_mb >= 0")
+    with op.batch_alter_table("mantenimientos_equipos") as batch:
+        batch.create_check_constraint("ck_mantenimiento_respaldo_no_negativo", "respaldo_mb IS NULL OR respaldo_mb >= 0")
 
 def downgrade():
-    op.drop_constraint("ck_mantenimiento_respaldo_no_negativo", "mantenimientos_equipos", type_="check")
+    with op.batch_alter_table("mantenimientos_equipos") as batch:
+        batch.drop_constraint("ck_mantenimiento_respaldo_no_negativo", type_="check")
     op.drop_column("mantenimientos_equipos", "respaldo_mb")
