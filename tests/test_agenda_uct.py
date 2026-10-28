@@ -201,3 +201,99 @@ def test_detalle_frontend_incluye_enlaces_y_eventos_multidia(sistema):
     assert "fechaFin(x) >= inicioMes" in codigo
     assert "Requiere revisión del creador" in codigo
     assert "Todo el día" in codigo
+
+
+def test_papelera_tarea_no_se_borra_y_se_restaura_con_datos(sistema):
+    from app.models.bitacora import Bitacora
+
+    c = cliente(sistema, "uno")
+    creada = crear(c, titulo="Tarea reversible", descripcion="Observación de control",
+                  referencia_sp="SP-312", participantes=[2])
+    assert creada.status_code == 201
+    id_ = creada.get_json()["actividad"]["id"]
+    assert c.post(f"/agenda/api/actividades/{id_}/estado",
+                  json={"estado": "en_proceso"}).status_code == 200
+    assert c.post(f"/agenda/api/actividades/{id_}/comentarios",
+                  json={"texto": "Avance conservado"}).status_code == 201
+
+    eliminada = c.post(f"/agenda/api/actividades/{id_}/eliminar")
+    assert eliminada.status_code == 200
+    assert eliminada.get_json()["actividad"]["eliminado_en"]
+    assert eliminada.get_json()["actividad"]["eliminado_por"] == "Uno"
+    assert id_ not in [a["id"] for a in c.get("/agenda/api/actividades").get_json()["actividades"]]
+    assert "Tarea reversible" not in c.get("/agenda/api/reporte.csv").get_data(as_text=True)
+    assert c.get(f"/agenda/api/actividades/{id_}").status_code == 404
+    assert c.patch(f"/agenda/api/actividades/{id_}", json={"titulo": "Otro"}).status_code == 404
+    assert c.post(f"/agenda/api/actividades/{id_}/estado", json={"estado": "finalizada"}).status_code == 404
+    assert c.post(f"/agenda/api/actividades/{id_}/comentarios", json={"texto": "Intruso"}).status_code == 404
+    assert c.post(f"/agenda/api/actividades/{id_}/eliminar").status_code == 404
+
+    papelera = c.get("/agenda/api/eliminadas").get_json()["actividades"]
+    assert any(a["id"] == id_ for a in papelera)
+    recuperada = c.post(f"/agenda/api/actividades/{id_}/restaurar")
+    assert recuperada.status_code == 200
+    item = recuperada.get_json()["actividad"]
+    assert item["estado"] == "en_proceso"
+    assert item["referencia_sp"] == "SP-312"
+    assert item["descripcion"] == "Observación de control"
+    assert item["participantes"] == [2]
+    assert item["eliminado_en"] is None
+    assert c.post(f"/agenda/api/actividades/{id_}/restaurar").status_code == 409
+    assert any(a["id"] == id_ for a in c.get("/agenda/api/actividades").get_json()["actividades"])
+    assert "Avance conservado" in str(c.get(f"/agenda/api/actividades/{id_}").get_json()["comentarios"])
+    with sistema.app_context():
+        assert db.session.get(AgendaActividad, id_) is not None
+        acciones = [a.accion for a in Bitacora.query.filter_by(entidad="AgendaActividad", entidad_id=str(id_)).all()]
+        assert "AGENDA_ELIMINAR" in acciones
+        assert "AGENDA_RESTAURAR" in acciones
+
+
+def test_papelera_evento_privado_permisos_y_visor(sistema):
+    c1, c2, c3, visor = (cliente(sistema, u) for u in ("uno", "dos", "tres", "visor"))
+    evento = crear(c1, titulo="Evento privado recuperable", tipo="evento",
+                   visibilidad="personal", responsable_id=2, lugar="Auditorio")
+    id_ = evento.get_json()["actividad"]["id"]
+    ruta = f"/agenda/api/actividades/{id_}"
+    assert c3.post(ruta + "/eliminar").status_code == 403
+    assert visor.post(ruta + "/eliminar").status_code == 403
+    assert c2.post(ruta + "/eliminar").status_code == 200
+    assert not c3.get("/agenda/api/eliminadas").get_json()["actividades"]
+    assert not visor.get("/agenda/api/eliminadas").get_json()["actividades"]
+    assert c3.post(ruta + "/restaurar").status_code == 403
+    assert visor.post(ruta + "/restaurar").status_code == 403
+    assert c2.post(ruta + "/restaurar").status_code == 200
+    assert c1.get(ruta).get_json()["actividad"]["lugar"] == "Auditorio"
+
+
+def test_papelera_subtareas_restauracion_selectiva(sistema):
+    c = cliente(sistema, "uno")
+    padre = crear(c, titulo="Tarea principal").get_json()["actividad"]["id"]
+    activa = crear(c, titulo="Subtarea activa", padre_id=padre).get_json()["actividad"]["id"]
+    previa = crear(c, titulo="Subtarea eliminada antes", padre_id=padre).get_json()["actividad"]["id"]
+    assert c.post(f"/agenda/api/actividades/{previa}/eliminar").status_code == 200
+    assert c.post(f"/agenda/api/actividades/{padre}/eliminar").status_code == 200
+    assert c.post(f"/agenda/api/actividades/{activa}/restaurar").status_code == 409
+    listado = c.get("/agenda/api/eliminadas").get_json()["actividades"]
+    assert [x["id"] for x in listado] == [padre]
+    assert c.post(f"/agenda/api/actividades/{padre}/restaurar").status_code == 200
+    activos = {a["id"] for a in c.get("/agenda/api/actividades").get_json()["actividades"]}
+    assert {padre, activa} <= activos
+    assert previa not in activos
+    assert c.get(f"/agenda/api/actividades/{padre}").get_json()["subtareas"][0]["id"] == activa
+    assert c.post(f"/agenda/api/actividades/{previa}/restaurar").status_code == 200
+
+
+def test_papelera_no_genera_alertas_de_plazo_y_aparece_en_interfaz(sistema):
+    c = cliente(sistema, "uno")
+    vence = (datetime.now() + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M")
+    id_ = crear(c, titulo="Tarea sin alerta luego de eliminar",
+                vencimiento=vence, prioridad="alta").get_json()["actividad"]["id"]
+    assert c.post(f"/agenda/api/actividades/{id_}/eliminar").status_code == 200
+    assert not any("Tarea sin alerta" in aviso["titulo"]
+                   for aviso in c.get("/agenda/api/avisos").get_json()["avisos"])
+    html = c.get("/agenda/").get_data(as_text=True)
+    script = c.get("/static/js/agenda.js").get_data(as_text=True)
+    assert 'id="agenda-papelera"' in html
+    assert 'id="agenda-eliminadas-lista"' in html
+    assert 'data-agenda-eliminar' in script
+    assert 'data-agenda-restaurar' in script
