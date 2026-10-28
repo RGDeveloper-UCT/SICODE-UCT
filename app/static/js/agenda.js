@@ -4,7 +4,7 @@
   if (!root) return;
   const editable = root.dataset.puedeModificar === "1";
   const currentId = Number(root.dataset.user);
-  let items = [], cumpleanos = [], avisos = [];
+  let items = [], cumpleanos = [], avisos = [], eliminadas = [];
   let fechaCalendario = new Date();
   let vista = "mes", actual = null;
   const $ = (sel, ctx = document) => ctx.querySelector(sel);
@@ -137,6 +137,17 @@
       ${x.actividad_id ? `<button class="agenda-boton" type="button" data-agenda-detalle="${x.actividad_id}">Ver tarea</button>` : ""}</div>
     </div>`).join("") || '<p class="agenda-vacio">Sin notificaciones pendientes.</p>';
   }
+  function pintarEliminadas() {
+    const lista = $("#agenda-eliminadas-lista");
+    if (!lista) return;
+    $("#agenda-total-eliminadas").textContent = String(eliminadas.length);
+    lista.innerHTML = eliminadas.map(x => `<div class="agenda-papelera-item">
+      <div><strong>${safe(x.titulo)}</strong>
+      <small>${safe(tituloTipo[x.tipo] || x.tipo)} · ${safe(textoEstado(x.estado))} · ${safe(x.responsable)}</small>
+      <small>Eliminada: ${safe(fecha(x.eliminado_en))} · Por: ${safe(x.eliminado_por || "No registrado")}</small></div>
+      <button type="button" class="agenda-boton agenda-restaurar" data-agenda-restaurar="${x.id}" aria-label="Restaurar ${safe(x.titulo)}">↺ Restaurar</button>
+    </div>`).join("") || '<p class="agenda-vacio">Sin actividades eliminadas.</p>';
+  }
   function pintarCalendario() {
     const cont = $("#agenda-calendario");
     const y = fechaCalendario.getFullYear(), m = fechaCalendario.getMonth();
@@ -177,9 +188,9 @@
   }
   async function refrescar() {
     try {
-      const [a,b,c]=await Promise.all([api("/api/actividades"), api("/api/cumpleanos"), api("/api/avisos")]);
-      items=a.actividades; cumpleanos=b.cumpleanos; avisos=c.avisos;
-      cargarKpis(); pintarTablero(); pintarListas(); pintarCalendario(); pintarCumpleanos(); pintarAvisos();
+      const [a,b,c,d]=await Promise.all([api("/api/actividades"), api("/api/cumpleanos"), api("/api/avisos"), editable ? api("/api/eliminadas") : Promise.resolve({actividades:[]})]);
+      items=a.actividades; cumpleanos=b.cumpleanos; avisos=c.avisos; eliminadas=d.actividades;
+      cargarKpis(); pintarTablero(); pintarListas(); pintarCalendario(); pintarCumpleanos(); pintarAvisos(); pintarEliminadas();
     } catch(error) { notification(error.message); }
   }
   function formulario(actividad=null, fechaElegida=null, padre=null, tipo="tarea") {
@@ -237,7 +248,8 @@
         </dl>
         ${puede ? `<div class="agenda-acciones"><button type="button" class="agenda-boton" data-agenda-editar>Editar</button>
         <select id="agenda-estado-nuevo" aria-label="Estado">${["pendiente","en_proceso","en_revision","finalizada","bloqueada","cancelada"].map(e=>`<option value="${e}" ${e===x.estado?"selected":""}>${textoEstado(e)}</option>`).join("")}</select>
-        <button type="button" class="agenda-boton agenda-primario" data-agenda-guardar-estado>Cambiar estado</button></div>` : ""}
+        <button type="button" class="agenda-boton agenda-primario" data-agenda-guardar-estado>Cambiar estado</button>
+        <button type="button" class="agenda-boton agenda-peligro" data-agenda-eliminar>Eliminar</button></div>` : ""}
         <h3>Subtareas (${subtareas.length})</h3><div class="agenda-lista">${subtareas.map(s=>`<button type="button" class="agenda-subtarea" data-agenda-detalle="${s.id}">☑ ${safe(s.titulo)} — ${safe(textoEstado(s.estado))}</button>`).join("") || "<p>Sin subtareas.</p>"}</div>
         ${puede && !x.padre_id ? '<button type="button" class="agenda-boton" data-agenda-subtarea>＋ Añadir subtarea</button>':""}
         ${x.tipo === "tarea" ? `<h3>Participantes / colaboradores</h3><div class="agenda-lista">${data.asistencias.map(a=>`<p>${safe(a.nombre)}</p>`).join("") || "<p>Sin colaboradores adicionales.</p>"}</div>` : ""}
@@ -255,6 +267,26 @@
     const nuevo = e.target.closest("[data-agenda-crear]");
     if (nuevo) { formulario(null,null,null,nuevo.dataset.agendaTipo || "tarea"); return; }
     if (e.target.closest("[data-agenda-cerrar]")) { e.target.closest("dialog")?.close(); return; }
+    const restaurar = e.target.closest("[data-agenda-restaurar]");
+    if (restaurar) {
+      try {
+        await post(`/api/actividades/${Number(restaurar.dataset.agendaRestaurar)}/restaurar`, {});
+        await refrescar();
+        notification("Actividad restaurada correctamente.");
+      } catch(err) { notification(err.message); }
+      return;
+    }
+    if (e.target.closest("[data-agenda-eliminar]") && actual) {
+      if (!window.confirm("¿Mover «" + actual.titulo + "» a Eliminadas? Podrá restaurarla posteriormente.")) return;
+      try {
+        await post(`/api/actividades/${actual.id}/eliminar`, {});
+        $("#agenda-detalle-dialog").close();
+        actual = null;
+        await refrescar();
+        notification("Actividad movida a Eliminadas.");
+      } catch(err) { notification(err.message); }
+      return;
+    }
     const editar=e.target.closest("[data-agenda-editar]");
     if(editar && actual) { $("#agenda-detalle-dialog").close(); formulario(actual); return; }
     if(e.target.closest("[data-agenda-subtarea]") && actual) { $("#agenda-detalle-dialog").close(); formulario(null,null,actual.id); return; }
