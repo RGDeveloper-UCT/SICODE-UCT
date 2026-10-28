@@ -5,7 +5,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from flask import Blueprint, abort, flash, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import or_, func
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from app.services.constancia_inventario_service import generar_constancia_inventario
 from app.services.exportacion_inventario_service import CAMPOS, seleccion, excel, pdf
@@ -32,6 +32,29 @@ def _normalizar(valor, maximo):
     if len(dato) > maximo:
         raise ValueError("Un campo supera la longitud permitida.")
     return dato or None
+
+def _nombre_mayusculas(valor, maximo):
+    """Validar después de convertir, para cubrir expansiones Unicode."""
+    return _normalizar(str(valor or "").strip().upper(), maximo)
+
+
+def _campos_personal(formulario):
+    nombre = _nombre_mayusculas(formulario.get("nombre"), 100)
+    apellido = _nombre_mayusculas(formulario.get("apellido"), 120)
+    coordinacion = _normalizar(formulario.get("coordinacion"), 160)
+    estado = formulario.get("activo")
+    if not nombre or not apellido:
+        raise ValueError("El nombre y el apellido son obligatorios.")
+    if coordinacion not in COORDINACIONES:
+        raise ValueError("Seleccione una coordinación válida.")
+    if estado not in ("si", "no"):
+        raise ValueError("Seleccione un estado válido.")
+    return {
+        "nombre": nombre,
+        "apellido": apellido,
+        "coordinacion": coordinacion,
+        "activo": estado == "si",
+    }
 
 def _datos():
     datos = {
@@ -275,8 +298,8 @@ def _personal():
 @login_required
 def agregar_personal():
     _editar_permitido()
-    nombre = _normalizar(request.form.get("nombre"), 100)
-    apellido = _normalizar(request.form.get("apellido"), 120)
+    nombre = _nombre_mayusculas(request.form.get("nombre"), 100)
+    apellido = _nombre_mayusculas(request.form.get("apellido"), 120)
     coordinacion = _normalizar(request.form.get("coordinacion"), 160)
     if request.form.get("destino", "responsable") not in ("responsable", "usuario_habitual"):
         abort(400)
@@ -284,8 +307,8 @@ def agregar_personal():
         flash("Nombre, apellido y coordinación son obligatorios.", "warning")
         return redirect(url_for("seguridad.nuevo"))
     existente = PersonalInstitucional.query.filter(
-        func.lower(PersonalInstitucional.nombre) == nombre.lower(),
-        func.lower(PersonalInstitucional.apellido) == apellido.lower(),
+        PersonalInstitucional.nombre == nombre,
+        PersonalInstitucional.apellido == apellido,
         PersonalInstitucional.coordinacion == coordinacion,
     ).first()
     if existente:
@@ -305,6 +328,66 @@ def agregar_personal():
         raise
     flash("Responsable agregado a Personal Institucional.", "success")
     return redirect(url_for("seguridad.nuevo", **{request.form.get("destino", "responsable"): persona.id}))
+
+@seguridad_bp.route("/personal/<int:persona_id>/editar", methods=["GET", "POST"])
+@login_required
+def actualizar_personal(persona_id):
+    """Edición segura del directorio común a inventario y soporte."""
+    _editar_permitido()
+    persona = db.get_or_404(PersonalInstitucional, persona_id)
+    if request.method == "POST":
+        try:
+            valores = _campos_personal(request.form)
+            motivo = _normalizar(request.form.get("motivo"), 500)
+            if not motivo:
+                raise ValueError("Indique el motivo de la actualización.")
+            anterior = {
+                "nombre": persona.nombre,
+                "apellido": persona.apellido,
+                "coordinacion": persona.coordinacion,
+                "activo": bool(persona.activo),
+            }
+            if valores == anterior:
+                flash("No hay cambios para actualizar.", "warning")
+            else:
+                duplicada = PersonalInstitucional.query.filter(
+                    PersonalInstitucional.id != persona.id,
+                    PersonalInstitucional.nombre == valores["nombre"],
+                    PersonalInstitucional.apellido == valores["apellido"],
+                    PersonalInstitucional.coordinacion == valores["coordinacion"],
+                ).first()
+                if duplicada:
+                    raise ValueError("Ya existe otra persona con el mismo nombre, apellido y coordinación.")
+                for campo, valor in valores.items():
+                    setattr(persona, campo, valor)
+                db.session.flush()
+                registrar_bitacora(
+                    accion="ACTUALIZAR_PERSONAL_INSTITUCIONAL",
+                    modulo="Seguridad Informática",
+                    usuario_id=current_user.id,
+                    entidad="PersonalInstitucional",
+                    entidad_id=persona.id,
+                    descripcion=f"Actualización de personal UCT: registro {persona.id}",
+                    datos_anteriores=anterior,
+                    datos_posteriores=valores,
+                    motivo=motivo,
+                    commit=False,
+                )
+                db.session.commit()
+                flash("Registro de PERSONAL UCT actualizado y auditado.", "success")
+                return redirect(url_for("seguridad.personal_uct"))
+        except (ValueError, IntegrityError) as error:
+            db.session.rollback()
+            flash(
+                "No fue posible actualizar: revise los datos." if isinstance(error, IntegrityError)
+                else str(error),
+                "warning",
+            )
+    return render_template(
+        "seguridad/editar_personal_uct.html",
+        persona=persona, coordinaciones=COORDINACIONES,
+    )
+
 
 @seguridad_bp.route("/equipos/<int:equipo_id>/editar", methods=["GET", "POST"])
 @login_required

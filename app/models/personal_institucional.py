@@ -1,5 +1,6 @@
 """Directorio de personal independiente de las cuentas de autenticación."""
 from datetime import datetime
+from sqlalchemy.orm import validates
 from app import db
 
 class PersonalInstitucional(db.Model):
@@ -11,6 +12,11 @@ class PersonalInstitucional(db.Model):
     activo = db.Column(db.Boolean, nullable=False, default=True)
     creado_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     actualizado_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @validates("nombre", "apellido")
+    def normalizar_nombres(self, _clave, valor):
+        """Mantener los nombres en mayúsculas en todas las altas y ediciones ORM."""
+        return str(valor or "").strip().upper()
 
     @property
     def nombre_completo(self):

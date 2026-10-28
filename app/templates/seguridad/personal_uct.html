@@ -15,11 +15,15 @@
     <button type="submit" class="boton">Buscar</button>
   </form>
   <div style="overflow-x:auto"><table class="tabla">
-  <thead><tr><th>Nombre</th><th>Apellido</th><th>Coordinación</th><th>Estado</th></tr></thead>
+  <thead><tr><th>Nombre</th><th>Apellido</th><th>Coordinación</th><th>Estado</th>{% if current_user.puede_modificar %}<th>Acciones</th>{% endif %}</tr></thead>
   <tbody>{% for persona in personas.items %}
-  <tr><td>{{ persona.nombre }}</td><td>{{ persona.apellido }}</td><td>{{ persona.coordinacion }}</td>
-    <td>{{ "Activo" if persona.activo else "Inactivo" }}</td></tr>
-  {% else %}<tr><td colspan="4">No hay personal registrado.</td></tr>{% endfor %}</tbody>
+  <tr><td>{{ persona.nombre|upper }}</td><td>{{ persona.apellido|upper }}</td><td>{{ persona.coordinacion }}</td>
+    <td>{{ "Activo" if persona.activo else "Inactivo" }}</td>
+    {% if current_user.puede_modificar %}
+    <td><a class="boton-secundario" href="{{ url_for('seguridad.actualizar_personal', persona_id=persona.id) }}" aria-label="Actualizar {{ persona.nombre }} {{ persona.apellido }}">Actualizar</a></td>
+    {% endif %}
+  </tr>
+  {% else %}<tr><td colspan="{{ 5 if current_user.puede_modificar else 4 }}">No hay personal registrado.</td></tr>{% endfor %}</tbody>
   </table></div>
   {% if personas.pages>1 %}
     <p>Página {{ personas.page }} de {{ personas.pages }}
