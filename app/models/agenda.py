@@ -27,6 +27,9 @@ class AgendaActividad(db.Model):
     creado_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     actualizado_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     finalizado_en = db.Column(db.DateTime)
+    eliminado_en = db.Column(db.DateTime, index=True)
+    eliminado_por_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"))
+    eliminado_por = db.relationship("Usuario", foreign_keys=[eliminado_por_id])
     creado_por = db.relationship("Usuario", foreign_keys=[creado_por_id])
     responsable = db.relationship("Usuario", foreign_keys=[responsable_id])
     participantes = db.relationship("AgendaParticipante", back_populates="actividad", cascade="all, delete-orphan")
@@ -34,6 +37,7 @@ class AgendaActividad(db.Model):
     comentarios = db.relationship("AgendaComentario", back_populates="actividad", cascade="all, delete-orphan")
 
     def as_dict(self):
+        subtareas_activas = [s for s in self.subtareas if s.eliminado_en is None]
         return {
             "id": self.id, "titulo": self.titulo, "descripcion": self.descripcion or "",
             "tipo": self.tipo, "estado": self.estado, "prioridad": self.prioridad,
@@ -42,13 +46,15 @@ class AgendaActividad(db.Model):
             "responsable_id": self.responsable_id,
             "responsable": self.responsable.nombre if self.responsable else "",
             "padre_id": self.padre_id, "inicio": self.inicio.isoformat() if self.inicio else None,
+            "eliminado_en": self.eliminado_en.isoformat() if self.eliminado_en else None,
+            "eliminado_por": self.eliminado_por.nombre if self.eliminado_por else None,
             "vencimiento": self.vencimiento.isoformat() if self.vencimiento else None,
             "todo_el_dia": self.todo_el_dia, "lugar": self.lugar or "",
             "modalidad": self.modalidad or "", "recurrencia": self.recurrencia,
             "requiere_revision": self.requiere_revision, "referencia_sp": self.referencia_sp,
             "participantes": [p.usuario_id for p in self.participantes],
-            "progreso": (round(sum(s.estado == "finalizada" for s in self.subtareas) * 100 / len(self.subtareas))
-                         if self.subtareas else (100 if self.estado == "finalizada" else 0)),
+            "progreso": (round(sum(s.estado == "finalizada" for s in subtareas_activas) * 100 / len(subtareas_activas))
+                         if subtareas_activas else (100 if self.estado == "finalizada" else 0)),
         }
 
 
