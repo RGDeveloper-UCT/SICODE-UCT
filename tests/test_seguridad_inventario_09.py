@@ -192,7 +192,7 @@ def test_personal_y_sicoin_ip(contexto):
     })
     assert creado.status_code == 302
     persona = PersonalInstitucional.query.one()
-    assert persona.nombre_completo == "Persona Ejemplo"
+    assert persona.nombre_completo == "PERSONA EJEMPLO"
     r = client.post("/coordinacion/seguridad/equipos/nuevo",
                     data=_formulario(codigo="SICOIN-TEST-01",
                                     ip_estatica="192.0.2.15",
@@ -201,7 +201,7 @@ def test_personal_y_sicoin_ip(contexto):
     equipo = EquipoInstitucional.query.filter_by(codigo="SICOIN-TEST-01").one()
     assert equipo.numero_registro.startswith("UCT-EQ-")
     assert equipo.ip_estatica == "192.0.2.15"
-    assert equipo.nombre_responsable == "Persona Ejemplo"
+    assert equipo.nombre_responsable == "PERSONA EJEMPLO"
     assert equipo.numero_boleta is None
 
 
@@ -270,11 +270,11 @@ def test_custodio_y_usuario_habitual_son_independientes(contexto):
                         usuario_habitual_personal_id=str(usuario.id)))
     assert respuesta.status_code == 302
     equipo = EquipoInstitucional.query.filter_by(codigo="SICOIN-DOBLE-001").one()
-    assert equipo.nombre_responsable == "Ana Custodia"
-    assert equipo.nombre_usuario_habitual == "Luis Operador"
+    assert equipo.nombre_responsable == "ANA CUSTODIA"
+    assert equipo.nombre_usuario_habitual == "LUIS OPERADOR"
     assert equipo.snapshot()["usuario_habitual_personal_id"] == usuario.id
-    assert "Ana Custodia" in client.get("/coordinacion/seguridad/").get_data(as_text=True)
-    assert "Luis Operador" in client.get("/coordinacion/seguridad/").get_data(as_text=True)
+    assert "ANA CUSTODIA" in client.get("/coordinacion/seguridad/").get_data(as_text=True)
+    assert "LUIS OPERADOR" in client.get("/coordinacion/seguridad/").get_data(as_text=True)
 
 
 def test_catalogo_perifericos_y_usuario_invalido(contexto):
@@ -419,13 +419,13 @@ def test_personal_uct_exportacion_excel_pdf_campos_y_auditoria(contexto):
     assert excel.status_code == 200
     hoja = load_workbook(BytesIO(excel.data)).active
     assert [c.value for c in hoja[5]] == ["Nombre", "Apellido"]
-    assert ("Ana", "Ejemplo") in list(hoja.iter_rows(
+    assert ("ANA", "EJEMPLO") in list(hoja.iter_rows(
         min_row=6, max_col=2, values_only=True))
     pdf = client.post("/coordinacion/seguridad/personal/exportar/",
         data={"formato": "pdf", "campos": ["nombre", "coordinacion"]})
     assert pdf.status_code == 200
     texto = " ".join(page.extract_text() for page in PdfReader(BytesIO(pdf.data)).pages)
-    assert "Ana" in texto and "PERSONAL UCT" in texto
+    assert "ANA" in texto and "PERSONAL UCT" in texto
     assert "SICODE-UCT" in texto
     assert "Exportado por" in texto
     assert Bitacora.query.filter_by(accion="EXPORTAR_PERSONAL_UCT").count() == 2
@@ -440,3 +440,128 @@ def test_personal_uct_exportacion_requires_login(contexto):
     assert client.get("/coordinacion/seguridad/personal/exportar/").status_code == 302
     assert client.post("/coordinacion/seguridad/personal/exportar/",
                        data={"formato": "pdf", "campos": ["todos"]}).status_code == 302
+
+
+
+def test_personal_uct_mayusculas_unicode_y_actualizar_todos_campos(contexto):
+    from app.models.personal_institucional import PersonalInstitucional
+    app, usuario_id = contexto
+    client = app.test_client()
+    _sesion(client, usuario_id)
+
+    r = client.post("/coordinacion/seguridad/personal/nuevo", data={
+        "nombre": "  josé ángel  ", "apellido": "  peña núñez ",
+        "coordinacion": "Dirección",
+    })
+    assert r.status_code == 302
+    persona = PersonalInstitucional.query.one()
+    assert (persona.nombre, persona.apellido) == ("JOSÉ ÁNGEL", "PEÑA NÚÑEZ")
+    assert "JOSÉ ÁNGEL" in client.get("/coordinacion/seguridad/personal/").get_data(as_text=True)
+    edit_url = f"/coordinacion/seguridad/personal/{persona.id}/editar"
+    listado = client.get("/coordinacion/seguridad/personal/").get_data(as_text=True)
+    assert edit_url in listado
+    assert "Actualizar" in listado
+    pagina = client.get(edit_url)
+    assert pagina.status_code == 200
+    for campo in ('name="nombre"', 'name="apellido"', 'name="coordinacion"',
+                  'name="activo"', 'name="motivo"', 'name="csrf_token"'):
+        assert campo in pagina.get_data(as_text=True)
+
+    respuesta = client.post(edit_url, data={
+        "nombre": " maría del carmen ",
+        "apellido": " méndez álvarez ",
+        "coordinacion": "Coordinación de Implementación",
+        "activo": "no",
+        "motivo": "Corregir la captura y estado del directorio",
+    })
+    assert respuesta.status_code == 302
+    db.session.refresh(persona)
+    assert (persona.nombre, persona.apellido) == ("MARÍA DEL CARMEN", "MÉNDEZ ÁLVAREZ")
+    assert persona.coordinacion == "Coordinación de Implementación"
+    assert persona.activo is False
+    evento = Bitacora.query.filter_by(
+        accion="ACTUALIZAR_PERSONAL_INSTITUCIONAL", entidad_id=str(persona.id)
+    ).one()
+    assert evento.usuario_id == usuario_id
+    assert evento.datos_anteriores["nombre"] == "JOSÉ ÁNGEL"
+    assert evento.datos_posteriores["nombre"] == "MARÍA DEL CARMEN"
+    assert evento.datos_anteriores["activo"] is True
+    assert evento.datos_posteriores["activo"] is False
+    assert evento.motivo == "Corregir la captura y estado del directorio"
+    assert "MARÍA DEL CARMEN" in client.get("/coordinacion/seguridad/personal/").get_data(as_text=True)
+
+
+def test_actualizar_personal_valida_datos_y_no_crea_duplicados(contexto):
+    from app.models.personal_institucional import PersonalInstitucional
+    app, usuario_id = contexto
+    primero = PersonalInstitucional(nombre="Ana", apellido="López", coordinacion="Dirección")
+    segundo = PersonalInstitucional(nombre="Luis", apellido="Pérez", coordinacion="Dirección")
+    db.session.add_all([primero, segundo])
+    db.session.commit()
+    client = app.test_client()
+    _sesion(client, usuario_id)
+    url = f"/coordinacion/seguridad/personal/{segundo.id}/editar"
+    base = {"nombre": "Luis", "apellido": "Pérez", "coordinacion": "Dirección",
+            "activo": "si", "motivo": "Corrección administrativa"}
+
+    assert client.post(url, data={**base, "motivo": ""}).status_code == 200
+    assert client.post(url, data={**base, "coordinacion": "Sin catalogar"}).status_code == 200
+    assert client.post(url, data={**base, "activo": "talvez"}).status_code == 200
+    assert client.post(url, data={
+        **base, "nombre": "ana", "apellido": "lópez"
+    }).status_code == 200
+    assert db.session.get(PersonalInstitucional, segundo.id).nombre == "LUIS"
+    assert Bitacora.query.filter_by(accion="ACTUALIZAR_PERSONAL_INSTITUCIONAL").count() == 0
+    assert client.post(url, data=base).status_code == 200  # sin cambios
+    assert client.get("/coordinacion/seguridad/personal/999999/editar").status_code == 404
+
+
+def test_visores_no_pueden_actualizar_personal(contexto):
+    from app.models.personal_institucional import PersonalInstitucional
+    app, usuario_id = contexto
+    persona = PersonalInstitucional(nombre="Rosa", apellido="García", coordinacion="Dirección")
+    db.session.add(persona)
+    db.session.commit()
+    usuario = db.session.get(Usuario, usuario_id)
+    usuario.rol = Usuario.ROL_VISOR
+    db.session.commit()
+    client = app.test_client()
+    _sesion(client, usuario_id)
+    url = f"/coordinacion/seguridad/personal/{persona.id}/editar"
+    assert client.get(url).status_code == 403
+    assert client.post(url, data={
+        "nombre": "Alterado", "apellido": "Alterado", "coordinacion": "Dirección",
+        "activo": "no", "motivo": "No autorizado"
+    }).status_code == 403
+    listado = client.get("/coordinacion/seguridad/personal/")
+    assert listado.status_code == 200
+    assert url not in listado.get_data(as_text=True)
+    db.session.refresh(persona)
+    assert persona.nombre_completo == "ROSA GARCÍA"
+    assert persona.activo is True
+
+
+def test_normalizacion_historica_sin_alterar_identificadores(contexto, monkeypatch):
+    import importlib
+    from sqlalchemy import text
+    from app.models.personal_institucional import PersonalInstitucional
+    app, _ = contexto
+    persona = PersonalInstitucional(nombre="Temporal", apellido="Prueba", coordinacion="Dirección")
+    db.session.add(persona)
+    db.session.commit()
+    persona_id = persona.id
+    db.session.execute(
+        text("UPDATE personal_institucional SET nombre = :nombre, apellido = :apellido WHERE id = :id"),
+        {"nombre": "áNgel", "apellido": "niÑo", "id": persona_id},
+    )
+    db.session.commit()
+    migration = importlib.import_module(
+        "migrations.versions.n7puct20261028_normalizar_personal_uct"
+    )
+    monkeypatch.setattr(migration.op, "get_bind", lambda: db.session.connection())
+    migration.upgrade()
+    db.session.commit()
+    db.session.expire_all()
+    persona = db.session.get(PersonalInstitucional, persona_id)
+    assert (persona.nombre, persona.apellido) == ("ÁNGEL", "NIÑO")
+    assert persona.id == persona_id

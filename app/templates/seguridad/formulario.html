@@ -111,8 +111,8 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="destino" value="{{ destino }}">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
-        <label>Nombre *<input name="nombre" maxlength="100" required style="width:100%"></label>
-        <label>Apellido *<input name="apellido" maxlength="120" required style="width:100%"></label>
+        <label>Nombre *<input name="nombre" maxlength="100" required style="width:100%;text-transform:uppercase"></label>
+        <label>Apellido *<input name="apellido" maxlength="120" required style="width:100%;text-transform:uppercase"></label>
         <label>Coordinación *<select name="coordinacion" required style="width:100%">
           <option value="">Seleccione coordinación</option>
           {% for c in coordinaciones %}<option value="{{ c }}">{{ c }}</option>{% endfor %}

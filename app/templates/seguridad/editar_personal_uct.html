@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Actualizar Personal UCT — SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho" style="max-width:850px;margin:30px auto">
+  <div class="encabezado-modulo">
+    <div>
+      <h1>👥 Actualizar Personal UCT</h1>
+      <p>Corrija los datos del directorio. La actualización también se reflejará en Inventario Tecnológico y Soporte Técnico.</p>
+    </div>
+    <a class="boton-secundario" href="{{ url_for('seguridad.personal_uct') }}">← Volver a Personal UCT</a>
+  </div>
+  <form method="post" action="{{ url_for('seguridad.actualizar_personal', persona_id=persona.id) }}" class="tarjeta" style="margin-top:20px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <p><strong>Registro #{{ persona.id }}</strong> · Complete los campos y explique el motivo de la corrección.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px">
+      <label for="personal-nombre">Nombre *
+        <input id="personal-nombre" name="nombre" type="text" autocomplete="off" maxlength="100" required
+               value="{{ request.form.get('nombre',persona.nombre) }}"
+               style="display:block;width:100%;box-sizing:border-box;text-transform:uppercase" >
+      </label>
+      <label for="personal-apellido">Apellido *
+        <input id="personal-apellido" name="apellido" type="text" autocomplete="off" maxlength="120" required
+               value="{{ request.form.get('apellido',persona.apellido) }}"
+               style="display:block;width:100%;box-sizing:border-box;text-transform:uppercase" >
+      </label>
+      <label for="personal-coordinacion">Coordinación *
+        {% set seleccionada = request.form.get('coordinacion',persona.coordinacion) %}
+        <select id="personal-coordinacion" name="coordinacion" required style="display:block;width:100%">
+          {% for c in coordinaciones %}
+          <option value="{{ c }}" {% if seleccionada == c %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label for="personal-activo">Estado *
+        {% set activo_actual = request.form.get('activo','si' if persona.activo else 'no') %}
+        <select id="personal-activo" name="activo" required style="display:block;width:100%">
+          <option value="si" {% if activo_actual == 'si' %}selected{% endif %}>Activo</option>
+          <option value="no" {% if activo_actual == 'no' %}selected{% endif %}>Inactivo</option>
+        </select>
+      </label>
+    </div>
+    <label for="personal-motivo" style="display:block;margin-top:18px">Motivo de la actualización *
+      <textarea id="personal-motivo" name="motivo" maxlength="500" rows="3" required
+                placeholder="Ej. Corrección de nombre o cambio de coordinación"
+                style="display:block;width:100%;box-sizing:border-box">{{ request.form.get('motivo','') }}</textarea>
+    </label>
+    <p style="font-size:.85rem;opacity:.8">Nombre y apellido se guardarán siempre en mayúsculas. Los cambios quedarán registrados en la bitácora.</p>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:18px">
+      <button class="boton" type="submit">Actualizar datos</button>
+      <a class="boton-secundario" href="{{ url_for('seguridad.personal_uct') }}">Cancelar</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

@@ -10,8 +10,8 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, LongTable, TableStyle
 
 CAMPOS_PERSONAL = {
-    "nombre": ("Nombre", lambda p: p.nombre),
-    "apellido": ("Apellido", lambda p: p.apellido),
+    "nombre": ("Nombre", lambda p: (p.nombre or "").upper()),
+    "apellido": ("Apellido", lambda p: (p.apellido or "").upper()),
     "coordinacion": ("Coordinación", lambda p: p.coordinacion),
     "estado": ("Estado", lambda p: "Activo" if p.activo else "Inactivo"),
 }
