@@ -5,7 +5,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from flask import Blueprint, abort, flash, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import or_, func
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from app.services.constancia_inventario_service import generar_constancia_inventario
 from app.services.exportacion_inventario_service import CAMPOS, seleccion, excel, pdf
@@ -307,8 +307,8 @@ def agregar_personal():
         flash("Nombre, apellido y coordinación son obligatorios.", "warning")
         return redirect(url_for("seguridad.nuevo"))
     existente = PersonalInstitucional.query.filter(
-        func.lower(PersonalInstitucional.nombre) == nombre.lower(),
-        func.lower(PersonalInstitucional.apellido) == apellido.lower(),
+        PersonalInstitucional.nombre == nombre,
+        PersonalInstitucional.apellido == apellido,
         PersonalInstitucional.coordinacion == coordinacion,
     ).first()
     if existente:
@@ -352,8 +352,8 @@ def actualizar_personal(persona_id):
             else:
                 duplicada = PersonalInstitucional.query.filter(
                     PersonalInstitucional.id != persona.id,
-                    func.lower(PersonalInstitucional.nombre) == valores["nombre"].lower(),
-                    func.lower(PersonalInstitucional.apellido) == valores["apellido"].lower(),
+                    PersonalInstitucional.nombre == valores["nombre"],
+                    PersonalInstitucional.apellido == valores["apellido"],
                     PersonalInstitucional.coordinacion == valores["coordinacion"],
                 ).first()
                 if duplicada:
