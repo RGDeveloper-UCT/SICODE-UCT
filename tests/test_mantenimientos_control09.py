@@ -272,7 +272,7 @@ def test_selector_mantenimiento_muestra_persona_asignada_en_lugar_de_serie(entor
     equipo.serie = "SERIE-NO-VISIBLE-999"
     db.session.commit()
     html = client.get("/coordinacion/seguridad/mantenimientos/nuevo").get_data(as_text=True)
-    assert "Luis Prueba" in html
+    assert "LUIS PRUEBA" in html
     assert "SICOIN-MNT-01" in html
     assert "SERIE-NO-VISIBLE-999" not in html
     assert "Buscar SICOIN, equipo o persona asignada" in html

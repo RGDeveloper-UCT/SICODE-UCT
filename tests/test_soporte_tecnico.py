@@ -254,12 +254,12 @@ def test_boleta_autocompleta_desde_personal_y_equipo_unico(app_soporte, cliente_
         boleta = ServicioSoporteTecnico.query.one()
         assert boleta.personal_institucional_id == persona_id
         assert boleta.equipo_institucional_id == equipo_id
-        assert boleta.usuario_solicitante == "Elena Ejemplo"
+        assert boleta.usuario_solicitante == "ELENA EJEMPLO"
         assert boleta.coordinacion_area == "Coordinación de pruebas"
         assert boleta.numero_serie == "SERIE-AUTO-01"
         assert boleta.inventario == "SICOIN-AUTOMATICO-01"
         assert boleta.ip_nombre_equipo == "192.0.2.22"
-        assert boleta.nombre_firma_usuario == "Elena Ejemplo"
+        assert boleta.nombre_firma_usuario == "ELENA EJEMPLO"
         assert boleta.nombre_firma_tecnico == "Técnico Prueba"
         assert boleta.fecha_firma_usuario is not None
         assert boleta.fecha_firma_tecnico is not None
