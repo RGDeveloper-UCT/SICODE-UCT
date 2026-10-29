@@ -56,12 +56,11 @@ def upgrade():
         sa.Column("activo", sa.Boolean(), nullable=False),
         sa.Column("creado_en", sa.DateTime(), nullable=False),
         sa.Column("actualizado_en", sa.DateTime(), nullable=False),
-        sa.UniqueConstraint("numero_np", name="uq_no_portadores_numero"),
         sa.UniqueConstraint("codigo_interno", name="uq_no_portadores_codigo"),
         sa.CheckConstraint("folios_rectificados IS NULL OR folios_rectificados >= 0", name="ck_np_folios_rectificados"),
         sa.CheckConstraint("anexos_rectificados IS NULL OR anexos_rectificados >= 0", name="ck_np_anexos_rectificados"),
     )
-    op.create_index("ix_no_portadores_numero_np", "no_portadores", ["numero_np"])
+    op.create_index("ix_no_portadores_numero_np", "no_portadores", ["numero_np"], unique=True)
 
     op.create_table(
         "ubicaciones_np",
