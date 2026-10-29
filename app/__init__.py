@@ -8,7 +8,8 @@ from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.middleware.proxy_fix import ProxyFix
-from sqlalchemy import text
+from sqlalchemy import inspect, text
+from sqlalchemy.exc import SQLAlchemyError
 
 from config import Config
 
@@ -210,14 +211,50 @@ def create_app():
             respuesta.headers.setdefault("Pragma", "no-cache")
         return respuesta
 
+    def _hashpass_tablas_disponibles():
+        try:
+            inspector = inspect(db.engine)
+            return all(inspector.has_table(nombre) for nombre in (
+                "hashpass_permisos", "hashpass_bovedas", "hashpass_registros",
+            ))
+        except SQLAlchemyError:
+            db.session.rollback()
+            return False
+
+    @click.command("hashpass-status")
+    def hashpass_status():
+        """Diagnóstico sin revelar credenciales ni variables secretas."""
+        click.echo("HashPass — estado efectivo del proceso Flask")
+        click.echo(f"HASHPASS_ENABLED={app.config.get('HASHPASS_ENABLED', False)}")
+        click.echo(f"HASHPASS_REQUIRE_HTTPS={app.config.get('HASHPASS_REQUIRE_HTTPS', True)}")
+        click.echo(f"SESSION_COOKIE_SECURE={app.config.get('SESSION_COOKIE_SECURE', False)}")
+        click.echo(f"HASHPASS_PROXY_PROTO_COUNT={app.config.get('HASHPASS_PROXY_PROTO_COUNT', 0)}")
+        click.echo(f"Tablas HashPass presentes={_hashpass_tablas_disponibles()}")
+        click.echo("Nota: compruebe HTTPS desde un navegador cliente; este comando no valida el proxy.")
+
+    app.cli.add_command(hashpass_status)
+
     @app.context_processor
     def contexto_hashpass():
         habilitado = bool(app.config.get("HASHPASS_ENABLED", False))
+        tablas_listas = bool(habilitado and current_user.is_authenticated and _hashpass_tablas_disponibles())
+        transporte_seguro = bool(
+            app.testing or (
+                request.is_secure
+                and app.config.get("HASHPASS_REQUIRE_HTTPS", True)
+                and app.config.get("SESSION_COOKIE_SECURE", False)
+            )
+        )
         autorizado = bool(
-            habilitado and current_user.is_authenticated
+            tablas_listas and transporte_seguro and current_user.is_authenticated
             and current_user.activo and permiso_activo(current_user.id)
         )
-        return {"hashpass_habilitado": habilitado, "hashpass_autorizado": autorizado}
+        return {
+            "hashpass_habilitado": habilitado,
+            "hashpass_tablas_listas": tablas_listas,
+            "hashpass_transporte_seguro": transporte_seguro,
+            "hashpass_autorizado": autorizado,
+        }
 
     @app.context_processor
     def contexto_version():
