@@ -13,8 +13,9 @@ No almacenar contraseñas reales durante pruebas.
   permiso HashPass y su propia maestra para consultar credenciales.
 - Al otorgar permiso a nuevos usuarios, después de configurar su maestra,
   podrán acceder a todas las credenciales institucionales, incluso anteriores.
-- Todos los autorizados pueden consultar, crear, sustituir y archivar entradas.
-  Se audita el actor de cada acción. La revocación impide consultas futuras
+- Todos los autorizados pueden consultar y crear entradas. Únicamente el
+  creador de cada credencial o un administrador que también tenga permiso
+  HashPass puede modificarla o archivarla. Se audita el actor de cada acción. La revocación impide consultas futuras
   mediante la aplicación, pero no puede borrar secretos ya conocidos por alguien.
 - NO comparta datos personales o ajenos a la política institucional.
 
