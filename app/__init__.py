@@ -88,6 +88,8 @@ def create_app():
 
     app.register_blueprint(seguridad_bp)
     app.register_blueprint(mantenimientos_bp)
+    from app.hashpass import hashpass_bp, permiso_activo
+    app.register_blueprint(hashpass_bp)
     instalar_registro_monitoreo(app)
 
     @click.command("nexo-revisar")
@@ -199,6 +201,15 @@ def create_app():
             respuesta.headers.setdefault("Cache-Control", "no-store, private")
             respuesta.headers.setdefault("Pragma", "no-cache")
         return respuesta
+
+    @app.context_processor
+    def contexto_hashpass():
+        habilitado = bool(app.config.get("HASHPASS_ENABLED", False))
+        autorizado = bool(
+            habilitado and current_user.is_authenticated
+            and current_user.activo and permiso_activo(current_user.id)
+        )
+        return {"hashpass_habilitado": habilitado, "hashpass_autorizado": autorizado}
 
     @app.context_processor
     def contexto_version():
