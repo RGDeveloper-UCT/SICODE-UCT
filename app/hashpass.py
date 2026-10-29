@@ -186,16 +186,20 @@ def inicio():
     boveda = _boveda()
     if boveda is None:
         return redirect(url_for("hashpass.configurar"))
-    registros = HashPassRegistro.query.filter_by(
-        usuario_id=current_user.id, archivado=False
-    ).order_by(HashPassRegistro.actualizado_utc.desc()).all()
+    # No mostrar ni siquiera tipos, UUID o fechas sin la maestra.
+    registros = []
     nombres = {}
     filtro = ""
+    desbloqueada = False
     if request.method == "POST":
         dek = _abrir(request.form.get("maestra"))
         if dek is None:
             flash("No fue posible desbloquear el listado.", "danger")
         else:
+            desbloqueada = True
+            registros = HashPassRegistro.query.filter_by(
+                usuario_id=current_user.id, archivado=False
+            ).order_by(HashPassRegistro.actualizado_utc.desc()).all()
             filtro = (request.form.get("q") or "").strip().casefold()[:180]
             for registro in registros:
                 try:
@@ -212,7 +216,7 @@ def inicio():
             _auditar("HASHPASS_DESBLOQUEAR_LISTADO")
     return render_template(
         "hashpass.html", modo="lista", registros=registros,
-        nombres=nombres, filtrado=bool(filtro), tipos=TIPOS,
+        nombres=nombres, filtrado=bool(filtro), desbloqueada=desbloqueada, tipos=TIPOS,
     )
 
 
