@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% block title %}NP {{ np.numero_np }} — SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+    <div class="encabezado-modulo">
+        <div><h1>No Portador {{ np.numero_np }}</h1>
+            <p>{{ np.nombre_referencia or (np.nombres or '') ~ ' ' ~ (np.apellidos or '') }} · Código interno: {{ np.codigo_interno }}</p>
+        </div>
+        <div class="acciones-detalle">
+            <a class="boton-secundario" href="{{ url_for('no_portadores.listado') }}">Volver a NP</a>
+            <a class="boton-secundario" href="{{ url_for('no_portadores.ficha_pdf', np_id=np.id) }}">Ficha PDF</a>
+            {% if current_user.puede_modificar %}<a class="boton" href="{{ url_for('no_portadores.editar', np_id=np.id) }}">Editar NP</a>{% endif %}
+        </div>
+    </div>
+    <div class="aviso">
+        <strong>NO PORTADOR (NP):</strong> este registro está separado de SP / Expedientes.
+        <strong>Motivo de no instalación:</strong> {{ np.motivo_no_instalacion }}
+        {% if np.fecha_no_instalacion %} · Fecha: {{ np.fecha_no_instalacion.strftime('%d/%m/%Y') }}{% endif %}
+    </div>
+    <div class="grid-form">
+        <div><strong>Estado administrativo</strong><p>{{ np.estado_administrativo }}</p></div>
+        <div><strong>Expediente físico</strong><p>{{ 'Registrado' if np.expediente_fisico_registrado else 'No registrado' }}</p></div>
+        <div><strong>Disponibilidad</strong><p>{{ np.disponibilidad }}</p></div>
+        <div><strong>Estado documental</strong><p>{{ np.estado_fisico_documental }}</p></div>
+        <div><strong>Folios rectificados</strong><p>{{ np.folios_rectificados if np.folios_rectificados is not none else 'Pendiente' }}</p></div>
+        <div><strong>Anexos rectificados</strong><p>{{ np.anexos_rectificados if np.anexos_rectificados is not none else 'Pendiente' }}</p></div>
+        <div><strong>Expediente OJ</strong><p>{{ np.expediente_oj or '—' }}</p></div>
+        <div><strong>Juzgado / Tribunal</strong><p>{{ np.juzgado_tribunal or '—' }}</p></div>
+    </div>
+
+    <h2>Ubicación física del expediente NP</h2>
+    {% if np.ubicacion %}
+    <div class="grid-form">
+        {% for etiqueta, campo in [('Archivador','archivador'),('SICOIN','sicoin'),('Estante','estante'),('Caja','caja'),('Módulo','modulo'),('Posición','posicion')] %}
+        <div><strong>{{ etiqueta }}</strong><p>{{ np.ubicacion[campo] or '—' }}</p></div>
+        {% endfor %}
+    </div>
+    {% else %}<p>Ubicación no registrada.</p>{% endif %}
+
+    <h2>Rectificación física NP</h2>
+    {% if current_user.puede_modificar %}
+    <details>
+        <summary>Confirmar total de folios y anexos</summary>
+        <form method="POST" class="formulario" action="{{ url_for('no_portadores.rectificar', np_id=np.id) }}">
+            {{ formulario_rectificacion.hidden_tag() }}
+            <div class="grid-form">
+                <div class="campo">{{ formulario_rectificacion.folios_rectificados.label }} {{ formulario_rectificacion.folios_rectificados(value=np.folios_rectificados if np.folios_rectificados is not none else '') }}</div>
+                <div class="campo">{{ formulario_rectificacion.anexos_rectificados.label }} {{ formulario_rectificacion.anexos_rectificados(value=np.anexos_rectificados if np.anexos_rectificados is not none else '') }}</div>
+            </div>
+            {{ formulario_rectificacion.submit(class="boton") }}
+        </form>
+    </details>
+    {% endif %}
+
+    <h2>Índice documental y foliación NP</h2>
+    <p>Documentos activos: {{ np.documentos|selectattr('activo')|list|length }} · Folios registrados: {{ np.total_folios_activos }}</p>
+    <div class="tabla-contenedor"><table>
+        <thead><tr><th>Documento</th><th>Tipo</th><th>Folios</th><th>Total</th><th>Anexo</th><th>Revisión</th><th>Acciones</th></tr></thead>
+        <tbody>
+            {% for d in np.documentos if d.activo %}
+            <tr><td>{{ d.nombre_documento }}</td><td>{{ d.tipo_documento }}</td>
+                <td>{{ d.folio_inicio }}–{{ d.folio_fin }}</td><td>{{ d.total_folios }}</td>
+                <td>{{ 'Sí' if d.es_anexo else 'No' }}</td><td>{{ d.estado_revision }}</td>
+                <td>{% if current_user.puede_modificar %}
+                    <form method="POST" action="{{ url_for('no_portadores.desactivar_documento', np_id=np.id, doc_id=d.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="boton-link-peligro" onclick="return confirm('¿Desactivar este documento NP del índice?')">Desactivar</button>
+                    </form>{% endif %}</td>
+            </tr>
+            {% else %}<tr><td colspan="7">No hay documentos activos registrados.</td></tr>{% endfor %}
+        </tbody>
+    </table></div>
+    {% if current_user.puede_modificar %}
+    <details><summary>Agregar documento al índice NP</summary>
+        <form method="POST" class="formulario" action="{{ url_for('no_portadores.agregar_documento', np_id=np.id) }}">
+            {{ formulario_documento.hidden_tag() }}
+            <div class="grid-form">
+                {% for campo in ['nombre_documento','tipo_documento','folio_inicio','folio_fin','indice_numero_anexo','estado_revision'] %}
+                <div class="campo">{{ formulario_documento[campo].label }} {{ formulario_documento[campo]() }}</div>
+                {% endfor %}
+            </div>
+            <div class="campo"><label>{{ formulario_documento.es_anexo() }} Es anexo</label></div>
+            <div class="campo">{{ formulario_documento.observaciones.label }} {{ formulario_documento.observaciones(rows=2) }}</div>
+            {{ formulario_documento.submit(class="boton") }}
+        </form>
+    </details>
+    {% endif %}
+
+    <h2>Anexos NP</h2>
+    <div class="tabla-contenedor"><table>
+        <thead><tr><th>No.</th><th>Título</th><th>Tipo</th><th>Recepción</th><th>RC</th><th>Providencia</th><th>Folios</th><th>Acción</th></tr></thead>
+        <tbody>
+            {% for a in np.anexos if a.activo %}
+            <tr><td>{{ a.numero_anexo or '—' }}</td><td>{{ a.titulo }}</td><td>{{ a.tipo_anexo or '—' }}</td>
+                <td>{{ a.fecha_recepcion.strftime('%d/%m/%Y') if a.fecha_recepcion else '—' }}</td>
+                <td>{{ a.rc or '—' }}</td><td>{{ a.providencia or '—' }}</td><td>{{ a.folios or '—' }}</td>
+                <td>{% if current_user.puede_modificar %}
+                    <form method="POST" action="{{ url_for('no_portadores.desactivar_anexo', np_id=np.id, anexo_id=a.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="boton-link-peligro" onclick="return confirm('¿Desactivar este anexo NP?')">Desactivar</button>
+                    </form>{% endif %}</td>
+            </tr>
+            {% else %}<tr><td colspan="8">No hay anexos NP registrados.</td></tr>{% endfor %}
+        </tbody>
+    </table></div>
+    {% if current_user.puede_modificar %}
+    <details><summary>Registrar anexo NP</summary>
+        <form method="POST" class="formulario" action="{{ url_for('no_portadores.agregar_anexo', np_id=np.id) }}">
+            {{ formulario_anexo.hidden_tag() }}
+            <div class="grid-form">
+                {% for campo in ['numero_anexo','titulo','tipo_anexo','fecha_recepcion','persona_entrega','rc','providencia','folios','fecha_escaneado'] %}
+                <div class="campo">{{ formulario_anexo[campo].label }} {{ formulario_anexo[campo]() }}</div>
+                {% endfor %}
+            </div>
+            <div class="campo"><label>{{ formulario_anexo.escaneado() }} Escaneado (metadato; no carga archivo)</label></div>
+            <div class="campo">{{ formulario_anexo.observaciones.label }} {{ formulario_anexo.observaciones(rows=2) }}</div>
+            {{ formulario_anexo.submit(class="boton") }}
+        </form>
+    </details>
+    {% endif %}
+
+    <h2>Verificaciones NP</h2>
+    <div class="tabla-contenedor"><table>
+        <thead><tr><th>Fecha</th><th>Tipo</th><th>Resultado</th><th>Folios</th><th>Observaciones</th></tr></thead>
+        <tbody>
+            {% for v in np.verificaciones|sort(attribute='creado_en', reverse=true) %}
+            <tr><td>{{ v.creado_en.strftime('%d/%m/%Y %H:%M') }}</td><td>{{ v.tipo }}</td>
+                <td>{{ v.resultado }}</td><td>{{ v.folios_verificados if v.folios_verificados is not none else '—' }}</td><td>{{ v.observaciones or '—' }}</td></tr>
+            {% else %}<tr><td colspan="5">Sin verificaciones NP.</td></tr>{% endfor %}
+        </tbody>
+    </table></div>
+    {% if current_user.puede_modificar %}
+    <details><summary>Registrar verificación NP</summary>
+        <form method="POST" class="formulario" action="{{ url_for('no_portadores.verificar', np_id=np.id) }}">
+            {{ formulario_verificacion.hidden_tag() }}
+            <div class="grid-form">
+                {% for campo in ['tipo','resultado','folios_verificados'] %}
+                <div class="campo">{{ formulario_verificacion[campo].label }} {{ formulario_verificacion[campo]() }}</div>
+                {% endfor %}
+            </div>
+            <div class="campo">{{ formulario_verificacion.observaciones.label }} {{ formulario_verificacion.observaciones(rows=2) }}</div>
+            {{ formulario_verificacion.submit(class="boton") }}
+        </form>
+    </details>
+    {% endif %}
+
+    <h2>Préstamos y devoluciones NP</h2>
+    <div class="tabla-contenedor"><table>
+        <thead><tr><th>Control</th><th>Solicitante</th><th>Fecha</th><th>Devolución prevista</th><th>Estado</th><th>PDF</th></tr></thead>
+        <tbody>
+            {% for p in np.prestamos|sort(attribute='fecha_prestamo', reverse=true) %}
+            <tr><td>{{ p.numero_control }}</td><td>{{ p.solicitante }}</td>
+                <td>{{ p.fecha_prestamo.strftime('%d/%m/%Y') }}</td>
+                <td>{{ p.fecha_estimada_devolucion.strftime('%d/%m/%Y') if p.fecha_estimada_devolucion else '—' }}</td>
+                <td>{{ p.estado }}{% if p in np.prestamos_vencidos %} · Vencido{% endif %}</td>
+                <td><a href="{{ url_for('no_portadores.comprobante_pdf', np_id=np.id, prestamo_id=p.id) }}">Comprobante</a></td>
+            </tr>
+            {% else %}<tr><td colspan="6">Sin préstamos NP.</td></tr>{% endfor %}
+        </tbody>
+    </table></div>
+
+    {% if current_user.puede_modificar %}
+        {% if np.prestamo_activo %}
+        <details open><summary>Registrar devolución NP</summary>
+            <form method="POST" class="formulario" action="{{ url_for('no_portadores.devolver', np_id=np.id, prestamo_id=np.prestamo_activo.id) }}">
+                {{ formulario_devolucion.hidden_tag() }}
+                <div class="grid-form">
+                    {% for campo in ['persona_devuelve','persona_recibe_devolucion'] %}
+                    <div class="campo">{{ formulario_devolucion[campo].label }} {{ formulario_devolucion[campo]() }}</div>
+                    {% endfor %}
+                </div>
+                <div class="campo">{{ formulario_devolucion.observaciones_devolucion.label }} {{ formulario_devolucion.observaciones_devolucion(rows=2) }}</div>
+                {{ formulario_devolucion.submit(class="boton") }}
+            </form>
+        </details>
+        {% else %}
+        <details><summary>Generar préstamo físico NP</summary>
+            {% if not np.expediente_fisico_registrado or not np.rectificacion_completa %}
+            <p>Debe registrar existencia física y confirmar rectificación antes del préstamo.</p>
+            {% else %}
+            <form method="POST" class="formulario" action="{{ url_for('no_portadores.nuevo_prestamo', np_id=np.id) }}">
+                {{ formulario_prestamo.hidden_tag() }}
+                <div class="grid-form">
+                    {% for campo in ['solicitante','persona_entrega','persona_recibe','fecha_estimada_devolucion'] %}
+                    <div class="campo">{{ formulario_prestamo[campo].label }} {{ formulario_prestamo[campo]() }}</div>
+                    {% endfor %}
+                </div>
+                <div class="campo">{{ formulario_prestamo.observaciones.label }} {{ formulario_prestamo.observaciones(rows=2) }}</div>
+                {{ formulario_prestamo.submit(class="boton") }}
+            </form>
+            {% endif %}
+        </details>
+        {% endif %}
+    {% endif %}
+
+    <h2>Traslados virtuales NP</h2>
+    <div class="tabla-contenedor"><table>
+        <thead><tr><th>Constancia</th><th>Destinatario</th><th>Plataforma</th><th>Asunto</th><th>Fecha</th><th>PDF</th></tr></thead>
+        <tbody>
+            {% for t in np.traslados_virtuales|sort(attribute='creado_en', reverse=true) %}
+            <tr><td>{{ t.numero_constancia }}</td><td>{{ t.destinatario }}</td>
+                <td>{{ t.plataforma }}</td><td>{{ t.asunto }}</td><td>{{ t.creado_en.strftime('%d/%m/%Y') }}</td>
+                <td><a href="{{ url_for('no_portadores.traslado_pdf', np_id=np.id, traslado_id=t.id) }}">Constancia</a></td></tr>
+            {% else %}<tr><td colspan="6">Sin traslados virtuales NP.</td></tr>{% endfor %}
+        </tbody>
+    </table></div>
+    {% if current_user.puede_modificar %}
+    <details><summary>Generar constancia de traslado virtual NP</summary>
+        {% if not np.rectificacion_completa %}<p>Debe rectificar el expediente NP primero.</p>{% else %}
+        <form method="POST" class="formulario" action="{{ url_for('no_portadores.nuevo_traslado', np_id=np.id) }}">
+            {{ formulario_traslado.hidden_tag() }}
+            <div class="grid-form">
+                {% for campo in ['destinatario','dependencia_destino','plataforma','enlace_corto','asunto'] %}
+                <div class="campo">{{ formulario_traslado[campo].label }} {{ formulario_traslado[campo]() }}</div>
+                {% endfor %}
+            </div>
+            <div class="campo">{{ formulario_traslado.observaciones.label }} {{ formulario_traslado.observaciones(rows=2) }}</div>
+            {{ formulario_traslado.submit(class="boton") }}
+        </form>{% endif %}
+    </details>
+    {% endif %}
+
+    <h2>Alertas NP</h2>
+    <div class="tabla-contenedor"><table>
+        <thead><tr><th>Tipo</th><th>Título</th><th>Gravedad</th><th>Estado</th><th>Acción</th></tr></thead>
+        <tbody>
+            {% for a in np.alertas|sort(attribute='creado_en', reverse=true) %}
+            <tr><td>{{ a.tipo_alerta }}</td><td>{{ a.titulo }}</td><td>{{ a.gravedad }}</td><td>{{ a.estado }}</td>
+                <td>{% if current_user.puede_modificar and a.estado != 'Cerrada' %}
+                    <form method="POST" action="{{ url_for('no_portadores.resolver_alerta', np_id=np.id, alerta_id=a.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit">Cerrar alerta</button>
+                    </form>{% endif %}</td></tr>
+            {% else %}<tr><td colspan="5">Sin alertas NP.</td></tr>{% endfor %}
+        </tbody>
+    </table></div>
+    {% if current_user.puede_modificar %}
+    <details><summary>Registrar alerta NP</summary>
+        <form method="POST" class="formulario" action="{{ url_for('no_portadores.crear_alerta', np_id=np.id) }}">
+            {{ formulario_alerta.hidden_tag() }}
+            <div class="grid-form">
+                {% for campo in ['tipo_alerta','titulo','gravedad'] %}
+                <div class="campo">{{ formulario_alerta[campo].label }} {{ formulario_alerta[campo]() }}</div>
+                {% endfor %}
+            </div>
+            <div class="campo">{{ formulario_alerta.descripcion.label }} {{ formulario_alerta.descripcion(rows=2) }}</div>
+            {{ formulario_alerta.submit(class="boton") }}
+        </form>
+    </details>
+    {% endif %}
+    <h2>Observaciones generales</h2><p>{{ np.observaciones or 'Sin observaciones.' }}</p>
+</section>
+{% endblock %}
