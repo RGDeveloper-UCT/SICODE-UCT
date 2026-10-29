@@ -103,11 +103,16 @@ def _clave_institucional():
         abort(503, description="Bóveda institucional no disponible. Contacte administración.")
 
 
-def _compartido_propio(registro_id):
-    """Cualquier usuario con permiso vigente puede gestionar la bóveda común."""
+def _compartido_propio(registro_id, escritura=False):
+    """Todos los autorizados consultan; solo creador o admin modifica/archiva."""
     registro = db.session.get(HashPassCompartido, str(registro_id))
     if registro is None or registro.archivado:
         abort(404)
+    if escritura and (
+        registro.creado_por_id != current_user.id
+        and current_user.rol != Usuario.ROL_ADMINISTRADOR
+    ):
+        abort(403)
     return registro
 
 
@@ -547,7 +552,7 @@ def compartido_editar(registro_id):
     clave = _clave_institucional()
     if _boveda() is None:
         return redirect(url_for("hashpass.configurar"))
-    registro = _compartido_propio(registro_id)
+    registro = _compartido_propio(registro_id, escritura=True)
     tipo = _tipo_actual(request.values.get("tipo") or registro.tipo)
     if request.method == "POST":
         if _abrir(request.form.get("maestra")) is None:
@@ -579,7 +584,7 @@ def compartido_archivar(registro_id):
     _clave_institucional()
     if _boveda() is None:
         return redirect(url_for("hashpass.configurar"))
-    registro = _compartido_propio(registro_id)
+    registro = _compartido_propio(registro_id, escritura=True)
     if _abrir(request.form.get("maestra")) is None:
         flash("No fue posible desbloquear la bóveda.", "danger")
     else:
