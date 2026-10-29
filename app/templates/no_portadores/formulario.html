@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ modo }} NP — SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+    <div class="encabezado-modulo"><div>
+        <h1>{{ modo }} No Portador (NP)</h1>
+        <p>Registro administrativo autónomo. No se incorporará al maestro de Sujetos Portadores (SP).</p>
+    </div></div>
+    <div class="aviso">Registre únicamente metadatos administrativos. No cargue documentos sensibles. La fecha de instalación no aplica a un NP.</div>
+    <form method="POST" class="formulario">
+        {{ form.hidden_tag() }}
+        <h2>Identificación y motivo</h2>
+        <div class="grid-form">
+            {% for campo in ['numero_np','codigo_interno','nombre_referencia','fecha_no_instalacion','estado_administrativo'] %}
+            <div class="campo">{{ form[campo].label }} {{ form[campo]() }}
+                {% for error in form[campo].errors %}<small class="error">{{ error }}</small>{% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+        <div class="campo">{{ form.motivo_no_instalacion.label }}
+            {{ form.motivo_no_instalacion(rows=3, placeholder="Razón administrativa por la que no se realizó la instalación") }}
+            {% for error in form.motivo_no_instalacion.errors %}<small class="error">{{ error }}</small>{% endfor %}
+        </div>
+        <h2>Datos generales (estructura equivalente a SP)</h2>
+        <div class="grid-form">
+            {% for campo in ['nombres','apellidos','genero','fecha_nacimiento','expediente_oj','juez','juzgado_tribunal','abogado','municipio','departamento','telefono','municipio_residencia','departamento_residencia','financiamiento','estado_monitoreo'] %}
+            <div class="campo">{{ form[campo].label }} {{ form[campo]() }}
+                {% for error in form[campo].errors %}<small class="error">{{ error }}</small>{% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+        {% for campo in ['delito','residencia','zona_inclusion','zona_exclusion','zona_prevencion','lugar_instalacion'] %}
+        <div class="campo">{{ form[campo].label }} {{ form[campo](rows=2) }}
+            {% for error in form[campo].errors %}<small class="error">{{ error }}</small>{% endfor %}
+        </div>
+        {% endfor %}
+        <h2>Existencia y ubicación física</h2>
+        <div class="campo"><label>{{ form.expediente_fisico_registrado() }} {{ form.expediente_fisico_registrado.label.text }}</label></div>
+        <div class="grid-form">
+            {% for campo in ['archivador','sicoin','estante','caja','modulo','posicion'] %}
+            <div class="campo">{{ form[campo].label }} {{ form[campo]() }}</div>
+            {% endfor %}
+        </div>
+        <div class="campo">{{ form.observaciones.label }} {{ form.observaciones(rows=3) }}</div>
+        <div class="acciones">
+            {{ form.submit(class="boton") }}
+            <a href="{{ url_for('no_portadores.detalle', np_id=np.id) if np is defined else url_for('no_portadores.listado') }}" class="boton-cancelar">Cancelar</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

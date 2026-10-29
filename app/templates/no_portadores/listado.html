@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}No Portadores — SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+    <div class="encabezado-modulo">
+        <div>
+            <h1>NO PORTADORES · NP</h1>
+            <p>Registro y control independiente de personas cuya instalación de dispositivo no se realizó.</p>
+        </div>
+        <div class="acciones-detalle">
+            {% if current_user.puede_modificar %}
+            <a class="boton" href="{{ url_for('no_portadores.nuevo') }}">Registrar NP</a>
+            <a class="boton-secundario" href="{{ url_for('no_portadores.exportar_excel') }}">Exportar Excel</a>
+            {% endif %}
+        </div>
+    </div>
+    <div class="aviso"><strong>Control independiente:</strong> estos registros NP no forman parte del maestro SP, ni de importaciones ni de préstamos SP.</div>
+    <form method="GET" class="filtros-expedientes">
+        <div class="campo-filtro campo-filtro-grande">
+            <label for="q">Buscar NP</label>
+            <input id="q" name="q" value="{{ busqueda }}" placeholder="Número NP, código, nombre, expediente OJ">
+        </div>
+        <div class="campo-filtro">
+            <label for="estado">Disponibilidad</label>
+            <select name="estado" id="estado">
+                {% for valor, titulo in [('', 'Todos'),('disponible','Disponibles'),('sin_fisico','Sin expediente físico'),('prestado','En préstamo'),('inactivo','Inactivos')] %}
+                <option value="{{ valor }}" {% if estado == valor %}selected{% endif %}>{{ titulo }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="acciones-filtro"><button type="submit">Buscar</button><a href="{{ url_for('no_portadores.listado') }}">Limpiar</a></div>
+    </form>
+    <p>NP encontrados: <strong>{{ registros|length }}</strong></p>
+    <div class="tabla-contenedor">
+        <table>
+            <thead>
+                <tr><th>No. NP</th><th>Referencia</th><th>Motivo de no instalación</th>
+                    <th>Estado</th><th>Expediente físico</th><th>Disponibilidad</th>
+                    <th>Folios</th><th>Anexos</th><th>Código</th><th>Acción</th></tr>
+            </thead>
+            <tbody>
+                {% for np in registros %}
+                <tr>
+                    <td><strong>{{ np.numero_np }}</strong></td>
+                    <td>{{ np.nombre_referencia or (np.nombres or '') ~ ' ' ~ (np.apellidos or '') }}</td>
+                    <td>{{ np.motivo_no_instalacion|truncate(100) }}</td>
+                    <td>{{ np.estado_administrativo }}</td>
+                    <td>{{ 'Registrado' if np.expediente_fisico_registrado else 'No registrado' }}</td>
+                    <td>{{ np.disponibilidad }}</td>
+                    <td>{{ np.folios_rectificados if np.folios_rectificados is not none else 'Pendiente' }}</td>
+                    <td>{{ np.anexos_rectificados if np.anexos_rectificados is not none else 'Pendiente' }}</td>
+                    <td>{{ np.codigo_interno }}</td>
+                    <td><a href="{{ url_for('no_portadores.detalle', np_id=np.id) }}">Ver NP</a>
+                        {% if current_user.puede_modificar %} | <a href="{{ url_for('no_portadores.editar', np_id=np.id) }}">Editar</a>{% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="10">No se encontraron registros NP.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

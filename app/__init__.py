@@ -69,7 +69,7 @@ def create_app():
         integridad_bp, busqueda_bp, cuenta_bp, pagos_bp, coordinacion_bp, coordinacion_export_bp, portadores_bp, uo_bp,
         codigos_barras_bp, rectificaciones_bp, rectificacion_produccion_bp, soporte_tecnico_bp, soporte_tecnico_pdf_bp,
         control_accesos_bp, favoritos_bp, agenda_bp, analisis_documental_bp, lote_documental_bp, sicode_ia_bp, sicode_ia_jobs_bp,
-        cerebro_sicode_bp, nexo_ia_bp, monitoreo_anexos_bp, anexos_inteligentes_bp, instalar_registro_monitoreo,
+        cerebro_sicode_bp, nexo_ia_bp, monitoreo_anexos_bp, anexos_inteligentes_bp, no_portadores_bp, instalar_registro_monitoreo,
     )
     from app.routes.seguridad_informatica import seguridad_bp
     from app.routes.mantenimientos import mantenimientos_bp
@@ -82,7 +82,7 @@ def create_app():
         integridad_bp, busqueda_bp, cuenta_bp, pagos_bp, coordinacion_bp, coordinacion_export_bp, portadores_bp, uo_bp,
         codigos_barras_bp, rectificaciones_bp, rectificacion_produccion_bp, soporte_tecnico_bp, soporte_tecnico_pdf_bp,
         control_accesos_bp, favoritos_bp, agenda_bp, analisis_documental_bp, lote_documental_bp, sicode_ia_bp, sicode_ia_jobs_bp,
-        cerebro_sicode_bp, nexo_ia_bp, monitoreo_anexos_bp, anexos_inteligentes_bp,
+        cerebro_sicode_bp, nexo_ia_bp, monitoreo_anexos_bp, anexos_inteligentes_bp, no_portadores_bp,
     ):
         app.register_blueprint(blueprint)
 

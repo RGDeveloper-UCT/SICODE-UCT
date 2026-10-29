@@ -39,3 +39,5 @@ from app.models.mantenimiento_equipo import MantenimientoEquipo
 from app.models.agenda import AgendaActividad, AgendaParticipante, AgendaComentario, AgendaNotificacion, AgendaCumpleanos
 
 from app.models.nexo import NexoPropuesta
+
+from app.models.no_portador import (NoPortador, UbicacionNP, DocumentoNP, AnexoNP, PrestamoNP, VerificacionNP, AlertaNP, TrasladoVirtualNP)
