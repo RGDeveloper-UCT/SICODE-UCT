@@ -1,7 +1,7 @@
 """Formularios del módulo NP; reutiliza las validaciones de SICODE."""
 from flask_wtf import FlaskForm
 from wtforms import BooleanField, DateField, IntegerField, SelectField, StringField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Length, NumberRange, Optional, ValidationError
+from wtforms.validators import DataRequired, InputRequired, Length, NumberRange, Optional, ValidationError
 
 from app.models.no_portador import normalizar_np
 
@@ -88,7 +88,7 @@ class AnexoNPForm(FlaskForm):
 
 class RectificacionNPForm(FlaskForm):
     folios_rectificados = IntegerField("Total de folios físicos", validators=[DataRequired(), NumberRange(min=1)])
-    anexos_rectificados = IntegerField("Total de anexos físicos", validators=[NumberRange(min=0)])
+    anexos_rectificados = IntegerField("Total de anexos físicos", validators=[InputRequired(), NumberRange(min=0)])
     submit = SubmitField("Confirmar rectificación")
 
 
