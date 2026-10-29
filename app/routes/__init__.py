@@ -51,3 +51,5 @@ from app.routes.seguridad_informatica import seguridad_bp
 from app.routes.mantenimientos import mantenimientos_bp
 
 from app.routes.agenda import agenda_bp
+
+from app.routes.no_portadores import no_portadores_bp
