@@ -7,6 +7,7 @@ from flask_login import LoginManager, current_user
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
+from werkzeug.middleware.proxy_fix import ProxyFix
 from sqlalchemy import text
 
 from config import Config
@@ -34,6 +35,11 @@ def create_app():
     Config.validar()
     app = Flask(__name__)
     app.config.from_object(Config)
+    if app.config.get("HASHPASS_PROXY_PROTO_COUNT", 0):
+        # Confiar exclusivamente en Nginx cuando Gunicorn escuche en loopback.
+        app.wsgi_app = ProxyFix(
+            app.wsgi_app, x_proto=app.config["HASHPASS_PROXY_PROTO_COUNT"],
+        )
     db.init_app(app); migrate.init_app(app, db); csrf.init_app(app)
     login_manager.init_app(app)
     login_manager.login_view = "auth.login"
@@ -119,6 +125,8 @@ def create_app():
     def restringir_visor_solo_lectura():
         if not current_user.is_authenticated or not getattr(current_user, "es_visor", False): return None
         if request.endpoint in {"cuenta.cambiar_password", "auth.logout", "static", "uo.pulso"}: return None
+        # HashPass tiene autorización independiente incluso para el rol Visor.
+        if request.endpoint and request.endpoint.startswith("hashpass."): return None
         if request.endpoint == "busqueda.ia": return None
         if request.endpoint and request.endpoint.split(".", 1)[0] in {"sicode_ia", "sicode_ia_jobs", "favoritos"}: return None
         if request.method not in {"GET", "HEAD", "OPTIONS"}: abort(403)
