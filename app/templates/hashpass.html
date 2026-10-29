@@ -6,7 +6,30 @@
     <div><h1>🔐 HashPass</h1><p>Bóveda privada de credenciales institucionales · acceso independiente</p></div>
     <a class="boton-secundario" href="{{ url_for('hashpass.inicio') }}">HashPass</a>
   </div>
-  <p class="alerta alerta-warning"><strong>Seguridad:</strong> la contraseña maestra es independiente de SICODE. No puede recuperarse y se solicita en cada operación sensible; no se guarda en sesión ni en el servidor. Use únicamente una conexión HTTPS institucional.</p>
+  <section class="hashpass-seguridad" aria-labelledby="hashpass-seguridad-titulo">
+    <div class="hashpass-seguridad__titulo">
+      <span class="hashpass-seguridad__icono" aria-hidden="true">🔒</span>
+      <div>
+        <h2 id="hashpass-seguridad-titulo">¿Cómo protege HashPass tus contraseñas?</h2>
+        <p>Protección criptográfica de la bóveda y de cada credencial almacenada.</p>
+      </div>
+    </div>
+    <div class="hashpass-seguridad__grid">
+      <div>
+        <h3>Argon2id · Contraseña maestra</h3>
+        <p>Tu contraseña maestra, diferente de la de SICODE, deriva una clave con Argon2id y una sal aleatoria por bóveda. Esto dificulta los ataques de prueba masiva de contraseñas.</p>
+      </div>
+      <div>
+        <h3>AES-256-GCM · Datos cifrados</h3>
+        <p>Se utiliza cifrado autenticado AES-256-GCM para proteger la clave de la bóveda y los datos de cada registro. Cada cifrado lleva un nonce aleatorio y verifica que el contenido no fue alterado.</p>
+      </div>
+      <div>
+        <h3>Permisos y auditoría</h3>
+        <p>Solo el administrador concede acceso al módulo. Las credenciales son privadas de su propietario y la bitácora registra accesos, consultas y cambios, sin almacenar el secreto consultado.</p>
+      </div>
+    </div>
+    <p class="hashpass-seguridad__limite"><strong>Alcance real de la protección:</strong> las contraseñas están cifradas en la base de datos, pero la contraseña maestra y las credenciales se procesan temporalmente en la memoria del servidor al utilizarlas. No es cifrado de extremo a extremo ni reemplaza proteger el servidor, los respaldos, el equipo cliente y la conexión HTTPS. Si se pierde la contraseña maestra, no existe recuperación automática.</p>
+  </section>
 
   {% if modo == 'configurar' %}
     <h2>Primera configuración</h2>
