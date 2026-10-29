@@ -164,7 +164,7 @@ def _campos():
     return tipo, campos
 
 
-@hashpass_bp.route("/")
+@hashpass_bp.route("/", methods=["GET", "POST"])
 def inicio():
     _auditar("HASHPASS_ABRIR_MODULO")
     boveda = _boveda()
@@ -173,7 +173,31 @@ def inicio():
     registros = HashPassRegistro.query.filter_by(
         usuario_id=current_user.id, archivado=False
     ).order_by(HashPassRegistro.actualizado_utc.desc()).all()
-    return render_template("hashpass.html", modo="lista", registros=registros, tipos=TIPOS)
+    nombres = {}
+    filtro = ""
+    if request.method == "POST":
+        dek = _abrir(request.form.get("maestra"))
+        if dek is None:
+            flash("No fue posible desbloquear el listado.", "danger")
+        else:
+            filtro = (request.form.get("q") or "").strip().casefold()[:180]
+            for registro in registros:
+                try:
+                    datos = descifrar_registro(
+                        dek, current_user.id, registro.id,
+                        registro.nonce, registro.contenido_cifrado,
+                    )
+                except (InvalidTag, ValueError, UnicodeError):
+                    _auditar("HASHPASS_INTEGRIDAD_FALLIDA", registro.id)
+                    abort(409)
+                nombre = str(datos.get("nombre", "Sin nombre"))
+                if not filtro or filtro in nombre.casefold():
+                    nombres[registro.id] = nombre
+            _auditar("HASHPASS_DESBLOQUEAR_LISTADO")
+    return render_template(
+        "hashpass.html", modo="lista", registros=registros,
+        nombres=nombres, filtrado=bool(filtro), tipos=TIPOS,
+    )
 
 
 @hashpass_bp.route("/configurar", methods=["GET", "POST"])
