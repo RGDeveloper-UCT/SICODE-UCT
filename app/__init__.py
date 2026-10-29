@@ -248,6 +248,13 @@ def create_app():
     def contexto_hashpass():
         habilitado = bool(app.config.get("HASHPASS_ENABLED", False))
         tablas_listas = bool(habilitado and current_user.is_authenticated and _hashpass_tablas_disponibles())
+        custodia_lista = True
+        if habilitado and app.config.get("HASHPASS_SHARED_ENABLED", False):
+            from app.services.hashpass_shared_crypto import SharedVaultKeyError, obtener_clave_compartida
+            try:
+                obtener_clave_compartida(app.config)
+            except SharedVaultKeyError:
+                custodia_lista = False
         transporte_seguro = bool(
             app.testing or (
                 request.is_secure
@@ -256,12 +263,13 @@ def create_app():
             )
         )
         autorizado = bool(
-            tablas_listas and transporte_seguro and current_user.is_authenticated
+            tablas_listas and custodia_lista and transporte_seguro and current_user.is_authenticated
             and current_user.activo and permiso_activo(current_user.id)
         )
         return {
             "hashpass_habilitado": habilitado,
             "hashpass_tablas_listas": tablas_listas,
+            "hashpass_custodia_lista": custodia_lista,
             "hashpass_transporte_seguro": transporte_seguro,
             "hashpass_autorizado": autorizado,
         }
