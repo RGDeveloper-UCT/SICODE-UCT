@@ -221,7 +221,11 @@ def create_app():
 
     @app.context_processor
     def contexto_version():
-        return {"sicode_version": obtener_version(), "modo_solo_lectura": bool(current_user.is_authenticated and getattr(current_user, "es_visor", False))}
+        visor_expedientes = bool(
+            current_user.is_authenticated and getattr(current_user, "es_visor", False)
+            and not (request.endpoint or "").startswith("hashpass.")
+        )
+        return {"sicode_version": obtener_version(), "modo_solo_lectura": visor_expedientes}
 
     @app.route("/")
     def inicio(): return redirect(url_for("auth.login"))
