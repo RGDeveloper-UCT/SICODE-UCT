@@ -8,7 +8,7 @@
         </div>
         <div class="acciones-detalle">
             <a class="boton-secundario" href="{{ url_for('no_portadores.listado') }}">Volver a NP</a>
-            <a class="boton-secundario" href="{{ url_for('no_portadores.ficha_pdf', np_id=np.id) }}">Ficha PDF</a>
+            {% if current_user.puede_modificar %}<a class="boton-secundario" href="{{ url_for('no_portadores.ficha_pdf', np_id=np.id) }}">Ficha PDF</a>{% endif %}
             {% if current_user.puede_modificar %}<a class="boton" href="{{ url_for('no_portadores.editar', np_id=np.id) }}">Editar NP</a>{% endif %}
         </div>
     </div>
@@ -153,7 +153,7 @@
                 <td>{{ p.fecha_prestamo.strftime('%d/%m/%Y') }}</td>
                 <td>{{ p.fecha_estimada_devolucion.strftime('%d/%m/%Y') if p.fecha_estimada_devolucion else '—' }}</td>
                 <td>{{ p.estado }}{% if p in np.prestamos_vencidos %} · Vencido{% endif %}</td>
-                <td><a href="{{ url_for('no_portadores.comprobante_pdf', np_id=np.id, prestamo_id=p.id) }}">Comprobante</a></td>
+                <td>{% if current_user.puede_modificar %}<a href="{{ url_for('no_portadores.comprobante_pdf', np_id=np.id, prestamo_id=p.id) }}">Comprobante</a>{% endif %}</td>
             </tr>
             {% else %}<tr><td colspan="6">Sin préstamos NP.</td></tr>{% endfor %}
         </tbody>
@@ -200,7 +200,7 @@
             {% for t in np.traslados_virtuales|sort(attribute='creado_en', reverse=true) %}
             <tr><td>{{ t.numero_constancia }}</td><td>{{ t.destinatario }}</td>
                 <td>{{ t.plataforma }}</td><td>{{ t.asunto }}</td><td>{{ t.creado_en.strftime('%d/%m/%Y') }}</td>
-                <td><a href="{{ url_for('no_portadores.traslado_pdf', np_id=np.id, traslado_id=t.id) }}">Constancia</a></td></tr>
+                <td>{% if current_user.puede_modificar %}<a href="{{ url_for('no_portadores.traslado_pdf', np_id=np.id, traslado_id=t.id) }}">Constancia</a>{% endif %}</td></tr>
             {% else %}<tr><td colspan="6">Sin traslados virtuales NP.</td></tr>{% endfor %}
         </tbody>
     </table></div>
