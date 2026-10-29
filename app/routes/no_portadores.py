@@ -538,6 +538,12 @@ def exportar_excel():
                    np.fecha_no_instalacion.isoformat() if np.fecha_no_instalacion else "",
                    np.estado_administrativo, "Sí" if np.expediente_fisico_registrado else "No",
                    np.disponibilidad, np.folios_rectificados, np.anexos_rectificados, np.expediente_oj])
+    # No interpretar entradas administrativas como fórmulas de Excel.
+    for fila in ws.iter_rows(min_row=2):
+        for celda in fila:
+            if isinstance(celda.value, str) and celda.value.startswith(("=", "+", "-", "@")):
+                celda.value = "\x27" + celda.value
+                celda.data_type = "s"
     for celda in ws[1]:
         celda.font = Font(bold=True)
     for columna in ws.columns:
