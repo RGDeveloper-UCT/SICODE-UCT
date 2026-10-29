@@ -4,12 +4,15 @@ on:
   push:
     branches:
       - feature/hashpass-hp001-np-compatible
+      - feature/hashpass-hp002-boveda-compartida
   pull_request:
     paths:
       - 'app/hashpass.py'
       - 'app/services/hashpass_crypto.py'
+      - 'app/services/hashpass_shared_crypto.py'
       - 'tests/test_hashpass.py'
       - 'migrations/versions/hp00120261029_hashpass.py'
+      - 'migrations/versions/hp00220261029_compartidos.py'
       - '.github/workflows/hashpass_hp001.yml'
 
 jobs:
@@ -41,4 +44,5 @@ jobs:
         run: |
           python -m flask --app run.py db heads > /tmp/hashpass-heads.txt
           cat /tmp/hashpass-heads.txt
-          grep -Fx 'hp00120261029 (head)' /tmp/hashpass-heads.txt
+          grep -Fx 'hp00220261029 (head)' /tmp/hashpass-heads.txt
+          test "$(wc -l < /tmp/hashpass-heads.txt)" -eq 1
