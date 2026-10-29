@@ -40,6 +40,7 @@ Aplicación web institucional interna para registrar, localizar, relacionar y au
 - **Bitácora:** auditoría legible y campos estructurados de trazabilidad.
 - **UO · Usuarios Online:** panel exclusivo de administración para consultar presencias activas, página actual, última actividad y sesiones concurrentes sin exponer tokens ni credenciales.
 - **Administración:** usuarios, backups, estado técnico y Control de Integridad.
+- **HashPass (opcional y apagado por defecto):** bóvedas personales cifradas para credenciales técnicas, autorizadas por administrador y desbloqueadas con contraseña maestra independiente. Requiere HTTPS, cookie Secure, migración y aprobación de seguridad. Ver [`docs/HASHPASS_DESPLIEGUE.md`](docs/HASHPASS_DESPLIEGUE.md).
 - **Control de Integridad:** reglas determinísticas para SP, expedientes, ubicación, folios, préstamos, Coordinación, usuarios y backups.
 
 ## Variables de entorno obligatorias
