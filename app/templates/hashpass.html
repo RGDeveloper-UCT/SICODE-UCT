@@ -56,6 +56,7 @@
       </div>
       <button class="boton-secundario" type="submit">Desbloquear nombres / buscar</button>
     </form>
+    {% if desbloqueada %}
     <div class="tabla-contenedor">
       <table>
         <thead><tr><th>Identificador</th><th>Tipo</th><th>Actualizado (UTC)</th><th>Opciones</th></tr></thead>
@@ -74,6 +75,9 @@
         </tbody>
       </table>
     </div>
+    {% else %}
+      <p class="alerta alerta-info">La bóveda está bloqueada. Ingresa la contraseña maestra para consultar incluso el listado de credenciales.</p>
+    {% endif %}
 
   {% elif modo == 'formulario' %}
     <h2>{{ 'Sustituir credencial' if editando else 'Nueva credencial' }}</h2>
