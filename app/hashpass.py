@@ -45,6 +45,10 @@ class HashPassPermiso(db.Model):
     autorizado = db.Column(db.Boolean, nullable=False, default=False)
     autorizado_por = db.Column(db.Integer, db.ForeignKey("usuarios.id", ondelete="SET NULL"))
     actualizado_utc = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    usuario = db.relationship(
+        "Usuario", foreign_keys=[usuario_id],
+        backref=db.backref("permiso_hashpass", uselist=False),
+    )
 
 
 class HashPassBoveda(db.Model):
