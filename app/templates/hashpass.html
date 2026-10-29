@@ -24,14 +24,22 @@
       <a class="boton-secundario" href="{{ url_for('hashpass.generador') }}">Generar contraseña</a>
       <a class="boton-secundario" href="{{ url_for('hashpass.cambiar_maestra') }}">Cambiar maestra</a>
     </div>
-    <p>Los nombres, usuarios, URLs y contraseñas están cifrados. El listado muestra únicamente identificadores y categorías; cada consulta solicita la contraseña maestra.</p>
+    <p>Los nombres, usuarios, URLs y contraseñas están cifrados. Desbloquee para consultar los nombres y buscar una credencial sin mantener la maestra en la sesión.</p>
+    <form method="POST" class="formulario" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="grid-form">
+        <div class="campo"><label>Contraseña maestra para buscar</label><input name="maestra" type="password" required minlength="15" autocomplete="off"></div>
+        <div class="campo"><label>Filtrar por nombre (opcional)</label><input name="q" type="text" maxlength="180" autocomplete="off"></div>
+      </div>
+      <button class="boton-secundario" type="submit">Desbloquear nombres / buscar</button>
+    </form>
     <div class="tabla-contenedor">
       <table>
         <thead><tr><th>Identificador</th><th>Tipo</th><th>Actualizado (UTC)</th><th>Opciones</th></tr></thead>
         <tbody>
           {% for registro in registros %}
           <tr>
-            <td><code>{{ registro.id[:8] }}…</code></td>
+            <td>{% if registro.id in nombres %}<strong>{{ nombres[registro.id] }}</strong><br>{% endif %}<code>{{ registro.id[:8] }}…</code></td>
             <td>{{ tipos.get(registro.tipo, ('Personalizado', []))[0] }}</td>
             <td>{{ registro.actualizado_utc.strftime('%d/%m/%Y %H:%M') }}</td>
             <td>
