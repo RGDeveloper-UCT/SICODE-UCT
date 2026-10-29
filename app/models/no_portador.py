@@ -82,7 +82,7 @@ class NoPortador(db.Model):
     def disponibilidad(self):
         if not self.expediente_fisico_registrado:
             return "Sin expediente físico"
-        if not self.activo:
+        if not self.activo or self.estado_administrativo == "Cerrado":
             return "Inactivo"
         return "En préstamo" if self.prestamo_activo else "Disponible"
 
