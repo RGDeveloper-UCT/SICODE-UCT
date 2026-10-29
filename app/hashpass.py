@@ -14,7 +14,6 @@ from flask import Blueprint, abort, current_app, flash, redirect, render_templat
 from flask_login import current_user
 from werkzeug.security import check_password_hash
 from sqlalchemy import inspect
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import SQLAlchemyError
 
 from app import db
@@ -321,6 +320,9 @@ def permiso(usuario_id):
 
 @hashpass_bp.route("/registro/nuevo", methods=["GET", "POST"])
 def nuevo():
+    if current_app.config.get("HASHPASS_SHARED_ENABLED", False):
+        # HP-002: cualquier nueva credencial debe ser institucional/compartida.
+        return redirect(url_for("hashpass.compartido_nuevo"), code=303)
     if _boveda() is None:
         return redirect(url_for("hashpass.configurar"))
     tipo = _tipo_actual(request.values.get("tipo"))
