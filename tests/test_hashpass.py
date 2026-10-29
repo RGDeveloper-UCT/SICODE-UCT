@@ -1,4 +1,5 @@
 """Pruebas HashPass HP-001 sobre SQLite temporal, sin secretos reales."""
+import base64
 import re
 
 import pytest
@@ -8,7 +9,7 @@ from flask_login import login_user
 from werkzeug.security import generate_password_hash
 
 from app import create_app, db
-from app.hashpass import HashPassBoveda, HashPassPermiso, HashPassRegistro
+from app.hashpass import HashPassBoveda, HashPassPermiso, HashPassRegistro, HashPassCompartido
 from app.models.bitacora import Bitacora
 from app.models.usuario import Usuario
 from app.services.hashpass_crypto import (
@@ -253,3 +254,150 @@ def test_csrf_estricto_https_y_referer_mismo_origen(contexto_hashpass):
     )
     assert aceptado.status_code == 302
     assert db.session.get(HashPassBoveda, ids[1]) is not None
+
+
+MAESTRA_B = "frase-de-otra-persona-maestra-2026"
+
+
+def _compartidos_habilitados(app):
+    # Únicamente material ficticio de pruebas; no reutilizar en producción.
+    app.config.update(
+        HASHPASS_SHARED_ENABLED=True,
+        HASHPASS_SHARED_KEY_B64=base64.b64encode(bytes(range(32))).decode("ascii"),
+    )
+
+
+def test_compartidos_entre_usuarios_y_permiso_revocado(contexto_hashpass):
+    app, ids = contexto_hashpass
+    _compartidos_habilitados(app)
+    admin = _cliente(app, ids[0])
+    autor = _cliente(app, ids[1])
+    lector = _cliente(app, ids[2])
+    for usuario_id in ids[1:]:
+        assert admin.post(
+            f"/hashpass/permiso/{usuario_id}", data={"accion": "conceder"},
+        ).status_code == 302
+    assert autor.post(
+        "/hashpass/configurar", data={"maestra": MAESTRA, "confirmar": MAESTRA},
+    ).status_code == 302
+    assert lector.post(
+        "/hashpass/configurar", data={"maestra": MAESTRA_B, "confirmar": MAESTRA_B},
+    ).status_code == 302
+
+    nuevo = autor.post("/hashpass/compartidos/nuevo", data={
+        "tipo": "red", "nombre": "AP institucional ficticio",
+        "usuario": "wifi-demo", "secreto": "clave-ficticia-de-pruebas",
+        "ip": "192.0.2.88", "maestra": MAESTRA,
+    })
+    assert nuevo.status_code == 302
+    registro = HashPassCompartido.query.one()
+    assert b"clave-ficticia" not in registro.contenido_cifrado
+    assert b"AP institucional" not in registro.contenido_cifrado
+    assert b"192.0.2.88" not in registro.contenido_cifrado
+
+    # El usuario B no requiere la contraseña maestra de A.
+    bloqueada = lector.get("/hashpass/compartidos")
+    assert bloqueada.status_code == 200
+    assert b"AP institucional" not in bloqueada.data
+    mostrados = lector.post("/hashpass/compartidos", data={"maestra": MAESTRA_B})
+    assert mostrados.status_code == 200
+    assert b"AP institucional ficticio" in mostrados.data
+    assert b"clave-ficticia" not in mostrados.data
+
+    detalle = lector.post(
+        f"/hashpass/compartidos/{registro.id}/ver",
+        data={"maestra": MAESTRA_B},
+    )
+    assert detalle.status_code == 200
+    assert b"clave-ficticia-de-pruebas" in detalle.data
+    assert Bitacora.query.filter_by(
+        accion="HASHPASS_COMPARTIDO_REVELAR", usuario_id=ids[2],
+    ).count() == 1
+
+    editado = lector.post(
+        f"/hashpass/compartidos/{registro.id}/editar",
+        data={
+            "tipo": "red", "nombre": "AP compartido actualizado",
+            "secreto": "otra-clave-ficticia", "maestra": MAESTRA_B,
+        },
+    )
+    assert editado.status_code == 302
+    assert db.session.get(HashPassCompartido, registro.id).actualizado_por_id == ids[2]
+    assert b"otra-clave-ficticia" in autor.post(
+        f"/hashpass/compartidos/{registro.id}/ver", data={"maestra": MAESTRA}
+    ).data
+
+    # El administrador sin permiso propio tampoco puede revelar.
+    assert admin.get(f"/hashpass/compartidos/{registro.id}/ver").status_code == 403
+    admin.post(f"/hashpass/permiso/{ids[2]}", data={"accion": "revocar"})
+    assert lector.get("/hashpass/compartidos").status_code == 403
+
+
+def test_publicacion_legado_una_vez_y_acceso_posterior(contexto_hashpass):
+    app, ids = contexto_hashpass
+    admin = _cliente(app, ids[0])
+    autor = _cliente(app, ids[1])
+    lector = _cliente(app, ids[2])
+    admin.post(f"/hashpass/permiso/{ids[1]}", data={"accion": "conceder"})
+    autor.post("/hashpass/configurar", data={"maestra": MAESTRA, "confirmar": MAESTRA})
+    creado = autor.post("/hashpass/registro/nuevo", data={
+        "tipo": "web", "nombre": "Web anterior",
+        "secreto": "legado-ficticio-123", "maestra": MAESTRA,
+    })
+    assert creado.status_code == 302
+    privado = HashPassRegistro.query.one()
+    assert privado.archivado is False
+
+    _compartidos_habilitados(app)
+    assert autor.get("/hashpass/").status_code == 302
+    assert autor.get("/hashpass/compartidos/publicar-privados").status_code == 200
+    publicacion = autor.post(
+        "/hashpass/compartidos/publicar-privados", data={"maestra": MAESTRA},
+    )
+    assert publicacion.status_code == 302
+    compartido = HashPassCompartido.query.one()
+    assert compartido.origen_privado_id == privado.id
+    assert db.session.get(HashPassRegistro, privado.id).archivado is True
+    assert autor.post(
+        "/hashpass/compartidos/publicar-privados", data={"maestra": MAESTRA},
+    ).status_code == 302
+    assert HashPassCompartido.query.count() == 1
+
+    # Usuario autorizado más tarde también obtiene acceso a lo compartido.
+    admin.post(f"/hashpass/permiso/{ids[2]}", data={"accion": "conceder"})
+    lector.post("/hashpass/configurar", data={"maestra": MAESTRA_B, "confirmar": MAESTRA_B})
+    consulta = lector.post(
+        f"/hashpass/compartidos/{compartido.id}/ver",
+        data={"maestra": MAESTRA_B},
+    )
+    assert consulta.status_code == 200
+    assert b"legado-ficticio-123" in consulta.data
+
+
+def test_compartidos_no_operan_sin_clave_custodiada(contexto_hashpass):
+    app, ids = contexto_hashpass
+    app.config.update(HASHPASS_SHARED_ENABLED=True, HASHPASS_SHARED_KEY_B64="")
+    admin = _cliente(app, ids[0])
+    usuario = _cliente(app, ids[1])
+    admin.post(f"/hashpass/permiso/{ids[1]}", data={"accion": "conceder"})
+    assert usuario.get("/hashpass/compartidos").status_code == 503
+    assert HashPassCompartido.query.count() == 0
+
+
+def test_auditoria_compartida_no_filtra_secretos(contexto_hashpass):
+    app, ids = contexto_hashpass
+    _compartidos_habilitados(app)
+    admin = _cliente(app, ids[0])
+    usuario = _cliente(app, ids[1])
+    admin.post(f"/hashpass/permiso/{ids[1]}", data={"accion": "conceder"})
+    usuario.post("/hashpass/configurar", data={"maestra": MAESTRA, "confirmar": MAESTRA})
+    usuario.post("/hashpass/compartidos/nuevo", data={
+        "nombre": "Demo log", "tipo": "api", "secreto": "NO-LOG-ESTE-VALOR",
+        "maestra": MAESTRA,
+    })
+    registros = Bitacora.query.filter_by(modulo="HashPass").all()
+    assert registros
+    assert "NO-LOG-ESTE-VALOR" not in str([
+        (x.accion, x.descripcion, x.datos_anteriores, x.datos_posteriores)
+        for x in registros
+    ])
