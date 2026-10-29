@@ -40,18 +40,28 @@ No existe recuperación silenciosa: perder la maestra implica perder acceso a la
 Ejecute estos pasos en una **copia autorizada de pruebas**, no directamente en la base de producción:
 
 ```bash
+# No cambiar la copia productiva ni instalar paquetes en su entorno virtual.
 cd /opt/sicode/app
-git status --short
 git fetch origin
-git switch -c feature/hashpass-hp001 --track origin/feature/hashpass-hp001
-source /opt/sicode/venv/bin/activate
+git status --short
+
+# Usuario con permisos de escritura en $HOME.
+git worktree add --detach "$HOME/hashpass-staging" \
+  origin/feature/hashpass-hp001-np-compatible
+cd "$HOME/hashpass-staging"
+python3 -m venv "$HOME/.venvs/hashpass-staging"
+source "$HOME/.venvs/hashpass-staging/bin/activate"
 python -m pip install -r requirements.txt
-python -m pytest -q tests/test_hashpass.py
+
+# Aislar los ajustes: nunca usar credenciales o BD de producción.
+export SECRET_KEY="solo-pruebas-hashpass-no-productivo"
+export DATABASE_URL="sqlite:////tmp/sicode_hashpass_test.sqlite3"
+export DOCUMENT_ANALYSIS_AI_TIMEOUT=75
+python -m pytest -q tests/test_hashpass.py tests/test_config_analisis_documental_runtime.py
 python -m compileall -q app migrations tests
-python -m flask --app run.py db current
 python -m flask --app run.py db heads
-python -m flask --app run.py db upgrade
-python -m flask --app run.py db current
+
+# db upgrade requiere una base PostgreSQL de staging autorizada y respaldada.
 ```
 
 Antes de activar el módulo en staging, copie su BD productiva únicamente si la política institucional lo autoriza y con datos desensibilizados. **Nunca ejecute las pruebas sobre la BD real**; `tests/conftest.py` intenta proteger automáticamente la suite, pero verifique `DATABASE_URL`.
