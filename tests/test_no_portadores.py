@@ -69,7 +69,7 @@ def test_np_independiente_sp_menu_auditoria(app_np, cliente_np):
     assert pagina.status_code == 200
     assert "NO PORTADORES" in pagina.get_data(as_text=True)
     assert "NP-001" in pagina.get_data(as_text=True)
-    assert "NO PORTADORES" in cliente_np.get("/expedientes").get_data(as_text=True) or True
+    assert "NP-001" not in cliente_np.get("/expedientes").get_data(as_text=True)
 
 
 def test_registro_duplicado_np_no_modifica_sp(app_np, cliente_np):
@@ -167,7 +167,6 @@ def test_anexos_verificaciones_y_traslado_np(app_np, cliente_np):
 
 def test_np_visor_solo_lectura(app_np, cliente_np):
     _crear_np(cliente_np)
-    cliente_np.get("/logout")
     visor = app_np.test_client()
     assert visor.post("/login", data={"usuario": "np-visor", "password": "Password123"}).status_code == 302
     assert visor.get("/no-portadores/").status_code == 200
