@@ -9,7 +9,7 @@ from app import db
 
 def normalizar_np(valor):
     texto = (valor or "").strip().upper()
-    texto = re.sub(r"^NP[\\s:#-]*", "", texto).strip()
+    texto = re.sub(r"^NP[\s:#-]*", "", texto).strip()
     if not texto or texto.startswith("SP"):
         return ""
     return "NP-" + texto
