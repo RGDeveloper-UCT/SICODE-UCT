@@ -643,10 +643,8 @@ def publicar_privados():
                 "success",
             )
             return redirect(url_for("hashpass.compartidos"))
-    pendientes = HashPassRegistro.query.filter_by(
-        usuario_id=current_user.id, archivado=False,
-    ).count()
+    # La página previa no revela siquiera el conteo de la bóveda privada
+    # hasta haber validado la contraseña maestra en el POST.
     return render_template(
-        "hashpass_compartidos.html", modo="publicar",
-        pendientes=pendientes, tipos=TIPOS,
+        "hashpass_compartidos.html", modo="publicar", tipos=TIPOS,
     )
