@@ -31,7 +31,7 @@
     <p class="hashpass-seguridad__limite"><strong>Límites:</strong> la clave de custodia del servidor permite descifrar las credenciales sin la contraseña maestra si el servidor y su base de datos resultan comprometidos. No es cifrado de extremo a extremo ni equivalente a KeePass. Usa únicamente HTTPS institucional, protege respaldos y conserva la clave institucional en custodia independiente. Revocar permisos no invalida contraseñas que un usuario ya conocía.</p>
   </section>
 
-  <p class="alerta alerta-warning"><strong>Atención:</strong> todos los usuarios activos con permiso HashPass pueden consultar y también modificar esta bóveda. No guardes credenciales personales que no deban ser compartidas institucionalmente.</p>
+  <p class="alerta alerta-warning"><strong>Atención:</strong> todos los usuarios activos con permiso HashPass pueden consultar las credenciales; solamente su creador o un administrador autorizado puede modificarlas o archivarlas. No guardes credenciales personales que no deban ser compartidas institucionalmente.</p>
 
   {% if modo == "lista" %}
     <div class="acciones">
@@ -59,7 +59,9 @@
             <td>{{ registro.actualizado_utc.strftime('%d/%m/%Y %H:%M') }}</td>
             <td>
               <a class="boton-tabla" href="{{ url_for('hashpass.compartido_ver', registro_id=registro.id) }}">Consultar</a>
+              {% if registro.creado_por_id == current_user.id or current_user.rol == 'administrador' %}
               <a class="boton-tabla boton-tabla-neutral" href="{{ url_for('hashpass.compartido_editar', registro_id=registro.id) }}">Modificar</a>
+              {% endif %}
             </td>
           </tr>
         {% else %}
@@ -133,14 +135,18 @@
     <p>Creado por usuario ID {{ registro.creado_por_id or 'no disponible' }}. Última modificación por usuario ID {{ registro.actualizado_por_id or 'no disponible' }}.</p>
     <div class="acciones">
       <a class="boton-secundario" href="{{ url_for('hashpass.compartidos') }}">Cerrar consulta</a>
+      {% if registro.creado_por_id == current_user.id or current_user.rol == 'administrador' %}
       <a class="boton-secundario" href="{{ url_for('hashpass.compartido_editar', registro_id=registro.id) }}">Modificar</a>
+      {% endif %}
     </div>
+    {% if registro.creado_por_id == current_user.id or current_user.rol == 'administrador' %}
     <h3>Archivar para todos</h3>
     <form method="POST" action="{{ url_for('hashpass.compartido_archivar', registro_id=registro.id) }}" class="formulario" autocomplete="off">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="campo"><label>Confirmar con tu contraseña maestra</label><input name="maestra" type="password" minlength="15" required autocomplete="off"></div>
       <button class="boton-tabla boton-tabla-peligro" type="submit">Archivar credencial compartida</button>
     </form>
+    {% endif %}
   {% endif %}
 </section>
 {% endblock %}
