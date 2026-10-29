@@ -126,6 +126,11 @@ def test_permiso_privado_cifrado_bitacora_e_idor(contexto_hashpass):
     assert b"secreto-ficticio" not in registro.contenido_cifrado
     assert b"192.0.2.44" not in registro.contenido_cifrado
     assert b"Equipo ficticio" not in registro.contenido_cifrado
+    bloqueo = usuario.get("/hashpass/")
+    assert bloqueo.status_code == 200
+    assert b"b\xc3\xb3veda est\xc3\xa1 bloqueada" in bloqueo.data
+    assert registro.id[:8].encode() not in bloqueo.data
+    assert b"<th>Identificador</th>" not in bloqueo.data
     listado = usuario.post("/hashpass/", data={"maestra": MAESTRA, "q": "Equipo"})
     assert listado.status_code == 200
     assert b"Equipo ficticio" in listado.data
