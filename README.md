@@ -28,6 +28,7 @@ Aplicación web institucional interna para registrar, localizar, relacionar y au
 
 - **Dashboard:** pendientes y accesos accionables.
 - **Búsqueda global:** SP, nombre, documentos, préstamos, ubicaciones y actividad de Coordinación.
+- **NO PORTADORES (NP):** registros independientes de personas no instaladas, con expediente físico, índice documental, anexos, rectificación, verificaciones, alertas, préstamos, devoluciones, traslados, reportes y auditoría NP. Nunca se sincronizan con Portadores ni se mezclan con SP.
 - **SP / Expedientes:** maestro de sujetos portadores, existencia del expediente físico, estado y ubicación.
 - **Importación de Portadores:** sincronización diaria de la manta `.xls` con previsualización y reconciliación de vínculos.
 - **Índice documental:** documentos, anexos y rangos de folios; evita traslapes y valida totales.
