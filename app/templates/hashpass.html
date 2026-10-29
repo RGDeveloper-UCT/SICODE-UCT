@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}HashPass · SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+  <div class="encabezado-modulo">
+    <div><h1>🔐 HashPass</h1><p>Bóveda privada de credenciales institucionales · acceso independiente</p></div>
+    <a class="boton-secundario" href="{{ url_for('hashpass.inicio') }}">HashPass</a>
+  </div>
+  <p class="alerta alerta-warning"><strong>Seguridad:</strong> la contraseña maestra es independiente de SICODE. No puede recuperarse y se solicita en cada operación sensible; no se guarda en sesión ni en el servidor. Use únicamente una conexión HTTPS institucional.</p>
+
+  {% if modo == 'configurar' %}
+    <h2>Primera configuración</h2>
+    <p>Configure su contraseña maestra (al menos 15 caracteres, distinta de SICODE). La pérdida de esta contraseña impide recuperar la bóveda.</p>
+    <form method="POST" autocomplete="off" class="formulario">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="campo"><label>Contraseña maestra</label><input name="maestra" type="password" minlength="15" maxlength="1024" required autocomplete="new-password"></div>
+      <div class="campo"><label>Confirmar contraseña maestra</label><input name="confirmar" type="password" minlength="15" maxlength="1024" required autocomplete="new-password"></div>
+      <button class="boton" type="submit">Crear bóveda cifrada</button>
+    </form>
+
+  {% elif modo == 'lista' %}
+    <div class="acciones">
+      <a class="boton" href="{{ url_for('hashpass.nuevo') }}">Nueva credencial</a>
+      <a class="boton-secundario" href="{{ url_for('hashpass.generador') }}">Generar contraseña</a>
+      <a class="boton-secundario" href="{{ url_for('hashpass.cambiar_maestra') }}">Cambiar maestra</a>
+    </div>
+    <p>Los nombres, usuarios, URLs y contraseñas están cifrados. El listado muestra únicamente identificadores y categorías; cada consulta solicita la contraseña maestra.</p>
+    <div class="tabla-contenedor">
+      <table>
+        <thead><tr><th>Identificador</th><th>Tipo</th><th>Actualizado (UTC)</th><th>Opciones</th></tr></thead>
+        <tbody>
+          {% for registro in registros %}
+          <tr>
+            <td><code>{{ registro.id[:8] }}…</code></td>
+            <td>{{ tipos.get(registro.tipo, ('Personalizado', []))[0] }}</td>
+            <td>{{ registro.actualizado_utc.strftime('%d/%m/%Y %H:%M') }}</td>
+            <td>
+              <a class="boton-tabla" href="{{ url_for('hashpass.ver', registro_id=registro.id) }}">Consultar</a>
+              <a class="boton-tabla boton-tabla-neutral" href="{{ url_for('hashpass.editar', registro_id=registro.id) }}">Sustituir datos</a>
+            </td>
+          </tr>
+          {% else %}<tr><td colspan="4">No hay credenciales activas en su bóveda.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  {% elif modo == 'formulario' %}
+    <h2>{{ 'Sustituir credencial' if editando else 'Nueva credencial' }}</h2>
+    {% if editando %}<p class="alerta alerta-warning">Por seguridad, este formulario no precarga secretos: sustituirá todos los campos de la credencial anterior. Conserve los datos necesarios antes de guardar.</p>{% endif %}
+    <form method="GET" class="formulario">
+      <div class="campo"><label>Tipo de credencial</label>
+        <select name="tipo">
+          {% for codigo, configuracion in tipos.items() %}
+          <option value="{{ codigo }}" {% if codigo == tipo %}selected{% endif %}>{{ configuracion[0] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="boton-secundario" type="submit">Mostrar campos de este tipo</button>
+    </form>
+    <form method="POST" autocomplete="off" class="formulario">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="tipo" value="{{ tipo }}">
+      <div class="grid-form">
+        <div class="campo"><label>Nombre / referencia *</label><input name="nombre" maxlength="180" required></div>
+        <div class="campo"><label>Usuario / cuenta</label><input name="usuario" maxlength="250"></div>
+        <div class="campo"><label>Contraseña / token / clave *</label><input name="secreto" type="password" maxlength="4096" autocomplete="new-password" required></div>
+        {% for clave, etiqueta, tipo_html in tipos[tipo][1] %}
+        <div class="campo"><label>{{ etiqueta }}</label><input name="{{ clave }}" type="{{ tipo_html }}" maxlength="1000" autocomplete="off"></div>
+        {% endfor %}
+      </div>
+      <div class="campo"><label>Observaciones cifradas</label><textarea name="notas" rows="3" maxlength="4000"></textarea></div>
+      <div class="campo"><label>Contraseña maestra para autorizar el guardado *</label><input name="maestra" type="password" minlength="15" required autocomplete="off"></div>
+      <div class="acciones"><button class="boton" type="submit">{{ 'Sustituir cifrado' if editando else 'Guardar cifrado' }}</button><a class="boton-cancelar" href="{{ url_for('hashpass.inicio') }}">Cancelar</a></div>
+    </form>
+
+  {% elif modo == 'pedir_maestra' %}
+    <h2>Consultar credencial {{ registro.id[:8] }}…</h2>
+    <form method="POST" class="formulario" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="campo"><label>Contraseña maestra</label><input name="maestra" type="password" required minlength="15" autocomplete="off"></div>
+      <button class="boton" type="submit">Desbloquear y consultar</button>
+    </form>
+
+  {% elif modo == 'detalle' %}
+    <h2>Credencial: {{ datos.get('nombre', 'Sin nombre') }}</h2>
+    <p>La información se muestra sólo en esta respuesta. Cierre la pestaña tras consultar; no la capture ni la copie a documentos no autorizados.</p>
+    <div class="tabla-contenedor"><table><tbody>
+      {% for clave, valor in datos.items() %}
+      <tr><th>{{ clave.replace('_', ' ') | title }}</th><td><span style="white-space:pre-wrap;overflow-wrap:anywhere">{{ valor }}</span></td></tr>
+      {% endfor %}
+    </tbody></table></div>
+    <div class="acciones"><a class="boton-secundario" href="{{ url_for('hashpass.inicio') }}">Cerrar vista</a><a class="boton-secundario" href="{{ url_for('hashpass.editar', registro_id=registro.id) }}">Sustituir credencial</a></div>
+    <h3>Archivar credencial</h3>
+    <form method="POST" action="{{ url_for('hashpass.archivar', registro_id=registro.id) }}" class="formulario" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="campo"><label>Confirmar con contraseña maestra</label><input name="maestra" type="password" required minlength="15" autocomplete="off"></div>
+      <button class="boton-tabla boton-tabla-peligro" type="submit">Archivar</button>
+    </form>
+
+  {% elif modo == 'cambiar_maestra' %}
+    <h2>Cambiar contraseña maestra</h2>
+    <p>Se vuelve a cifrar la clave de la bóveda, no las credenciales una a una. Si pierde la contraseña actual, no existe recuperación automática.</p>
+    <form method="POST" class="formulario" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="campo"><label>Maestra actual</label><input name="maestra_actual" type="password" minlength="15" required autocomplete="off"></div>
+      <div class="campo"><label>Nueva maestra</label><input name="maestra_nueva" type="password" minlength="15" maxlength="1024" required autocomplete="new-password"></div>
+      <div class="campo"><label>Confirmar nueva maestra</label><input name="confirmar" type="password" minlength="15" maxlength="1024" required autocomplete="new-password"></div>
+      <button class="boton" type="submit">Actualizar contraseña maestra</button>
+    </form>
+
+  {% elif modo == 'generador' %}
+    <h2>Generador de contraseñas</h2>
+    <p>Contraseña aleatoria de 24 caracteres generada localmente en el servidor SICODE. No se guarda en la base de datos.</p>
+    <div class="campo"><label>Contraseña generada</label><input readonly type="text" value="{{ generado }}" autocomplete="off"></div>
+    <div class="acciones"><a class="boton-secundario" href="{{ url_for('hashpass.generador') }}">Generar otra</a><a class="boton" href="{{ url_for('hashpass.nuevo') }}">Nueva credencial</a></div>
+  {% endif %}
+</section>
+{% endblock %}
