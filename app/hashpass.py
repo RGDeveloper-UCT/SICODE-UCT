@@ -439,3 +439,212 @@ def generador():
     alfabeto = ascii_letters + digits + punctuation.replace('"', "").replace("'", "").replace("<", "").replace(">", "")
     generado = "".join(choice(alfabeto) for _ in range(24))
     return render_template("hashpass.html", modo="generador", generado=generado, tipos=TIPOS)
+
+
+# HP-002. Los accesos se autorizan en @hashpass_bp.before_request.
+# La maestra individual se valida en cada operación; no se almacena en sesión.
+@hashpass_bp.route("/compartidos", methods=["GET", "POST"])
+def compartidos():
+    clave = _clave_institucional()
+    if _boveda() is None:
+        return redirect(url_for("hashpass.configurar"))
+    _auditar("HASHPASS_ABRIR_COMPARTIDOS")
+    registros = []
+    nombres = {}
+    desbloqueada = False
+    if request.method == "POST":
+        if _abrir(request.form.get("maestra")) is None:
+            flash("No fue posible desbloquear la bóveda compartida.", "danger")
+        else:
+            desbloqueada = True
+            filtro = (request.form.get("q") or "").strip().casefold()[:180]
+            candidatos = HashPassCompartido.query.filter_by(
+                archivado=False,
+            ).order_by(HashPassCompartido.actualizado_utc.desc()).all()
+            for registro in candidatos:
+                try:
+                    datos = descifrar_compartido(
+                        clave, registro.id, registro.nonce, registro.contenido_cifrado,
+                    )
+                except (InvalidTag, ValueError, UnicodeError):
+                    _auditar("HASHPASS_COMPARTIDO_INTEGRIDAD_FALLIDA", registro.id)
+                    abort(409)
+                nombre = str(datos.get("nombre", "Sin nombre"))
+                if not filtro or filtro in nombre.casefold():
+                    registros.append(registro)
+                    nombres[registro.id] = nombre
+            _auditar("HASHPASS_DESBLOQUEAR_COMPARTIDOS")
+    return render_template(
+        "hashpass_compartidos.html", modo="lista", registros=registros,
+        nombres=nombres, desbloqueada=desbloqueada, tipos=TIPOS,
+    )
+
+
+@hashpass_bp.route("/compartidos/nuevo", methods=["GET", "POST"])
+def compartido_nuevo():
+    clave = _clave_institucional()
+    if _boveda() is None:
+        return redirect(url_for("hashpass.configurar"))
+    tipo = _tipo_actual(request.values.get("tipo"))
+    if request.method == "POST":
+        if _abrir(request.form.get("maestra")) is None:
+            flash("Contraseña maestra incorrecta.", "danger")
+        else:
+            resultado = _campos()
+            if not resultado:
+                flash("El nombre y la clave son obligatorios.", "danger")
+            else:
+                tipo, datos = resultado
+                registro_id = str(uuid4())
+                nonce, cifrado = cifrar_compartido(clave, registro_id, datos)
+                db.session.add(HashPassCompartido(
+                    id=registro_id, tipo=tipo,
+                    creado_por_id=current_user.id,
+                    actualizado_por_id=current_user.id,
+                    nonce=nonce, contenido_cifrado=cifrado,
+                ))
+                _auditar("HASHPASS_COMPARTIDO_CREAR", registro_id, commit=False)
+                db.session.commit()
+                flash("Credencial guardada en la bóveda institucional compartida.", "success")
+                return redirect(url_for("hashpass.compartidos"))
+    return render_template(
+        "hashpass_compartidos.html", modo="formulario", tipo=tipo,
+        tipos=TIPOS, editando=False,
+    )
+
+
+@hashpass_bp.route("/compartidos/<uuid:registro_id>/ver", methods=["GET", "POST"])
+def compartido_ver(registro_id):
+    clave = _clave_institucional()
+    if _boveda() is None:
+        return redirect(url_for("hashpass.configurar"))
+    registro = _compartido_propio(registro_id)
+    if request.method == "POST":
+        if _abrir(request.form.get("maestra")) is not None:
+            try:
+                datos = descifrar_compartido(
+                    clave, registro.id, registro.nonce, registro.contenido_cifrado,
+                )
+            except (InvalidTag, ValueError, UnicodeError):
+                _auditar("HASHPASS_COMPARTIDO_INTEGRIDAD_FALLIDA", registro.id)
+                abort(409)
+            _auditar("HASHPASS_COMPARTIDO_REVELAR", registro.id)
+            return render_template(
+                "hashpass_compartidos.html", modo="detalle",
+                registro=registro, datos=datos, tipos=TIPOS,
+            )
+        flash("No fue posible desbloquear la credencial.", "danger")
+    return render_template(
+        "hashpass_compartidos.html", modo="pedir_maestra",
+        registro=registro, tipos=TIPOS,
+    )
+
+
+@hashpass_bp.route("/compartidos/<uuid:registro_id>/editar", methods=["GET", "POST"])
+def compartido_editar(registro_id):
+    clave = _clave_institucional()
+    if _boveda() is None:
+        return redirect(url_for("hashpass.configurar"))
+    registro = _compartido_propio(registro_id)
+    tipo = _tipo_actual(request.values.get("tipo") or registro.tipo)
+    if request.method == "POST":
+        if _abrir(request.form.get("maestra")) is None:
+            flash("No fue posible desbloquear la bóveda.", "danger")
+        else:
+            resultado = _campos()
+            if not resultado:
+                flash("El nombre y la clave son obligatorios.", "danger")
+            else:
+                tipo, datos = resultado
+                nonce, cifrado = cifrar_compartido(clave, registro.id, datos)
+                registro.tipo = tipo
+                registro.nonce = nonce
+                registro.contenido_cifrado = cifrado
+                registro.actualizado_por_id = current_user.id
+                registro.actualizado_utc = datetime.utcnow()
+                _auditar("HASHPASS_COMPARTIDO_EDITAR", registro.id, commit=False)
+                db.session.commit()
+                flash("Credencial institucional actualizada.", "success")
+                return redirect(url_for("hashpass.compartidos"))
+    return render_template(
+        "hashpass_compartidos.html", modo="formulario",
+        tipo=tipo, tipos=TIPOS, editando=True, registro=registro,
+    )
+
+
+@hashpass_bp.route("/compartidos/<uuid:registro_id>/archivar", methods=["POST"])
+def compartido_archivar(registro_id):
+    _clave_institucional()
+    if _boveda() is None:
+        return redirect(url_for("hashpass.configurar"))
+    registro = _compartido_propio(registro_id)
+    if _abrir(request.form.get("maestra")) is None:
+        flash("No fue posible desbloquear la bóveda.", "danger")
+    else:
+        registro.archivado = True
+        registro.actualizado_por_id = current_user.id
+        _auditar("HASHPASS_COMPARTIDO_ARCHIVAR", registro.id, commit=False)
+        db.session.commit()
+        flash("Credencial archivada de la bóveda compartida.", "success")
+    return redirect(url_for("hashpass.compartidos"))
+
+
+@hashpass_bp.route("/compartidos/publicar-privados", methods=["GET", "POST"])
+def publicar_privados():
+    """Conversión explícita, atómica e idempotente con maestra del propietario.
+
+    No se puede descifrar un registro legado ajeno ni sin su contraseña maestra.
+    El original se archiva en lugar de borrarlo para permitir revisión segura.
+    """
+    clave = _clave_institucional()
+    if _boveda() is None:
+        return redirect(url_for("hashpass.configurar"))
+    if request.method == "POST":
+        dek = _abrir(request.form.get("maestra"))
+        if dek is None:
+            flash("No fue posible desbloquear los registros anteriores.", "danger")
+        else:
+            anteriores = HashPassRegistro.query.filter_by(
+                usuario_id=current_user.id, archivado=False,
+            ).all()
+            migrados = 0
+            for privado in anteriores:
+                compartido_existente = HashPassCompartido.query.filter_by(
+                    origen_privado_id=privado.id,
+                ).first()
+                if compartido_existente is not None:
+                    # Sin duplicar el secreto; un retry nunca publica dos copias.
+                    privado.archivado = True
+                    continue
+                try:
+                    datos = descifrar_registro(
+                        dek, current_user.id, privado.id,
+                        privado.nonce, privado.contenido_cifrado,
+                    )
+                except (InvalidTag, ValueError, UnicodeError):
+                    db.session.rollback()
+                    _auditar("HASHPASS_COMPARTIDO_MIGRACION_INTEGRIDAD_FALLIDA", privado.id)
+                    abort(409)
+                nuevo_id = str(uuid4())
+                nonce, cifrado = cifrar_compartido(clave, nuevo_id, datos)
+                db.session.add(HashPassCompartido(
+                    id=nuevo_id, origen_privado_id=privado.id,
+                    creado_por_id=current_user.id, actualizado_por_id=current_user.id,
+                    tipo=privado.tipo, nonce=nonce, contenido_cifrado=cifrado,
+                ))
+                privado.archivado = True
+                _auditar("HASHPASS_COMPARTIDO_PUBLICAR_PRIVADO", nuevo_id, commit=False)
+                migrados += 1
+            db.session.commit()
+            flash(
+                f"Se incorporaron {migrados} credenciales a la bóveda compartida.",
+                "success",
+            )
+            return redirect(url_for("hashpass.compartidos"))
+    pendientes = HashPassRegistro.query.filter_by(
+        usuario_id=current_user.id, archivado=False,
+    ).count()
+    return render_template(
+        "hashpass_compartidos.html", modo="publicar",
+        pendientes=pendientes, tipos=TIPOS,
+    )
