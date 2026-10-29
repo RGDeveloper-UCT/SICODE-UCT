@@ -1,4 +1,4 @@
-"""HashPass HP-001: bóvedas privadas con autorización independiente.
+"""HashPass HP-001/HP-002: permisos independientes y bóveda institucional.
 
 Modelo deliberadamente SIN sesión criptográfica persistente: se solicita la
 maestra de nuevo para cada operación sensible. No se almacena en cookie,
@@ -14,12 +14,17 @@ from flask import Blueprint, abort, current_app, flash, redirect, render_templat
 from flask_login import current_user
 from werkzeug.security import check_password_hash
 from sqlalchemy import inspect
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import SQLAlchemyError
 
 from app import db
 from app.models.bitacora import Bitacora
 from app.models.usuario import Usuario
 from app.services.bitacora_service import registrar_bitacora
+from app.services.hashpass_shared_crypto import (
+    SharedVaultKeyError, cifrar_compartido, descifrar_compartido,
+    obtener_clave_compartida,
+)
 from app.services.hashpass_crypto import (
     abrir_boveda, cifrar_registro, crear_boveda, descifrar_registro, reenvolver_clave,
 )
@@ -74,6 +79,38 @@ class HashPassRegistro(db.Model):
     creado_utc = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     actualizado_utc = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+class HashPassCompartido(db.Model):
+    """Credenciales del equipo, disponibles a cuentas activas y autorizadas."""
+    __tablename__ = "hashpass_compartidos"
+    id = db.Column(db.String(36), primary_key=True)
+    creado_por_id = db.Column(db.Integer, db.ForeignKey("usuarios.id", ondelete="SET NULL"))
+    actualizado_por_id = db.Column(db.Integer, db.ForeignKey("usuarios.id", ondelete="SET NULL"))
+    origen_privado_id = db.Column(db.String(36), unique=True, nullable=True)
+    tipo = db.Column(db.String(32), nullable=False)
+    nonce = db.Column(db.LargeBinary, nullable=False)
+    contenido_cifrado = db.Column(db.LargeBinary, nullable=False)
+    archivado = db.Column(db.Boolean, nullable=False, default=False)
+    creado_utc = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    actualizado_utc = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+def _clave_institucional():
+    if not current_app.config.get("HASHPASS_SHARED_ENABLED", False):
+        abort(404)
+    try:
+        return obtener_clave_compartida(current_app.config)
+    except SharedVaultKeyError:
+        current_app.logger.error("La custodia cifrada de HashPass compartido no está configurada.")
+        abort(503, description="Bóveda institucional no disponible. Contacte administración.")
+
+
+def _compartido_propio(registro_id):
+    """Cualquier usuario con permiso vigente puede gestionar la bóveda común."""
+    registro = db.session.get(HashPassCompartido, str(registro_id))
+    if registro is None or registro.archivado:
+        abort(404)
+    return registro
+
 
 def permiso_activo(usuario_id):
     registro = HashPassPermiso.query.filter_by(usuario_id=usuario_id, autorizado=True).first()
@@ -113,6 +150,17 @@ def verificar_acceso():
         abort(401)
     if not current_user.activo or current_user.debe_cambiar_password:
         abort(403)
+    if request.endpoint in {
+        "hashpass.compartidos", "hashpass.compartido_nuevo",
+        "hashpass.compartido_ver", "hashpass.compartido_editar",
+        "hashpass.compartido_archivar", "hashpass.publicar_privados",
+    }:
+        try:
+            if not inspect(db.engine).has_table("hashpass_compartidos"):
+                abort(503, description="Falta migración HP-002 de la bóveda compartida.")
+        except SQLAlchemyError:
+            db.session.rollback()
+            abort(503)
     if request.endpoint == "hashpass.permiso":
         if current_user.rol != Usuario.ROL_ADMINISTRADOR:
             abort(403)
@@ -183,8 +231,11 @@ def _campos():
     return tipo, campos
 
 
+@hashpass_bp.route("/privados", methods=["GET", "POST"])
 @hashpass_bp.route("/", methods=["GET", "POST"])
 def inicio():
+    if request.path.rstrip("/") == "/hashpass" and current_app.config.get("HASHPASS_SHARED_ENABLED", False):
+        return redirect(url_for("hashpass.compartidos"))
     _auditar("HASHPASS_ABRIR_MODULO")
     boveda = _boveda()
     if boveda is None:
