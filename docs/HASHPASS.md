@@ -1,5 +1,7 @@
 # HashPass HP-001 — Integración y evaluación de seguridad
 
+**Manual operativo actualizado:** [Diagnóstico y despliegue seguro de HashPass](HASHPASS_DESPLIEGUE.md). Esta guía incluye el acceso administrativo visible, la validación HTTPS, la instalación del código en el servicio real, el comando `flask hashpass-status` y la explicación criptográfica mostrada dentro de la bóveda.
+
 Estado: **rama de desarrollo / NO APROBADO PARA PRODUCCIÓN**.
 Fecha: 2026-10-29. Responsable: equipo SICODE-UCT.
 
