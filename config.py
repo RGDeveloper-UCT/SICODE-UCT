@@ -40,6 +40,7 @@ class Config:
     # HashPass deshabilitado hasta evaluación y despliegue HTTPS.
     HASHPASS_ENABLED = os.getenv("HASHPASS_ENABLED", "false").lower() in {"1", "true", "yes", "si"}
     HASHPASS_REQUIRE_HTTPS = os.getenv("HASHPASS_REQUIRE_HTTPS", "true").lower() in {"1", "true", "yes", "si"}
+    HASHPASS_PROXY_PROTO_COUNT = max(0, min(1, int(os.getenv("HASHPASS_PROXY_PROTO_COUNT", "0"))))
 
     PG_DUMP_PATH = os.getenv("PG_DUMP_PATH")
 
