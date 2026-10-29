@@ -382,6 +382,10 @@ def test_compartidos_no_operan_sin_clave_custodiada(contexto_hashpass):
     admin.post(f"/hashpass/permiso/{ids[1]}", data={"accion": "conceder"})
     assert usuario.get("/hashpass/compartidos").status_code == 503
     assert HashPassCompartido.query.count() == 0
+    panel = admin.get("/admin/usuarios")
+    assert panel.status_code == 200
+    assert b"HASHPASS_SHARED_KEY_B64" in panel.data
+    assert b"Conceder permiso HashPass" not in panel.data
 
 
 def test_auditoria_compartida_no_filtra_secretos(contexto_hashpass):
