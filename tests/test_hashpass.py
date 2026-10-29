@@ -1,4 +1,6 @@
 """Pruebas HashPass HP-001 sobre SQLite temporal, sin secretos reales."""
+import re
+
 import pytest
 from cryptography.exceptions import InvalidTag
 from flask import g
@@ -209,3 +211,45 @@ def test_produccion_bloquea_http_y_cookies_inseguras(contexto_hashpass):
     assert admin.post(url, data={"accion": "conceder"}, base_url="http://localhost").status_code == 403
     respuesta = admin.post(url, data={"accion": "conceder"}, base_url="https://localhost")
     assert respuesta.status_code == 302
+
+
+def test_csrf_estricto_https_y_referer_mismo_origen(contexto_hashpass):
+    """Formulario real: token válido + Referer HTTPS sin reducir protección CSRF."""
+    app, ids = contexto_hashpass
+    app.config.update(WTF_CSRF_ENABLED=True, WTF_CSRF_SSL_STRICT=True)
+    db.session.add(HashPassPermiso(
+        usuario_id=ids[1], autorizado=True, autorizado_por=ids[0]
+    ))
+    db.session.commit()
+
+    client = app.test_client()
+    base = "https://localhost"
+    assert client.get(
+        f"/__hashpass_test_login/{ids[1]}", base_url=base
+    ).status_code == 200
+
+    response = client.get("/hashpass/configurar", base_url=base)
+    assert response.status_code == 200
+    assert response.headers["Referrer-Policy"] == "same-origin"
+    assert response.headers["Cache-Control"].startswith("no-store")
+    token = re.search(
+        r'name="csrf_token" value="([^"]+)"', response.get_data(as_text=True)
+    )
+    assert token is not None
+
+    # Flask-WTF debe seguir rechazando POST HTTPS sin Referer.
+    datos = {"maestra": MAESTRA, "confirmar": MAESTRA, "csrf_token": token.group(1)}
+    sin_referer = client.post(
+        "/hashpass/configurar", data=datos, base_url=base
+    )
+    assert sin_referer.status_code == 400
+
+    # La solicitud legítima same-origin sí es aceptada.
+    aceptado = client.post(
+        "/hashpass/configurar",
+        data=datos,
+        base_url=base,
+        headers={"Referer": "https://localhost/hashpass/configurar"},
+    )
+    assert aceptado.status_code == 302
+    assert db.session.get(HashPassBoveda, ids[1]) is not None
