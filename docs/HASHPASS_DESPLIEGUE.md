@@ -133,3 +133,36 @@ python -m flask --app run.py db heads
 ## Rollback seguro
 
 Para bloquear acceso sin eliminar datos: configurar `HASHPASS_ENABLED=false` y reiniciar el servicio. No hacer `flask db downgrade` con bóvedas existentes ni borrar manualmente tablas. Conserva el backup anterior y el estado actual para diagnóstico.
+
+
+## 7. Error "Bad Request — The referrer header is missing" al crear la maestra
+
+Corregido en HashPass: la respuesta de `/hashpass/*` ya no envía
+`Referrer-Policy: no-referrer`; ahora utiliza `same-origin`, para
+permitir al navegador enviar `Referer` exclusivamente al mismo sitio.
+La comprobación `WTF_CSRF_SSL_STRICT` de Flask-WTF permanece **activada**.
+Hay una prueba de regresión que comprueba el 400 sin Referer y el 302
+al enviar formulario CSRF válido desde la misma URL HTTPS.
+
+**Importante:** si en el navegador figura `http://192.168.133.10`,
+NO envíe contraseñas maestras; configure TLS/HTTPS primero. Una aplicación
+Flask puede creer incorrectamente que la solicitud es segura si Nginx
+siempre anuncia `X-Forwarded-Proto https`, aunque el navegador entre
+por HTTP. Configure el proxy correctamente:
+
+```nginx
+# En location del server TLS 443 que pasa peticiones a Gunicorn:
+proxy_set_header X-Forwarded-Proto $scheme;
+```
+
+Compruebe que puerto 80 solamente redirige a HTTPS y no reenvía los
+formularios a Gunicorn; certifique TLS desde cliente. No use
+`WTF_CSRF_ENABLED=false`, `WTF_CSRF_SSL_STRICT=false`, ni
+`@csrf.exempt` para corregir este error.
+
+Tras actualizar el código real del servicio y confirmar HTTPS, reinicie
+Gunicorn, cierre la pestaña antigua, vuelva a abrir HashPass desde
+`https://` y genere un formulario CSRF nuevo. Si vuelve a fallar,
+inspeccione en DevTools (sin copiar contraseñas) las cabeceras
+`Referrer-Policy` del GET y `Referer` del POST. Si el servidor no tiene
+TLS confiable, deje HashPass deshabilitado.
