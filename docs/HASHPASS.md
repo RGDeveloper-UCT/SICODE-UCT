@@ -49,6 +49,7 @@ git status --short
 git worktree add --detach "$HOME/hashpass-staging" \
   origin/feature/hashpass-hp001-np-compatible
 cd "$HOME/hashpass-staging"
+mkdir -p "$HOME/.venvs"
 python3 -m venv "$HOME/.venvs/hashpass-staging"
 source "$HOME/.venvs/hashpass-staging/bin/activate"
 python -m pip install -r requirements.txt
