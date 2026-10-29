@@ -365,7 +365,7 @@ def nuevo_prestamo(np_id):
     _exigir_editor()
     np = NoPortador.query.get_or_404(np_id)
     form = PrestamoForm()
-    if not np.activo or not np.expediente_fisico_registrado or not np.rectificacion_completa:
+    if not np.activo or np.estado_administrativo == "Cerrado" or not np.expediente_fisico_registrado or not np.rectificacion_completa:
         flash("Para prestar NP necesita expediente físico activo y rectificación vigente.", "warning")
     elif form.validate_on_submit():
         db.session.query(NoPortador).filter_by(id=np_id).with_for_update().first()
@@ -440,6 +440,7 @@ def _pdf_descarga(titulo, filas, nombre):
 @no_portadores_bp.route("/<int:np_id>/prestamos/<int:prestamo_id>/comprobante/pdf")
 @login_required
 def comprobante_pdf(np_id, prestamo_id):
+    _exigir_editor()
     np = NoPortador.query.get_or_404(np_id)
     prestamo = PrestamoNP.query.filter_by(np_id=np_id, id=prestamo_id).first_or_404()
     return _pdf_descarga("SICODE-UCT / Comprobante de préstamo NP", [
@@ -488,6 +489,7 @@ def nuevo_traslado(np_id):
 @no_portadores_bp.route("/<int:np_id>/traslados/<int:traslado_id>/constancia/pdf")
 @login_required
 def traslado_pdf(np_id, traslado_id):
+    _exigir_editor()
     np = NoPortador.query.get_or_404(np_id)
     t = TrasladoVirtualNP.query.filter_by(np_id=np_id, id=traslado_id).first_or_404()
     return _pdf_descarga("SICODE-UCT / Constancia de traslado virtual NP", [
@@ -504,6 +506,7 @@ def traslado_pdf(np_id, traslado_id):
 @no_portadores_bp.route("/<int:np_id>/ficha/pdf")
 @login_required
 def ficha_pdf(np_id):
+    _exigir_editor()
     np = NoPortador.query.get_or_404(np_id)
     return _pdf_descarga("SICODE-UCT / Ficha de No Portador", [
         ("No. NP", np.numero_np), ("Código interno", np.codigo_interno),
