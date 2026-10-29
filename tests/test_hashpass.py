@@ -191,3 +191,16 @@ def test_cli_hashpass_status_sin_secretos(contexto_hashpass):
     assert "Tablas HashPass presentes=True" in resultado.output
     assert "HASHPASS_ENABLED=True" in resultado.output
     assert MAESTRA not in resultado.output
+
+
+def test_produccion_bloquea_http_y_cookies_inseguras(contexto_hashpass):
+    app, ids = contexto_hashpass
+    admin = _cliente(app, ids[0])
+    app.config.update(TESTING=False, HASHPASS_REQUIRE_HTTPS=False, SESSION_COOKIE_SECURE=False)
+    url = f"/hashpass/permiso/{ids[1]}"
+    assert admin.post(url, data={"accion": "conceder"}).status_code == 403
+
+    app.config.update(HASHPASS_REQUIRE_HTTPS=True, SESSION_COOKIE_SECURE=True)
+    assert admin.post(url, data={"accion": "conceder"}, base_url="http://localhost").status_code == 403
+    respuesta = admin.post(url, data={"accion": "conceder"}, base_url="https://localhost")
+    assert respuesta.status_code == 302
