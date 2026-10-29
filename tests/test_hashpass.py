@@ -104,6 +104,11 @@ def test_permiso_privado_cifrado_bitacora_e_idor(contexto_hashpass):
     assert usuario.post(f"/hashpass/permiso/{ids[1]}", data={"accion": "conceder"}).status_code == 403
     assert admin.post(f"/hashpass/permiso/{ids[1]}", data={"accion": "conceder"}).status_code == 302
     assert usuario.get("/hashpass/").status_code == 302
+    panel = usuario.get("/hashpass/configurar")
+    assert panel.status_code == 200
+    assert b"Argon2id" in panel.data
+    assert b"AES-256-GCM" in panel.data
+    assert b"HTTPS" in panel.data
 
     configuracion = usuario.post("/hashpass/configurar", data={"maestra": MAESTRA, "confirmar": MAESTRA})
     assert configuracion.status_code == 302
@@ -161,3 +166,28 @@ def test_fallos_de_maestra_se_auditan(contexto_hashpass):
     })
     assert bloqueado.status_code == 429
     assert HashPassRegistro.query.count() == 0
+
+
+def test_admin_ve_estado_y_acceso_de_permisos(contexto_hashpass):
+    app, ids = contexto_hashpass
+    admin = _cliente(app, ids[0])
+    pagina = admin.get("/admin/usuarios")
+    assert pagina.status_code == 200
+    assert b"HashPass" in pagina.data
+    assert b"Conceder permiso HashPass" in pagina.data
+
+    app.config["HASHPASS_ENABLED"] = False
+    deshabilitado = admin.get("/admin/usuarios")
+    assert deshabilitado.status_code == 200
+    assert b"deshabilitado" in deshabilitado.data
+    assert b"Conceder permiso HashPass" not in deshabilitado.data
+    assert admin.get("/hashpass/").status_code == 404
+
+
+def test_cli_hashpass_status_sin_secretos(contexto_hashpass):
+    app, ids = contexto_hashpass
+    resultado = app.test_cli_runner().invoke(args=["hashpass-status"])
+    assert resultado.exit_code == 0, resultado.output
+    assert "Tablas HashPass presentes=True" in resultado.output
+    assert "HASHPASS_ENABLED=True" in resultado.output
+    assert MAESTRA not in resultado.output
