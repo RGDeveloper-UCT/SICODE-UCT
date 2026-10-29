@@ -37,6 +37,10 @@ class Config:
     SICODE_IA_QUEUE_TEMP_DIR = os.getenv("SICODE_IA_QUEUE_TEMP_DIR") or DOCUMENT_ANALYSIS_TEMP_DIR
     SICODE_IA_FAST_MODEL = os.getenv("SICODE_IA_FAST_MODEL", "qwen3:0.6b")
 
+    # HashPass deshabilitado hasta evaluación y despliegue HTTPS.
+    HASHPASS_ENABLED = os.getenv("HASHPASS_ENABLED", "false").lower() in {"1", "true", "yes", "si"}
+    HASHPASS_REQUIRE_HTTPS = os.getenv("HASHPASS_REQUIRE_HTTPS", "true").lower() in {"1", "true", "yes", "si"}
+
     PG_DUMP_PATH = os.getenv("PG_DUMP_PATH")
 
     AI_SEARCH_ENABLED = os.getenv("AI_SEARCH_ENABLED", "true").lower() in {"1", "true", "yes", "si"}
