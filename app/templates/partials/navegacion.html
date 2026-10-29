@@ -33,6 +33,9 @@
                 <span class="nav-panel__badge">SICODE-UCT</span>
             </div>
             <div class="nav-panel__grid">
+                {% if hashpass_autorizado %}
+                <a class="nav-modulo" href="{{ url_for('hashpass.inicio') }}"><span class="nav-modulo__icono"><svg aria-hidden="true"><use href="#nav-icon-shield"></use></svg></span><span><strong>HashPass</strong><small>Bóveda privada de credenciales</small></span></a>
+                {% endif %}
                 <a class="nav-modulo" href="{{ url_for('dashboard.inicio') }}"><span class="nav-modulo__icono"><svg aria-hidden="true"><use href="#nav-icon-grid"></use></svg></span><span><strong>Dashboard</strong><small>Resumen general</small></span></a>
                 <a class="nav-modulo" href="{{ url_for('busqueda.global_') }}"><span class="nav-modulo__icono"><svg aria-hidden="true"><use href="#nav-icon-search"></use></svg></span><span><strong>Buscar</strong><small>Búsqueda global</small></span></a>
                 <a class="nav-modulo" href="{{ url_for('expedientes.listado') }}"><span class="nav-modulo__icono"><svg aria-hidden="true"><use href="#nav-icon-folder"></use></svg></span><span><strong>SP / Expedientes</strong><small>Control de expedientes</small></span></a>
