@@ -125,7 +125,10 @@ def verificar_acceso():
 def proteger_respuesta(respuesta):
     respuesta.headers["Cache-Control"] = "no-store, max-age=0, private"
     respuesta.headers["Pragma"] = "no-cache"
-    respuesta.headers["Referrer-Policy"] = "no-referrer"
+    # Flask-WTF exige Referer en POST sobre HTTPS (WTF_CSRF_SSL_STRICT).
+    # "no-referrer" impide al navegador incluirlo y bloquea la maestra con 400.
+    # "same-origin" conserva el control CSRF y no transmite Referer fuera de SICODE.
+    respuesta.headers["Referrer-Policy"] = "same-origin"
     respuesta.headers["X-Frame-Options"] = "DENY"
     respuesta.headers["Content-Security-Policy"] = (
         "default-src 'self'; script-src 'self'; object-src 'none'; "
