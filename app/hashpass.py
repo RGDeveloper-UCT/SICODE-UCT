@@ -13,6 +13,8 @@ from cryptography.exceptions import InvalidTag
 from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user
 from werkzeug.security import check_password_hash
+from sqlalchemy import inspect
+from sqlalchemy.exc import SQLAlchemyError
 
 from app import db
 from app.models.bitacora import Bitacora
@@ -90,9 +92,23 @@ def _auditar(accion, entidad_id=None, commit=True):
 def verificar_acceso():
     if not current_app.config.get("HASHPASS_ENABLED", False):
         abort(404)
-    # No confiar ciegamente en X-Forwarded-Proto. ProxyFix sólo con proxy de confianza.
-    if current_app.config.get("HASHPASS_REQUIRE_HTTPS", True) and not current_app.testing and not request.is_secure:
+    # El módulo de secretos NO acepta HTTP ni cookies de sesión inseguras
+    # en uso real. Sólo las pruebas aisladas con TESTING pueden usar HTTP.
+    if not current_app.testing and (
+        not current_app.config.get("HASHPASS_REQUIRE_HTTPS", True)
+        or not current_app.config.get("SESSION_COOKIE_SECURE", False)
+        or not request.is_secure
+    ):
         abort(403)
+    try:
+        inspector = inspect(db.engine)
+        if not all(inspector.has_table(t) for t in (
+            "hashpass_permisos", "hashpass_bovedas", "hashpass_registros",
+        )):
+            abort(503, description="HashPass requiere migración Alembic.")
+    except SQLAlchemyError:
+        db.session.rollback()
+        abort(503, description="No se pudo comprobar la base de HashPass.")
     if not current_user.is_authenticated:
         abort(401)
     if not current_user.activo or current_user.debe_cambiar_password:
