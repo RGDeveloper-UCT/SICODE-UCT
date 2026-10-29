@@ -314,17 +314,29 @@ def test_compartidos_entre_usuarios_y_permiso_revocado(contexto_hashpass):
         accion="HASHPASS_COMPARTIDO_REVELAR", usuario_id=ids[2],
     ).count() == 1
 
-    editado = lector.post(
+    # Cualquier autorizado consulta, pero solo creador o admin modifica.
+    assert lector.post(
+        f"/hashpass/compartidos/{registro.id}/editar",
+        data={
+            "tipo": "red", "nombre": "No autorizado",
+            "secreto": "nunca-guardar", "maestra": MAESTRA_B,
+        },
+    ).status_code == 403
+    assert lector.post(
+        f"/hashpass/compartidos/{registro.id}/archivar",
+        data={"maestra": MAESTRA_B},
+    ).status_code == 403
+    editado = autor.post(
         f"/hashpass/compartidos/{registro.id}/editar",
         data={
             "tipo": "red", "nombre": "AP compartido actualizado",
-            "secreto": "otra-clave-ficticia", "maestra": MAESTRA_B,
+            "secreto": "otra-clave-ficticia", "maestra": MAESTRA,
         },
     )
     assert editado.status_code == 302
-    assert db.session.get(HashPassCompartido, registro.id).actualizado_por_id == ids[2]
-    assert b"otra-clave-ficticia" in autor.post(
-        f"/hashpass/compartidos/{registro.id}/ver", data={"maestra": MAESTRA}
+    assert db.session.get(HashPassCompartido, registro.id).actualizado_por_id == ids[1]
+    assert b"otra-clave-ficticia" in lector.post(
+        f"/hashpass/compartidos/{registro.id}/ver", data={"maestra": MAESTRA_B}
     ).data
 
     # El administrador sin permiso propio tampoco puede revelar.
