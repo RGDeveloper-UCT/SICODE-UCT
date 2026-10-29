@@ -73,17 +73,13 @@
 
   {% elif modo == "publicar" %}
     <h2>Compartir mis contraseñas existentes</h2>
-    <p>Actualmente tienes <strong>{{ pendientes }}</strong> credenciales privadas activas pendientes de compartir. Cada una se descifrará con tu contraseña maestra, se volverá a cifrar para la bóveda institucional y se conservará archivada en la bóveda anterior. El proceso se ejecuta como una sola transacción.</p>
+    <p>Las credenciales privadas activas que hayas guardado anteriormente se descifrarán con tu contraseña maestra, se volverán a cifrar para la bóveda institucional y se conservarán archivadas en la bóveda anterior. El proceso se ejecuta como una sola transacción.</p>
     <p class="alerta alerta-warning">Al confirmar, todas las credenciales privadas activas de tu cuenta pasarán a estar disponibles para todos los usuarios activos con permiso HashPass, incluidas las cuentas autorizadas posteriormente. No se puede revertir el conocimiento de una contraseña ya revelada.</p>
-    {% if pendientes %}
-      <form method="POST" class="formulario" autocomplete="off">
+    <form method="POST" class="formulario" autocomplete="off">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="campo"><label>Contraseña maestra original de tu bóveda</label><input type="password" name="maestra" required minlength="15" autocomplete="off"></div>
-        <button class="boton" type="submit">Confirmar y compartir mis {{ pendientes }} credenciales</button>
+        <button class="boton" type="submit">Confirmar publicación de mis credenciales anteriores</button>
       </form>
-    {% else %}
-      <p>No tienes credenciales privadas pendientes de publicación.</p>
-    {% endif %}
     <a class="boton-secundario" href="{{ url_for('hashpass.compartidos') }}">Volver</a>
 
   {% elif modo == "formulario" %}
