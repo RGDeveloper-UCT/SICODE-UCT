@@ -214,9 +214,10 @@ def create_app():
     def _hashpass_tablas_disponibles():
         try:
             inspector = inspect(db.engine)
-            return all(inspector.has_table(nombre) for nombre in (
-                "hashpass_permisos", "hashpass_bovedas", "hashpass_registros",
-            ))
+            requeridas = ["hashpass_permisos", "hashpass_bovedas", "hashpass_registros"]
+            if app.config.get("HASHPASS_SHARED_ENABLED", False):
+                requeridas.append("hashpass_compartidos")
+            return all(inspector.has_table(nombre) for nombre in requeridas)
         except SQLAlchemyError:
             db.session.rollback()
             return False
@@ -226,6 +227,15 @@ def create_app():
         """Diagnóstico sin revelar credenciales ni variables secretas."""
         click.echo("HashPass — estado efectivo del proceso Flask")
         click.echo(f"HASHPASS_ENABLED={app.config.get('HASHPASS_ENABLED', False)}")
+        click.echo(f"HASHPASS_SHARED_ENABLED={app.config.get('HASHPASS_SHARED_ENABLED', False)}")
+        # Nunca imprimir la clave custodial ni derivarla en logs.
+        from app.services.hashpass_shared_crypto import SharedVaultKeyError, obtener_clave_compartida
+        try:
+            obtener_clave_compartida(app.config)
+            clave_lista = True
+        except SharedVaultKeyError:
+            clave_lista = False
+        click.echo(f"Clave institucional compartida configurada={clave_lista}")
         click.echo(f"HASHPASS_REQUIRE_HTTPS={app.config.get('HASHPASS_REQUIRE_HTTPS', True)}")
         click.echo(f"SESSION_COOKIE_SECURE={app.config.get('SESSION_COOKIE_SECURE', False)}")
         click.echo(f"HASHPASS_PROXY_PROTO_COUNT={app.config.get('HASHPASS_PROXY_PROTO_COUNT', 0)}")
@@ -238,6 +248,13 @@ def create_app():
     def contexto_hashpass():
         habilitado = bool(app.config.get("HASHPASS_ENABLED", False))
         tablas_listas = bool(habilitado and current_user.is_authenticated and _hashpass_tablas_disponibles())
+        custodia_lista = True
+        if habilitado and app.config.get("HASHPASS_SHARED_ENABLED", False):
+            from app.services.hashpass_shared_crypto import SharedVaultKeyError, obtener_clave_compartida
+            try:
+                obtener_clave_compartida(app.config)
+            except SharedVaultKeyError:
+                custodia_lista = False
         transporte_seguro = bool(
             app.testing or (
                 request.is_secure
@@ -246,12 +263,13 @@ def create_app():
             )
         )
         autorizado = bool(
-            tablas_listas and transporte_seguro and current_user.is_authenticated
+            tablas_listas and custodia_lista and transporte_seguro and current_user.is_authenticated
             and current_user.activo and permiso_activo(current_user.id)
         )
         return {
             "hashpass_habilitado": habilitado,
             "hashpass_tablas_listas": tablas_listas,
+            "hashpass_custodia_lista": custodia_lista,
             "hashpass_transporte_seguro": transporte_seguro,
             "hashpass_autorizado": autorizado,
         }

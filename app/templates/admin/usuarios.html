@@ -17,6 +17,8 @@
             <p>HashPass está activado, pero faltan tablas en la base de datos. Ejecute la migración hp00120261029 en la instalación correcta, previa copia de seguridad, antes de conceder permisos.</p>
         {% elif not hashpass_transporte_seguro %}
             <p>HashPass está configurado, pero este acceso no reúne las condiciones de transporte seguro: HTTPS efectivo, HASHPASS_REQUIRE_HTTPS=true y SESSION_COOKIE_SECURE=true. No se habilitan permisos ni consultas hasta proteger el servicio.</p>
+        {% elif not hashpass_custodia_lista %}
+            <p>La bóveda compartida requiere una clave institucional de custodia de 256 bits. Falta o es inválida HASHPASS_SHARED_KEY_B64. No se muestran contraseñas ni se conceden permisos hasta configurar y respaldar la clave bajo custodia institucional. No regeneres la clave si ya existen credenciales compartidas.</p>
         {% else %}
             <p>HashPass está disponible. El administrador puede conceder o revocar acceso desde las acciones de cada usuario. Para abrir su propia bóveda, el administrador también requiere permiso explícito.</p>
         {% endif %}
@@ -42,7 +44,7 @@
                     <td class="columna-accion">
                         <a class="boton-tabla boton-tabla-neutral" href="{{ url_for('admin.editar_usuario', usuario_id=usuario.id) }}">Editar</a><br><br>
                         <a class="boton-tabla boton-tabla-secundario" href="{{ url_for('admin.cambiar_password_usuario', usuario_id=usuario.id) }}">Cambiar contraseña</a><br><br>
-                        {% if hashpass_habilitado and hashpass_tablas_listas and hashpass_transporte_seguro %}
+                        {% if hashpass_habilitado and hashpass_tablas_listas and hashpass_transporte_seguro and hashpass_custodia_lista %}
                             {% set concedido = usuario.permiso_hashpass and usuario.permiso_hashpass.autorizado %}
                             <form method="POST" action="{{ url_for('hashpass.permiso', usuario_id=usuario.id) }}">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

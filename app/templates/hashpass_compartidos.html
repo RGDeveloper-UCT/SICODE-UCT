@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}HashPass compartido · SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+  <div class="encabezado-modulo">
+    <div><h1>🔐 HashPass · Bóveda institucional</h1>
+      <p>Credenciales compartidas con todos los usuarios activos que tengan permiso HashPass.</p>
+    </div>
+    <a class="boton-secundario" href="{{ url_for('hashpass.compartidos') }}">Bóveda compartida</a>
+  </div>
+
+  <section class="hashpass-seguridad" aria-labelledby="seguridad-hp002">
+    <div class="hashpass-seguridad__titulo">
+      <span class="hashpass-seguridad__icono" aria-hidden="true">🔒</span>
+      <div>
+        <h2 id="seguridad-hp002">¿Cómo se protegen las contraseñas compartidas?</h2>
+        <p>El acceso requiere permiso institucional y la contraseña maestra personal.</p>
+      </div>
+    </div>
+    <div class="hashpass-seguridad__grid">
+      <div><h3>Argon2id</h3>
+        <p>Tu contraseña maestra independiente de SICODE protege tu bóveda individual y se valida antes de cada operación sensible.</p>
+      </div>
+      <div><h3>AES-256-GCM</h3>
+        <p>Los registros compartidos se cifran con una clave institucional de 256 bits custodiada fuera de la base de datos. Cada registro tiene nonce aleatorio y verificación de integridad.</p>
+      </div>
+      <div><h3>Permisos y bitácora</h3>
+        <p>Solo usuarios activos y expresamente autorizados pueden entrar. Se registra quién creó, consultó, modificó, archivó o publicó credenciales.</p>
+      </div>
+    </div>
+    <p class="hashpass-seguridad__limite"><strong>Límites:</strong> la clave de custodia del servidor permite descifrar las credenciales sin la contraseña maestra si el servidor y su base de datos resultan comprometidos. No es cifrado de extremo a extremo ni equivalente a KeePass. Usa únicamente HTTPS institucional, protege respaldos y conserva la clave institucional en custodia independiente. Revocar permisos no invalida contraseñas que un usuario ya conocía.</p>
+  </section>
+
+  <p class="alerta alerta-warning"><strong>Atención:</strong> todos los usuarios activos con permiso HashPass pueden consultar las credenciales; solamente su creador o un administrador autorizado puede modificarlas o archivarlas. No guardes credenciales personales que no deban ser compartidas institucionalmente.</p>
+
+  {% if modo == "lista" %}
+    <div class="acciones">
+      <a class="boton" href="{{ url_for('hashpass.compartido_nuevo') }}">Agregar credencial compartida</a>
+      <a class="boton-secundario" href="{{ url_for('hashpass.publicar_privados') }}">Compartir contraseñas que guardé antes</a>
+      <a class="boton-secundario" href="{{ url_for('hashpass.cambiar_maestra') }}">Cambiar mi maestra</a>
+      <a class="boton-secundario" href="{{ url_for('hashpass.generador') }}">Generador</a>
+    </div>
+    <form method="POST" class="formulario" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="grid-form">
+        <div class="campo"><label>Tu contraseña maestra</label><input type="password" name="maestra" minlength="15" required autocomplete="off"></div>
+        <div class="campo"><label>Buscar por nombre (opcional)</label><input name="q" maxlength="180" autocomplete="off"></div>
+      </div>
+      <button class="boton" type="submit">Desbloquear y consultar compartidos</button>
+    </form>
+    {% if desbloqueada %}
+      <div class="tabla-contenedor"><table>
+        <thead><tr><th>Credencial</th><th>Tipo</th><th>Actualizado (UTC)</th><th>Opciones</th></tr></thead>
+        <tbody>
+        {% for registro in registros %}
+          <tr>
+            <td><strong>{{ nombres[registro.id] }}</strong></td>
+            <td>{{ tipos.get(registro.tipo, ('Personalizado', []))[0] }}</td>
+            <td>{{ registro.actualizado_utc.strftime('%d/%m/%Y %H:%M') }}</td>
+            <td>
+              <a class="boton-tabla" href="{{ url_for('hashpass.compartido_ver', registro_id=registro.id) }}">Consultar</a>
+              {% if registro.creado_por_id == current_user.id or current_user.rol == 'administrador' %}
+              <a class="boton-tabla boton-tabla-neutral" href="{{ url_for('hashpass.compartido_editar', registro_id=registro.id) }}">Modificar</a>
+              {% endif %}
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">No existen credenciales compartidas para esta búsqueda.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table></div>
+    {% else %}
+      <p class="alerta alerta-info">La bóveda está bloqueada. Ni los nombres ni los identificadores se muestran hasta validar tu contraseña maestra.</p>
+    {% endif %}
+
+  {% elif modo == "publicar" %}
+    <h2>Compartir mis contraseñas existentes</h2>
+    <p>Las credenciales privadas activas que hayas guardado anteriormente se descifrarán con tu contraseña maestra, se volverán a cifrar para la bóveda institucional y se conservarán archivadas en la bóveda anterior. El proceso se ejecuta como una sola transacción.</p>
+    <p class="alerta alerta-warning">Al confirmar, todas las credenciales privadas activas de tu cuenta pasarán a estar disponibles para todos los usuarios activos con permiso HashPass, incluidas las cuentas autorizadas posteriormente. No se puede revertir el conocimiento de una contraseña ya revelada.</p>
+    <form method="POST" class="formulario" autocomplete="off">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="campo"><label>Contraseña maestra original de tu bóveda</label><input type="password" name="maestra" required minlength="15" autocomplete="off"></div>
+        <button class="boton" type="submit">Confirmar publicación de mis credenciales anteriores</button>
+      </form>
+    <a class="boton-secundario" href="{{ url_for('hashpass.compartidos') }}">Volver</a>
+
+  {% elif modo == "formulario" %}
+    <h2>{{ 'Sustituir credencial compartida' if editando else 'Nueva credencial compartida' }}</h2>
+    {% if editando %}
+      <p class="alerta alerta-warning">Para reducir exposiciones, este formulario no precarga secretos. Introduce todos los datos: reemplazarán el registro anterior y el cambio será visible para todo el grupo autorizado.</p>
+    {% endif %}
+    <form method="GET" class="formulario">
+      <div class="campo"><label>Tipo de credencial</label>
+        <select name="tipo">
+        {% for codigo, configuracion in tipos.items() %}
+          <option value="{{ codigo }}" {% if codigo == tipo %}selected{% endif %}>{{ configuracion[0] }}</option>
+        {% endfor %}
+        </select>
+      </div>
+      <button class="boton-secundario" type="submit">Mostrar campos</button>
+    </form>
+    <form method="POST" class="formulario" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="tipo" value="{{ tipo }}">
+      <div class="grid-form">
+        <div class="campo"><label>Nombre o referencia *</label><input name="nombre" maxlength="180" required></div>
+        <div class="campo"><label>Usuario / cuenta</label><input name="usuario" maxlength="250"></div>
+        <div class="campo"><label>Contraseña / token / clave *</label><input name="secreto" type="password" maxlength="4096" autocomplete="new-password" required></div>
+        {% for clave, etiqueta, tipo_html in tipos[tipo][1] %}
+        <div class="campo"><label>{{ etiqueta }}</label><input name="{{ clave }}" type="{{ tipo_html }}" maxlength="1000" autocomplete="off"></div>
+        {% endfor %}
+      </div>
+      <div class="campo"><label>Notas cifradas</label><textarea name="notas" maxlength="4000" rows="3"></textarea></div>
+      <div class="campo"><label>Tu contraseña maestra para autorizar</label><input name="maestra" type="password" minlength="15" autocomplete="off" required></div>
+      <button class="boton" type="submit">Guardar para todos los autorizados</button>
+      <a class="boton-cancelar" href="{{ url_for('hashpass.compartidos') }}">Cancelar</a>
+    </form>
+
+  {% elif modo == "pedir_maestra" %}
+    <h2>Consultar credencial institucional</h2>
+    <form method="POST" class="formulario" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="campo"><label>Tu contraseña maestra</label><input name="maestra" type="password" minlength="15" required autocomplete="off"></div>
+      <button class="boton" type="submit">Revelar credencial compartida</button>
+    </form>
+
+  {% elif modo == "detalle" %}
+    <h2>{{ datos.get('nombre', 'Credencial institucional') }}</h2>
+    <p>Vista temporal. No copies secretos a canales no autorizados. Todo acceso queda en la bitácora.</p>
+    <div class="tabla-contenedor"><table><tbody>
+    {% for nombre, valor in datos.items() %}
+      <tr><th>{{ nombre.replace('_', ' ') | title }}</th><td><span style="white-space:pre-wrap;overflow-wrap:anywhere">{{ valor }}</span></td></tr>
+    {% endfor %}
+    </tbody></table></div>
+    <p>Creado por usuario ID {{ registro.creado_por_id or 'no disponible' }}. Última modificación por usuario ID {{ registro.actualizado_por_id or 'no disponible' }}.</p>
+    <div class="acciones">
+      <a class="boton-secundario" href="{{ url_for('hashpass.compartidos') }}">Cerrar consulta</a>
+      {% if registro.creado_por_id == current_user.id or current_user.rol == 'administrador' %}
+      <a class="boton-secundario" href="{{ url_for('hashpass.compartido_editar', registro_id=registro.id) }}">Modificar</a>
+      {% endif %}
+    </div>
+    {% if registro.creado_por_id == current_user.id or current_user.rol == 'administrador' %}
+    <h3>Archivar para todos</h3>
+    <form method="POST" action="{{ url_for('hashpass.compartido_archivar', registro_id=registro.id) }}" class="formulario" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="campo"><label>Confirmar con tu contraseña maestra</label><input name="maestra" type="password" minlength="15" required autocomplete="off"></div>
+      <button class="boton-tabla boton-tabla-peligro" type="submit">Archivar credencial compartida</button>
+    </form>
+    {% endif %}
+  {% endif %}
+</section>
+{% endblock %}

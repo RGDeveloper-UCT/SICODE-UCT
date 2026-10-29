@@ -41,6 +41,10 @@ class Config:
     HASHPASS_ENABLED = os.getenv("HASHPASS_ENABLED", "false").lower() in {"1", "true", "yes", "si"}
     HASHPASS_REQUIRE_HTTPS = os.getenv("HASHPASS_REQUIRE_HTTPS", "true").lower() in {"1", "true", "yes", "si"}
     HASHPASS_PROXY_PROTO_COUNT = max(0, min(1, int(os.getenv("HASHPASS_PROXY_PROTO_COUNT", "0"))))
+    # HP-002: bóveda institucional compartida, apagada hasta custodia y
+    # respaldo de la clave de servicio. Nunca guardar la clave en Git.
+    HASHPASS_SHARED_ENABLED = os.getenv("HASHPASS_SHARED_ENABLED", "false").lower() in {"1", "true", "yes", "si"}
+    HASHPASS_SHARED_KEY_B64 = os.getenv("HASHPASS_SHARED_KEY_B64")
 
     PG_DUMP_PATH = os.getenv("PG_DUMP_PATH")
 
