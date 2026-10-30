@@ -50,6 +50,7 @@ ESTADOS_EXPLICADOS = {
     "DIFERENCIA_ANEXO": "Discrepancia con anexos de Coordinación/rectificados",
     "ANEXO_AMBIGUO": "No se puede identificar el anexo sin riesgo",
     "REGISTRO_ANULADO": "Existe antecedente anulado; revisión antes de recrear",
+    "VENCIDO_SIN_RECEPCION": "Anexo histórico o vencido sin recepción coincidente; requiere rectificación manual",
     "SOLO_SICODE": "Registro manual existente que no figura en el Excel recibido; se conserva",
 }
 
@@ -338,6 +339,9 @@ def planificar(filas):
                         resultado.update(estado="COINCIDE", detalle="Registro ya activo; sin cambios.")
                     else:
                         resultado.update(estado="REGISTRO_ANULADO")
+                elif r["seccion"] == "ANEXO" and r["es_vencido"] == "SI" and anexo is None:
+                    resultado.update(estado="VENCIDO_SIN_RECEPCION",
+                                     detalle="No se incorporará como anexo vigente un registro histórico sin recepción.")
                 elif any(d.activo and (
                     normalizar(d.nombre_documento) == normalizar(r["nombre_documento"])
                     or d.folio_inicio <= r["folio_final"] and d.folio_fin >= r["folio_inicial"]
