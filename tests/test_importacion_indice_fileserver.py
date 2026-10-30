@@ -189,3 +189,14 @@ def test_traslape_excel_bloquea_ambas_filas_antes_de_confirmar(app_fs):
         assert resumen["NUEVO"] == 0
         assert resumen["DUPLICADO_EXCEL"] == 2
         assert DocumentoExpediente.query.count() == 0
+
+
+def test_vencido_sin_recepcion_no_se_incorpora(app_fs):
+    with app_fs.app_context():
+        decisiones, resumen = planificar(leer_excel(archivo([
+            fila(seccion="ANEXO", anexo=5, nombre="Documento histórico",
+                 inicio=1, fin=2, es_vencido="SI")
+        ])))
+        assert decisiones[0]["estado"] == "VENCIDO_SIN_RECEPCION"
+        assert resumen["NUEVO"] == 0
+        assert DocumentoExpediente.query.count() == 0
