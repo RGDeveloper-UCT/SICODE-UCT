@@ -436,4 +436,7 @@ def planificar(filas):
                 "expediente_id": expediente.id,
                 "anexo_coordinacion_id": None,
             })
-    return decisiones, dict(Counter(r["estado"] for r in decisiones))
+    resumen = dict(Counter(r["estado"] for r in decisiones))
+    resumen.setdefault("NUEVO", 0)
+    resumen.setdefault("COINCIDE", 0)
+    return decisiones, resumen
