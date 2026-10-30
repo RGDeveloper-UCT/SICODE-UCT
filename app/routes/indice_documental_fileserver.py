@@ -77,9 +77,11 @@ def importar_indice_fileserver():
                 if paquete.get("usuario") != current_user.id:
                     abort(403)
                 filas = paquete["filas"]
-                Expediente.query.filter(Expediente.no_sp.in_(
-                    sorted({r["sp"] for r in filas})
-                )).order_by(Expediente.id).with_for_update().all()
+                # Bloquear solamente la tabla expediente: la carga de relaciones
+                # nullable causa error FOR UPDATE de PostgreSQL.
+                Expediente.query.with_entities(Expediente.id).filter(
+                    Expediente.no_sp.in_(sorted({r["sp"] for r in filas}))
+                ).order_by(Expediente.id).with_for_update(of=Expediente).all()
                 decisiones,resumen = planificar(filas)
                 if _resumen_firma(decisiones) != paquete.get("huella"):
                     raise IndiceFileServerInvalido(
