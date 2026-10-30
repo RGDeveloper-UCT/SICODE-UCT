@@ -10,6 +10,7 @@ import re
 import unicodedata
 from collections import Counter, defaultdict
 from datetime import date, datetime
+from zipfile import BadZipFile, ZipFile
 
 from openpyxl import load_workbook
 from sqlalchemy.orm import joinedload
@@ -112,7 +113,13 @@ def leer_excel(archivo):
     if len(contenido) > MAX_BYTES:
         raise IndiceFileServerInvalido("El Excel no puede superar 8 MB.")
     try:
-        libro = load_workbook(io.BytesIO(contenido), read_only=True, data_only=True)
+        with ZipFile(io.BytesIO(contenido)) as comprimido:
+            piezas = comprimido.infolist()
+            if len(piezas) > 1000 or sum(p.file_size for p in piezas) > 80 * 1024 * 1024:
+                raise IndiceFileServerInvalido(
+                    "Excel demasiado grande al descomprimirse; divida la importación.")
+        libro = load_workbook(io.BytesIO(contenido), read_only=True,
+                              data_only=True, keep_links=False)
         if "Indice" not in libro.sheetnames:
             raise IndiceFileServerInvalido("Falta la hoja Indice.")
         hoja = libro["Indice"]
