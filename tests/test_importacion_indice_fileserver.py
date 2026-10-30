@@ -1,5 +1,6 @@
 """Regresión: File Server solo agrega metadatos nuevos sin tocar datos históricos."""
 from io import BytesIO
+import re
 from datetime import date
 
 import pytest
@@ -126,3 +127,54 @@ def test_url_importacion_masiva_existe(app_fs):
     reglas = {regla.endpoint:regla.rule for regla in app_fs.url_map.iter_rules()}
     assert reglas["indice_documental.importar_indice_fileserver"] == (
         "/expedientes/indice-documental/importacion-fileserver")
+
+
+def test_confirmacion_es_idempotente_y_conserva_estado_manual(app_fs):
+    with app_fs.app_context():
+        db.session.add(DocumentoExpediente(
+            expediente_id=1,nombre_documento="Oficio",tipo_documento="Oficio",
+            folio_inicio=1,folio_fin=3,total_folios=3,
+            estado_revision="Verificado",es_anexo=False,activo=True))
+        db.session.commit()
+    cliente = app_fs.test_client()
+    login = cliente.post("/login",data={"usuario":"fs-admin","password":"Password123"})
+    assert login.status_code == 302
+    url = "/expedientes/indice-documental/importacion-fileserver"
+
+    def preparar():
+        adjunto = archivo([fila(nombre="Oficio"),fila(nombre="Nuevo",inicio=4,fin=5)])
+        respuesta = cliente.post(url,data={"accion":"previsualizar",
+            "archivo":(adjunto.stream,"indice.xlsx")},content_type="multipart/form-data")
+        assert respuesta.status_code == 200
+        token = re.search(r'name="token" value="([^"]+)"',respuesta.get_data(as_text=True))
+        assert token is not None
+        return token.group(1)
+
+    confirmado = cliente.post(url,data={"accion":"confirmar","token":preparar()})
+    assert confirmado.status_code == 302
+    with app_fs.app_context():
+        items = DocumentoExpediente.query.order_by(DocumentoExpediente.id).all()
+        assert len(items) == 2
+        assert [r.estado_revision for r in items] == [
+            "Verificado","Pendiente de revisión"]
+    # El mismo Excel puede reimportarse sin duplicar documentos.
+    respuesta = cliente.post(url,data={"accion":"confirmar","token":preparar()})
+    assert respuesta.status_code == 302
+    with app_fs.app_context():
+        assert DocumentoExpediente.query.count() == 2
+
+
+def test_conciliacion_informa_documento_que_solo_existe_en_sicode(app_fs):
+    with app_fs.app_context():
+        db.session.add(DocumentoExpediente(
+            expediente_id=1,nombre_documento="Histórico manual",
+            tipo_documento="Documento",folio_inicio=1,folio_fin=1,total_folios=1,
+            estado_revision="Verificado",es_anexo=False,activo=True))
+        db.session.commit()
+        decisiones,resumen = planificar(leer_excel(archivo([
+            fila(nombre="Oficio nuevo",inicio=2,fin=3)
+        ])))
+        assert resumen["SOLO_SICODE"] == 1
+        assert any(d["nombre_documento"] == "Histórico manual"
+                   and d["estado"] == "SOLO_SICODE" for d in decisiones)
+        assert DocumentoExpediente.query.count() == 1
