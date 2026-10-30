@@ -30,7 +30,7 @@
     <div class="acciones"><button type="submit" class="boton">Comparar sin modificar SICODE</button></div>
   </form>
   {% if decisiones %}
-  <h2>Resultado de conciliación — {{ decisiones|length }} filas</h2>
+  <h2>Resultado de conciliación — {{ decisiones|length }} registros comparados</h2>
   <div class="aviso">
     <strong>Nuevos propuestos:</strong> {{ nuevos }}.
     <strong>Coincidentes:</strong> {{ resumen.get('COINCIDE',0) }}.
@@ -46,6 +46,14 @@
       {% endfor %}</tbody>
     </table>
   </div>
+  {% endif %}
+  {% if token %}
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="accion" value="descargar">
+    <input type="hidden" name="token" value="{{ token }}">
+    <div class="acciones"><button type="submit" class="boton-secundario">Descargar conciliación completa (CSV)</button></div>
+  </form>
   {% endif %}
   <h3>Detalle por fila</h3>
   <p>Mostrando las primeras {{ [decisiones|length, 500]|min }} filas de la vista previa.</p>
