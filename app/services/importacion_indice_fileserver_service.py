@@ -49,6 +49,7 @@ ESTADOS_EXPLICADOS = {
     "DIFERENCIA_ANEXO": "Discrepancia con anexos de Coordinación/rectificados",
     "ANEXO_AMBIGUO": "No se puede identificar el anexo sin riesgo",
     "REGISTRO_ANULADO": "Existe antecedente anulado; revisión antes de recrear",
+    "SOLO_SICODE": "Registro manual existente que no figura en el Excel recibido; se conserva",
 }
 
 
@@ -283,6 +284,7 @@ def planificar(filas):
     decisiones = []
     vistos = set()
     propuestos = defaultdict(list)
+    cotejados = set()
     for r in filas:
         resultado = dict(r)
         resultado.update(estado="NUEVO", detalle="", expediente_id=None,
@@ -324,6 +326,7 @@ def planificar(filas):
                 if conflicto:
                     resultado.update(estado=conflicto, detalle=detalle)
                 elif exactos:
+                    cotejados.update(d.id for d in exactos)
                     if any(d.activo for d in exactos):
                         resultado.update(estado="COINCIDE", detalle="Registro ya activo; sin cambios.")
                     else:
@@ -332,6 +335,10 @@ def planificar(filas):
                     normalizar(d.nombre_documento) == normalizar(r["nombre_documento"])
                     or d.folio_inicio <= r["folio_final"] and d.folio_fin >= r["folio_inicial"]
                 ) for d in mismos_ambitos):
+                    cotejados.update(d.id for d in mismos_ambitos if d.activo and (
+                        normalizar(d.nombre_documento) == normalizar(r["nombre_documento"])
+                        or d.folio_inicio <= r["folio_final"] and d.folio_fin >= r["folio_inicial"]
+                    ))
                     resultado.update(estado="DIFERENCIA_INDICE",
                                      detalle="Nombre o rango de folios en conflicto.")
                 elif any(d.activo and d.es_anexo and numero_existente(d) is None
@@ -358,4 +365,42 @@ def planificar(filas):
                             )
             vistos.add(identidad)
         decisiones.append(resultado)
+
+    # Conciliación en ambas direcciones: lo que está en SICODE y no se encuentra
+    # representado en el Excel de los SP cargados NO se elimina ni se anula.
+    for sp in sorted(sp_ids):
+        expediente = expedientes.get(sp)
+        if expediente is None:
+            continue
+        for documento in documentos[expediente.id]:
+            if not documento.activo or documento.id in cotejados:
+                continue
+            ambito = "ANEXO" if documento.es_anexo else "PRINCIPAL"
+            numero = numero_existente(documento)
+            datos_mismos = [r for r in filas if r["sp"] == sp and
+                           r["seccion"] == ambito and
+                           (r["numero_anexo"] or 0) == (numero or 0) and
+                           normalizar(r["nombre_documento"]) ==
+                           normalizar(documento.nombre_documento)]
+            if datos_mismos:
+                continue
+            decisiones.append({
+                "fila": f"SICODE-{documento.id}", "sp": sp,
+                "codigo_expediente": expediente.codigo_interno,
+                "seccion": ambito, "numero_anexo": numero,
+                "titulo_anexo": documento.indice_titulo_anexo or "",
+                "orden": documento.indice_orden or 0,
+                "nombre_documento": documento.nombre_documento,
+                "tipo_documento": documento.tipo_documento,
+                "folio_inicial": documento.folio_inicio,
+                "folio_final": documento.folio_fin,
+                "estado_revision": documento.estado_revision,
+                "fecha_recepcion": "", "rc": "", "providencia": "",
+                "tipo_anexo": "", "es_vencido": "DESCONOCIDO",
+                "observaciones": "", "referencia_file_server": "",
+                "estado": "SOLO_SICODE",
+                "detalle": "Existe en SICODE; no aparece en el Excel de este SP.",
+                "expediente_id": expediente.id,
+                "anexo_coordinacion_id": None,
+            })
     return decisiones, dict(Counter(r["estado"] for r in decisiones))
