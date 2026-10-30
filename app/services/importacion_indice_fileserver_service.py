@@ -373,6 +373,32 @@ def planificar(filas):
             vistos.add(identidad)
         decisiones.append(resultado)
 
+    # Un rango repetido o cruzado en el propio Excel no puede importarse
+    # parcialmente. Marcar también la PRIMERA fila como conflicto evita que
+    # el orden del archivo cambie qué documento se inserta.
+    grupos_excel = defaultdict(list)
+    for registro in decisiones:
+        if isinstance(registro["fila"], int):
+            grupos_excel[(
+                registro["sp"], registro["seccion"],
+                registro["numero_anexo"] or 0
+            )].append(registro)
+    for grupo in grupos_excel.values():
+        for i, candidato in enumerate(grupo):
+            if candidato["estado"] != "NUEVO":
+                continue
+            if any(
+                i != j and otro["folio_inicial"] is not None
+                and candidato["folio_inicial"] <= otro["folio_final"]
+                and candidato["folio_final"] >= otro["folio_inicial"]
+                for j, otro in enumerate(grupo)
+            ):
+                candidato.update(
+                    estado="DUPLICADO_EXCEL",
+                    detalle="El Excel contiene otro registro con folios superpuestos "
+                            "en el mismo SP y ámbito; se bloquean ambos.",
+                )
+
     # Conciliación en ambas direcciones: lo que está en SICODE y no se encuentra
     # representado en el Excel de los SP cargados NO se elimina ni se anula.
     for sp in sorted(sp_ids):
