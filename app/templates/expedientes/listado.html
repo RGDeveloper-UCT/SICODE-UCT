@@ -8,6 +8,7 @@
         <div class="acciones-detalle">
             {% if current_user.puede_modificar %}<a class="boton-secundario" href="{{ url_for('expedientes.nuevo') }}">Nuevo expediente</a>{% endif %}
             {% if current_user.rol == 'administrador' %}<a class="boton-secundario" href="{{ url_for('portadores.importar') }}">Importar Portadores</a>{% endif %}
+            {% if current_user.puede_modificar %}<a class="boton-secundario" href="{{ url_for('indice_documental.importar_indice_fileserver') }}">Importar índice documental masivo</a>{% endif %}
             {% if current_user.puede_modificar %}<a class="boton-exito" href="{{ url_for('expedientes.exportar_excel', q=busqueda, activo=filtro_activo, estado_administrativo=filtro_estado_admin, estado_fisico_documental=filtro_estado_fisico) }}">Exportar Excel</a>{% endif %}
         </div>
     </div>

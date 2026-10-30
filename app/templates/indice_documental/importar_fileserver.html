@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Importación masiva File Server — SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+  <div class="encabezado-modulo">
+    <div>
+      <h1>Importar índice documental masivo</h1>
+      <p>Un Excel con documentos de múltiples SP. Conciliación File Server ↔ SICODE.</p>
+    </div>
+    <div class="acciones">
+      <a class="boton-cancelar" href="{{ url_for('expedientes.listado') }}">Volver a SP y expedientes</a>
+    </div>
+  </div>
+  <div class="aviso">
+    <strong>Protección de datos:</strong> solo metadatos administrativos; nunca PDF, escaneos o texto
+    sensible. Se conservan todos los documentos, anexos, contadores y verificaciones cargados
+    manualmente. El Excel no certifica existencia ni foliación física.
+  </div>
+  <p><strong>Formato:</strong> .xlsx, hoja <code>Indice</code>, una fila por documento, varios SP
+     en una sola hoja, máximo 12,000 filas y 8 MB.
+     Para anexos, use <code>ANEXO</code> y su número; cada anexo tiene foliación independiente.
+     La fecha, RC/RE, tipo y marca de vencimiento sirven únicamente para contrastar registros existentes.</p>
+  <form method="POST" enctype="multipart/form-data" class="formulario">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="accion" value="previsualizar">
+    <div class="campo">
+      <label for="excel_indice">Excel consolidado de File Server</label>
+      <input type="file" name="archivo" id="excel_indice" accept=".xlsx" required>
+    </div>
+    <div class="acciones"><button type="submit" class="boton">Comparar sin modificar SICODE</button></div>
+  </form>
+  {% if decisiones %}
+  <h2>Resultado de conciliación — {{ decisiones|length }} registros comparados</h2>
+  <div class="aviso">
+    <strong>Nuevos propuestos:</strong> {{ nuevos }}.
+    <strong>Coincidentes:</strong> {{ resumen.get('COINCIDE',0) }}.
+    <strong>Diferencias o bloqueos:</strong> {{ diferencias }}.
+    La confirmación importa <strong>solo NUEVO</strong>; los demás no se modificarán.
+  </div>
+  {% if resumen %}
+  <div class="tabla-contenedor">
+    <table><thead><tr><th>Resultado</th><th>Cantidad</th><th>Qué significa</th></tr></thead>
+      <tbody>{% for estado, cantidad in resumen|dictsort %}
+      <tr><td><strong>{{ estado }}</strong></td><td>{{ cantidad }}</td>
+          <td>{{ explicaciones.get(estado,'Revisar') }}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+  </div>
+  {% endif %}
+  {% if token %}
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="accion" value="descargar">
+    <input type="hidden" name="token" value="{{ token }}">
+    <div class="acciones"><button type="submit" class="boton-secundario">Descargar conciliación completa (CSV)</button></div>
+  </form>
+  {% endif %}
+  <h3>Detalle por fila</h3>
+  <p>Mostrando las primeras {{ [decisiones|length, 500]|min }} filas de la vista previa.</p>
+  <div class="tabla-contenedor" style="max-height: 520px;overflow:auto;">
+    <table>
+      <thead><tr><th>Fila</th><th>SP</th><th>Ámbito</th><th>Documento</th>
+        <th>Folios</th><th>Resultado</th><th>Detalle</th></tr></thead>
+      <tbody>{% for r in decisiones[:500] %}
+      <tr>
+        <td>{{ r.fila }}</td><td>{{ r.sp }}</td>
+        <td>{{ 'Principal' if r.seccion == 'PRINCIPAL' else 'Anexo '~r.numero_anexo }}</td>
+        <td>{{ r.nombre_documento }}</td>
+        <td>{{ (r.folio_inicial|string)~'–'~(r.folio_final|string) if r.folio_inicial is not none else 'Sin foliar' }}</td>
+        <td><strong>{{ r.estado }}</strong></td>
+        <td>{{ r.detalle }}</td>
+      </tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  {% if token and nuevos %}
+  <div class="aviso">
+    <strong>Antes de confirmar:</strong> rectifique manualmente los casos discrepantes. Los
+    documentos nuevos quedarán <strong>Pendiente de revisión</strong>; SICODE no cambia
+    «Verificado», «Vencido» ni el conteo físico de anexos a partir del Excel.
+  </div>
+  <form method="POST" onsubmit="return confirm('¿Importar únicamente las filas NUEVO? Los registros manuales seguirán intactos.');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="accion" value="confirmar">
+    <input type="hidden" name="token" value="{{ token }}">
+    <div class="acciones"><button type="submit" class="boton">Confirmar {{ nuevos }} registros nuevos</button></div>
+  </form>
+  {% elif token %}
+    <div class="aviso">No se detectaron documentos nuevos. No hay cambios que aplicar.</div>
+  {% endif %}
+  {% endif %}
+</section>
+{% endblock %}
