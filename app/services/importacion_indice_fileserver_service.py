@@ -18,6 +18,7 @@ from app.models.anexo_rectificado import AnexoRectificado
 from app.models.coordinacion import AnexoCoordinacion, RegistroCoordinacion
 from app.models.documento_expediente import DocumentoExpediente
 from app.models.expediente import Expediente
+from app.services.catalogo_anexos_service import catalogo_plano
 
 COLUMNAS = (
     "sp", "codigo_expediente", "seccion", "numero_anexo", "titulo_anexo",
@@ -203,6 +204,14 @@ def leer_excel(archivo):
     return filas
 
 
+def normalizar_tipo_anexo(valor):
+    dato = normalizar(valor)
+    for codigo, ficha in catalogo_plano().items():
+        if dato in {normalizar(codigo), normalizar(ficha["titulo"])}:
+            return codigo
+    return dato
+
+
 def numero_existente(doc):
     if not doc.es_anexo:
         return 0
@@ -225,7 +234,6 @@ def _coincidencia_anexo(fila, anexos, rectificados):
         recepcion = anexo.registro
         comparaciones = (
             (fila["titulo_anexo"], anexo.titulo),
-            (fila["tipo_anexo"], anexo.tipo_anexo),
             (fila["rc"], recepcion.rc),
             (fila["providencia"], recepcion.providencia),
             (fila["fecha_recepcion"],
@@ -234,19 +242,14 @@ def _coincidencia_anexo(fila, anexos, rectificados):
         for entrante, actual in comparaciones:
             if entrante and actual and normalizar(entrante) != normalizar(actual):
                 return "DIFERENCIA_ANEXO", anexo, "Metadatos distintos de Coordinación."
+        if (fila["tipo_anexo"] and anexo.tipo_anexo and
+                normalizar_tipo_anexo(fila["tipo_anexo"]) !=
+                normalizar_tipo_anexo(anexo.tipo_anexo)):
+            return "DIFERENCIA_ANEXO", anexo, "Tipo de anexo distinto de Coordinación."
         if fila["es_vencido"] != "DESCONOCIDO" and bool(anexo.es_vencido) != (
             fila["es_vencido"] == "SI"
         ):
             return "DIFERENCIA_ANEXO", anexo, "Vigencia/vencimiento no coincide."
-        if anexo.documento_expediente_id is not None:
-            # No se reasigna un anexo administrativo ya vinculado a otro índice.
-            vinculado = anexo.documento_expediente
-            if vinculado and vinculado.activo and (
-                normalizar(vinculado.nombre_documento) != normalizar(fila["nombre_documento"])
-                or vinculado.folio_inicio != fila["folio_inicial"]
-                or vinculado.folio_fin != fila["folio_final"]
-            ):
-                return "DIFERENCIA_ANEXO", anexo, "Recepción ya vinculada a otro documento."
     rect = [a for a in rectificados if str(a.numero_anexo or "").strip().isdigit()
             and int(a.numero_anexo) == fila["numero_anexo"] and a.activo]
     for r in rect:
@@ -318,13 +321,13 @@ def planificar(filas):
                     normalizar(d.nombre_documento) == normalizar(r["nombre_documento"])
                     and d.folio_inicio == r["folio_inicial"]
                     and d.folio_fin == r["folio_final"])]
-                if exactos:
+                if conflicto:
+                    resultado.update(estado=conflicto, detalle=detalle)
+                elif exactos:
                     if any(d.activo for d in exactos):
                         resultado.update(estado="COINCIDE", detalle="Registro ya activo; sin cambios.")
                     else:
                         resultado.update(estado="REGISTRO_ANULADO")
-                elif conflicto:
-                    resultado.update(estado=conflicto, detalle=detalle)
                 elif any(d.activo and (
                     normalizar(d.nombre_documento) == normalizar(r["nombre_documento"])
                     or d.folio_inicio <= r["folio_final"] and d.folio_fin >= r["folio_inicial"]
