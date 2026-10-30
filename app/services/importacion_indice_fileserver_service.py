@@ -77,7 +77,7 @@ def normalizar_sp(v):
     s = texto(v, 50).upper()
     s = re.sub(r"^SP\s*[-:#]?\s*", "", s, flags=re.I)
     if re.fullmatch(r"\d+(?:\.0)?", s):
-        return str(int(float(s)))
+        return str(int(s[:-2] if s.endswith(".0") else s))
     return s
 
 
@@ -87,7 +87,7 @@ def entero(v, campo, fila, obligatorio=True):
         return None
     if not re.fullmatch(r"\d+(?:\.0)?", s):
         raise IndiceFileServerInvalido(f"Fila {fila}: {campo} debe ser entero.")
-    return int(float(s))
+    return int(s[:-2] if s.endswith(".0") else s)
 
 
 def fecha_iso(v, fila):
