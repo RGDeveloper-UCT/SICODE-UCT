@@ -45,6 +45,7 @@ de metadatos no sensible, NO una ruta confidencial o copia de archivo.
 | DUPLICADO_EXCEL | No importar duplicados ni rangos traslapados en el mismo ámbito. |
 | SOLO_SICODE | Conservar índice existente ausente en el Excel. |
 | REGISTRO_ANULADO | No reactivar automáticamente. |
+| VENCIDO_SIN_RECEPCION | No incorporar como vigente un anexo histórico sin recepción acreditada. |
 | SIN_FOLIACION | Revisar físicamente antes de incorporar. |
 | SP_NO_EXISTE, CODIGO_DIFERENTE, SIN_EXPEDIENTE_FISICO | No crear SP ni expediente físico automáticamente. |
 
