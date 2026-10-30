@@ -178,3 +178,14 @@ def test_conciliacion_informa_documento_que_solo_existe_en_sicode(app_fs):
         assert any(d["nombre_documento"] == "Histórico manual"
                    and d["estado"] == "SOLO_SICODE" for d in decisiones)
         assert DocumentoExpediente.query.count() == 1
+
+
+def test_traslape_excel_bloquea_ambas_filas_antes_de_confirmar(app_fs):
+    with app_fs.app_context():
+        decisiones, resumen = planificar(leer_excel(archivo([
+            fila(nombre="Documento A",inicio=1,fin=10),
+            fila(nombre="Documento B",inicio=8,fin=15),
+        ])))
+        assert resumen["NUEVO"] == 0
+        assert resumen["DUPLICADO_EXCEL"] == 2
+        assert DocumentoExpediente.query.count() == 0
