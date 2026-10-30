@@ -1,8 +1,10 @@
 """Conciliación multi-SP de metadatos File Server, sin sobrescribir datos existentes."""
 import hashlib
+import csv
+import io
 import json
 from collections import Counter, defaultdict
-from flask import abort, current_app, flash, redirect, render_template, request, url_for
+from flask import Response, abort, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from app import db
@@ -39,6 +41,33 @@ def importar_indice_fileserver():
                 decisiones, resumen = planificar(filas)
                 token = _firma().dumps({"usuario":current_user.id,"filas":filas,
                                         "huella":_resumen_firma(decisiones)})
+            elif accion == "descargar":
+                try:
+                    paquete = _firma().loads(request.form.get("token",""),max_age=1800)
+                except (BadSignature, SignatureExpired) as error:
+                    raise IndiceFileServerInvalido("Vista previa expirada.") from error
+                if paquete.get("usuario") != current_user.id:
+                    abort(403)
+                decisiones,resumen = planificar(paquete["filas"])
+                if _resumen_firma(decisiones) != paquete.get("huella"):
+                    raise IndiceFileServerInvalido(
+                        "El índice cambió; vuelva a previsualizar antes de exportar.")
+                salida = io.StringIO()
+                escritor = csv.writer(salida)
+                escritor.writerow(["fila","sp","seccion","numero_anexo",
+                                  "nombre_documento","folio_inicial","folio_final",
+                                  "estado_conciliacion","detalle","referencia_file_server"])
+                for r in decisiones:
+                    campos = [r["fila"],r["sp"],r["seccion"],r["numero_anexo"],
+                              r["nombre_documento"],r["folio_inicial"],r["folio_final"],
+                              r["estado"],r["detalle"],r["referencia_file_server"]]
+                    escritor.writerow([
+                        ("'" + x if isinstance(x,str) and x[:1] in ("=","+","-","@") else x)
+                        for x in campos])
+                return Response(
+                    "\ufeff" + salida.getvalue(), mimetype="text/csv; charset=utf-8",
+                    headers={"Content-Disposition":
+                             "attachment; filename=conciliacion_indice_fileserver.csv"})
             elif accion == "confirmar":
                 try:
                     paquete = _firma().loads(request.form.get("token",""), max_age=1800)
