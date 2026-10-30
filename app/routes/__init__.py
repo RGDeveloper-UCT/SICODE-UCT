@@ -8,6 +8,7 @@ from app.routes.bitacora import bitacora_bp
 from app.routes.indice_documental import indice_documental_bp
 from app.routes import indice_documental_edicion as _indice_documental_edicion
 from app.routes import indice_documental_importacion as _indice_documental_importacion
+from app.routes import indice_documental_fileserver as _indice_documental_fileserver
 from app.routes.alertas import alertas_bp
 from app.routes.prestamos import prestamos_bp
 from app.routes.prestamos_grupales import prestamos_grupales_bp
