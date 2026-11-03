@@ -246,7 +246,7 @@ def nueva_boleta():
                 raise ValueError("Límite de 30 CVE por boleta.")
 
             b = BoletaSeguridadTI(
-                equipo_id=equipo.id, tecnico_id=current_user.id, estado="BORRADOR",
+                equipo_id=equipo.id, tecnico_id=current_user.id, tipo_boleta="INTEGRAL", estado="BORRADOR",
                 checklist_version=VERSION, checklist=plantilla(seleccionadas),
                 datos_equipo=_snapshot(equipo),
             )
@@ -273,6 +273,8 @@ def detalle_boleta(id_):
 def editar_boleta(id_):
     _escritura()
     b = db.get_or_404(BoletaSeguridadTI, id_)
+    if b.tipo_boleta == "MEDIDAS":
+        return redirect(url_for("seguridad_operativa.editar_boleta_medidas", id_=id_))
     if b.estado in {"FINALIZADO", "ANULADA"}:
         flash("Esta boleta está cerrada y es de solo lectura.", "warning")
         return redirect(url_for("seguridad_operativa.detalle_boleta", id_=id_))
@@ -344,8 +346,13 @@ def reloj(id_):
     except ValueError as error:
         db.session.rollback()
         flash(str(error), "warning")
-    return redirect(url_for("seguridad_operativa.editar_boleta" if b.estado != "FINALIZADO" else
-                            "seguridad_operativa.detalle_boleta", id_=b.id))
+    if b.estado == "FINALIZADO" or b.estado == "ANULADA":
+        destino = "seguridad_operativa.detalle_boleta"
+    elif b.tipo_boleta == "MEDIDAS":
+        destino = "seguridad_operativa.editar_boleta_medidas"
+    else:
+        destino = "seguridad_operativa.editar_boleta"
+    return redirect(url_for(destino, id_=b.id))
 
 
 
@@ -388,11 +395,15 @@ def boleta_pdf(id_):
     if b.estado != "FINALIZADO":
         flash("El PDF definitivo requiere una boleta finalizada.", "warning")
         return redirect(url_for("seguridad_operativa.detalle_boleta", id_=id_))
-    archivo = generar_boleta_seguridad(b)
+    if b.tipo_boleta == "MEDIDAS":
+        from app.services.constancia_medidas_seguridad import generar_boleta_medidas
+        archivo = generar_boleta_medidas(b)
+    else:
+        archivo = generar_boleta_seguridad(b)
     registrar_bitacora("EXPORTAR_BOLETA_SEGURIDAD", "Seguridad Informática",
                        b.numero, usuario_id=current_user.id, entidad="BoletaSeguridadTI", entidad_id=b.id)
     return send_file(archivo, mimetype="application/pdf", as_attachment=True,
-                     download_name=f"{b.numero}_seguridad_informatica.pdf")
+                     download_name=f"{b.numero}_{'medidas_prioritarias_temporales' if b.tipo_boleta == 'MEDIDAS' else 'seguridad_informatica'}.pdf")
 
 
 def _celda_segura(valor):
@@ -407,7 +418,7 @@ def informe():
     wb = Workbook()
     ws = wb.active
     ws.title = "Boletas"
-    ws.append(["Número", "SICOIN", "Equipo", "Área", "Técnico", "Estado", "Creado",
+    ws.append(["Número", "Modalidad", "SICOIN", "Equipo", "Área", "Técnico", "Estado", "Creado",
                "Inicio", "Cierre", "Duración (s)", "Resultado", "Seguimiento",
                "Cumple", "No cumple", "No aplica", "Pendiente", "CVE verificados", "Diagnóstico", "Acciones",
                "Versión SO", "Versión Chrome", "Versión Java", "Versión Python", "Versión PHP", "Antivirus"])
@@ -422,7 +433,7 @@ def informe():
         cod = datos.get("codigo") or b.equipo.codigo
         respuestas = [f.get("resultado") for f in b.checklist]
         ws.append([
-            b.numero, _celda_segura(cod), _celda_segura(datos.get("nombre")), _celda_segura(datos.get("area")),
+            b.numero, "Medidas prioritarias y temporales" if b.tipo_boleta == "MEDIDAS" else "Seguridad integral", _celda_segura(cod), _celda_segura(datos.get("nombre")), _celda_segura(datos.get("area")),
             _celda_segura(b.tecnico.nombre), b.estado,
             b.creado_en.isoformat(sep=" ", timespec="minutes") if b.creado_en else "",
             b.iniciado_en.isoformat(sep=" ", timespec="minutes") if b.iniciado_en else "",

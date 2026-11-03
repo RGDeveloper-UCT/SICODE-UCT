@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Nueva boleta de Medidas Prioritarias y Temporales - SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+ <div class="encabezado-modulo"><div><h1>🛡️ Medidas prioritarias y temporales</h1>
+ <p>Nueva boleta BSI con formulario independiente de recomendaciones CERT/MINGOB (Chrome, Java/Python y PHP).</p></div>
+ <a class="boton-secundario" href="{{ url_for('seguridad_operativa.nueva_boleta') }}">← Volver a boleta de seguridad</a></div>
+ <div class="tarjeta"><h2>¿Qué contiene esta modalidad?</h2>
+ <p>Solo los apartados <strong>4.1 Acciones prioritarias</strong> y <strong>4.2 Medidas temporales</strong> de los tres informes recibidos. No incluye los 64 controles de la boleta integral ni los 19 CVE uno por uno.</p>
+ <p>Comparte la numeración de Seguridad Informática (BSI-000001, BSI-000002…), el inventario, el cronómetro, la auditoría, el historial y el informe Excel; el PDF tendrá el título y las tablas propios de este formulario.</p></div>
+ <form method="post" class="tarjeta">
+ <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+ <div class="campo"><label for="filtro_equipo_medidas">Buscar por SICOIN, equipo o responsable</label>
+ <input type="search" id="filtro_equipo_medidas" placeholder="Filtrar computadora" autocomplete="off" style="width:100%"></div>
+ <div class="campo"><label for="equipo_medidas">Equipo del inventario tecnológico *</label>
+ <select required id="equipo_medidas" name="equipo_id" style="width:100%">
+ <option value="">Seleccione un equipo</option>
+ {% for e in equipos %}<option value="{{ e.id }}" data-busqueda="{{ (e.codigo ~ ' ' ~ e.nombre ~ ' ' ~ e.nombre_responsable ~ ' ' ~ e.nombre_usuario_habitual)|lower }}" {% if preseleccionado == e.id %}selected{% endif %}>{{ e.codigo }} · {{ e.nombre }} · {{ e.nombre_usuario_habitual }}</option>{% endfor %}
+ </select></div>
+ <p><strong>{{ total_medidas }} medidas</strong> listas para verificar por tecnología. Cada casilla permite Cumple, No cumple, No aplica y Pendiente con observación.</p>
+ <button type="submit" class="boton">Crear boleta de Medidas Prioritarias y Temporales</button>
+ </form>
+</section>
+<script>
+(()=>{
+ const buscar=document.getElementById('filtro_equipo_medidas'),lista=document.getElementById('equipo_medidas');
+ buscar.addEventListener('input',()=>{
+  const q=buscar.value.toLowerCase().trim();
+  for(const o of lista.options)if(o.value)o.hidden=Boolean(q)&&!o.dataset.busqueda.includes(q);
+  if(lista.selectedOptions[0]?.hidden)lista.value='';
+ });
+})();
+</script>
+{% endblock %}

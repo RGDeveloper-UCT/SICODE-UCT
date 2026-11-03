@@ -2,12 +2,12 @@
 {% block title %}{{ b.numero }} - Boleta Seguridad Informática{% endblock %}
 {% block content %}
 <section class="panel panel-ancho">
- <div class="encabezado-modulo"><div><h1>🧾 Boleta de Seguridad Informática {{ b.numero }}</h1><p>{{ b.equipo.codigo }} · {{ b.equipo.nombre }} · {{ b.estado.replace('_',' ') }}</p></div><a class="boton-secundario" href="{{ url_for('seguridad_operativa.boletas') }}">← Todas las boletas</a></div>
+ <div class="encabezado-modulo"><div><h1>🧾 {{ "Medidas prioritarias y temporales" if b.tipo_boleta == "MEDIDAS" else "Boleta de Seguridad Informática" }} {{ b.numero }}</h1><p>{{ b.equipo.codigo }} · {{ b.equipo.nombre }} · {{ b.estado.replace('_',' ') }}</p></div><a class="boton-secundario" href="{{ url_for('seguridad_operativa.boletas') }}">← Todas las boletas</a></div>
  <div class="tarjeta">
   <p><strong>Equipo:</strong> {{ b.datos_equipo.codigo }} · {{ b.datos_equipo.nombre }} · <strong>Técnico:</strong> {{ b.tecnico.nombre }}</p>
   <p><strong>Estado:</strong> {{ b.estado }} · <strong>Duración:</strong> {{ '%02d:%02d:%02d'|format(b.segundos()//3600,(b.segundos()%3600)//60,b.segundos()%60) }} · <strong>Resultado:</strong> {{ b.resultado_final or 'Pendiente' }}</p>
   <p><strong>Diagnóstico:</strong> {{ b.diagnostico or '—' }} · <strong>Acciones:</strong> {{ b.acciones or '—' }} · <strong>Seguimiento:</strong> {{ 'Sí' if b.requiere_seguimiento else 'No' }}</p>
-  {% if b.estado == 'FINALIZADO' %}<a class="boton" href="{{ url_for('seguridad_operativa.boleta_pdf', id_=b.id) }}">📄 Descargar Boleta BSI PDF</a>{% elif b.estado != 'ANULADA' and current_user.puede_modificar %}<a class="boton" href="{{ url_for('seguridad_operativa.editar_boleta', id_=b.id) }}">Continuar checklist</a>{% endif %}
+  {% if b.estado == 'FINALIZADO' %}<a class="boton" href="{{ url_for('seguridad_operativa.boleta_pdf', id_=b.id) }}">📄 Descargar {{ 'PDF de medidas CERT' if b.tipo_boleta == 'MEDIDAS' else 'Boleta BSI PDF' }}</a>{% elif b.estado != 'ANULADA' and current_user.puede_modificar %}<a class="boton" href="{{ url_for('seguridad_operativa.editar_boleta_medidas' if b.tipo_boleta == 'MEDIDAS' else 'seguridad_operativa.editar_boleta', id_=b.id) }}">Continuar {{ 'medidas' if b.tipo_boleta == 'MEDIDAS' else 'checklist' }}</a>{% endif %}
  </div>
  {% if b.estado == 'ANULADA' %}
  <div class="tarjeta"><p><strong>Boleta anulada:</strong> se conserva solamente como registro de auditoría. No puede modificarse ni generar un PDF definitivo.</p></div>
@@ -27,7 +27,7 @@
  {% for campo,nombre in [('sistema','Sistema operativo'),('chrome','Google Chrome'),('java','Java / JavaFX'),('python','Python'),('php','PHP'),('antivirus','Antivirus')] %}
  <tr><td>{{ nombre }}</td><td>{{ (b.versiones or {}).get('instalado_' ~ campo, '—') }}</td><td>{{ (b.versiones or {}).get(campo,'—') or '—' }}</td></tr>{% endfor %}
  </tbody></table></div></div>
- <div class="tarjeta"><h2>Resultado de verificaciones ({{ b.checklist|length }})</h2><div style="overflow-x:auto"><table class="tabla"><thead><tr><th>Grupo</th><th>Control / CVE</th><th>Resultado</th><th>Observaciones</th></tr></thead><tbody>
+ <div class="tarjeta"><h2>{{ "Medidas prioritarias y temporales" if b.tipo_boleta == "MEDIDAS" else "Resultado de verificaciones" }} ({{ b.checklist|length }})</h2><div style="overflow-x:auto"><table class="tabla"><thead><tr><th>Grupo</th><th>Control / CVE</th><th>Resultado</th><th>Observaciones</th></tr></thead><tbody>
  {% for f in b.checklist %}<tr><td>{{ f.grupo_nombre }}</td><td>{{ f.actividad }}</td><td>{{ f.resultado.replace('_',' ') }}</td><td>{{ f.observacion or '—' }}</td></tr>{% endfor %}
  </tbody></table></div></div>
 </section>{% endblock %}

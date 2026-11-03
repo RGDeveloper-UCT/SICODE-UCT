@@ -54,6 +54,24 @@ Nuevas verificaciones específicas del numeral 4.1: dependencia o responsable (4
 
 **Despliegue:** se trata de un cambio de código sin migración de esquema adicional. Conservar la rama compatible con HashPass y validar tests antes de aplicar un nuevo despliegue seguro; no volver a ejecutar la migración inicial ni borrar tablas.
 
+## Modalidad adicional: Medidas prioritarias y temporales
+
+La pantalla **Nueva Boleta de Seguridad Informática** presenta un segundo bloque justo debajo de la selección de los 19 CVE CERT, con el botón **Crear boleta de Medidas Prioritarias y Temporales**.
+
+Esta opción abre un formulario **independiente** que utiliza el mismo inventario de equipos, cronómetro, permisos, historial y numeración BSI-000001, BSI-000002… de las boletas integrales. Es **una nueva boleta**, no un anexo ni una duplicación de los 19 CVE. Ambos tipos comparten la secuencia mediante la misma tabla boletas_seguridad_ti.id y se identifican por el campo tipo_boleta (INTEGRAL o MEDIDAS).
+
+La boleta de medidas únicamente presenta las recomendaciones de los **tres informes enviados por CERT/MINGOB**:
+
+- Google Chrome: **4.1 Acciones prioritarias** (6 verificaciones) y **4.2 Medidas temporales** (3 verificaciones).
+- Java/Python: **4.1 Acciones prioritarias** (6 verificaciones) y **4.2 Medidas temporales** (5 verificaciones desglosadas del texto de 4.2).
+- PHP: **4.1 Acciones prioritarias** (6 verificaciones) y **4.2 Medidas temporales** (4 verificaciones; las referencias a session.upload_progress.enabled, fatal_error_backtraces, límites y WAF son medidas para evaluación del administrador, no cambios automáticos).
+
+El técnico registra si Chrome, Java, Python y PHP están instalados y su versión. Las medidas de Chrome/PHP se marcan No aplica cuando se declara que el software está ausente. Las medidas conjuntas Java/Python son No aplica **solo cuando ambos están ausentes**. Se exige verificar instalación y responder toda la hoja antes del cierre; No cumple exige observación.
+
+El PDF se titula **BOLETA DE MEDIDAS PRIORITARIAS Y TEMPORALES**, con identificación del equipo, secciones por 4.1/4.2 y tecnología, respuestas, observaciones, tiempo, acciones y firmas. Comparte el mismo folio BSI sin prefijo adicional. El listado general distingue la modalidad y el Excel incluye la columna Modalidad. Las boletas históricas preservan su checklist.
+
+Para despliegue: migración Alembic **simpt20261103**, descendiente de **siuct20261103**; agrega tipo_boleta con valor inicial INTEGRAL a los registros existentes. No elimina ni modifica folios, inventario, ni informes previos. No requiere reimportar los 19 CVE ni cambiar el timer de CISA/NVD. Usar el actualizador seguro con respaldo antes de migrar.
+
 ## Arquitectura y alcance
 
 El acceso **Módulos SICODE → Seguridad Informática** presenta dos paneles:
