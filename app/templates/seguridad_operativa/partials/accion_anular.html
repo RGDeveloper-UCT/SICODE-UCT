@@ -1,0 +1,28 @@
+{% if b.estado == "ANULADA" %}
+<div class="tarjeta" style="border:1px solid #9b5f59">
+ <h2>Boleta anulada (conservada en auditoría)</h2>
+ <p><strong>Motivo:</strong> {{ b.motivo_anulacion or '—' }}</p>
+ <p><strong>Anulada el:</strong> {{ b.anulada_en.strftime('%d/%m/%Y %H:%M') if b.anulada_en else '—' }}</p>
+ {% if current_user.rol == 'ADMINISTRADOR' %}
+ <form method="post" action="{{ url_for('seguridad_operativa.restaurar_boleta', id_=b.id) }}" onsubmit="return confirm('¿Restaurar la boleta {{ b.numero }}?')">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button type="submit" class="boton-secundario">Restaurar boleta</button>
+ </form>
+ {% endif %}
+</div>
+{% elif puede_anular %}
+<div class="tarjeta" style="border:1px solid #9b5f59">
+ <h2>Eliminar boleta creada por error</h2>
+ <p>La boleta se <strong>anulará</strong> y desaparecerá del listado operativo y del informe masivo.
+ Su número no se reutiliza; los datos permanecen disponibles para auditoría.
+ {% if b.estado == 'FINALIZADO' %}Esta boleta finalizada solo puede anularla un administrador.{% endif %}</p>
+ <form method="post" action="{{ url_for('seguridad_operativa.anular_boleta', id_=b.id) }}"
+       onsubmit="return confirm('¿Anular definitivamente la boleta {{ b.numero }}? El registro quedará auditado.')">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="campo"><label for="motivo-anulacion-{{ b.id }}">Motivo obligatorio (mínimo ocho caracteres)</label>
+  <input id="motivo-anulacion-{{ b.id }}" required minlength="8" maxlength="400" name="motivo_anulacion"
+         placeholder="Ej. Se seleccionó por error el equipo SICOIN..." style="width:100%"></div>
+  <p><button type="submit" class="boton-secundario">Eliminar boleta (anular registro)</button></p>
+ </form>
+</div>
+{% endif %}
