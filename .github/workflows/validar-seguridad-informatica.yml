@@ -1,0 +1,35 @@
+name: Validar Seguridad Informatica BSI
+on:
+  pull_request:
+    paths:
+      - "app/**"
+      - "migrations/**"
+      - "tests/test_seguridad_operativa_bsi.py"
+      - ".github/workflows/validar-seguridad-informatica.yml"
+  push:
+    branches:
+      - feature/seguridad-vulnerabilidades-boletas-20261103
+      - feature/integracion-hashpass-seguridad-20261103
+  workflow_dispatch:
+
+jobs:
+  seguridad:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: sqlite:///sicode_seguridad_bsi_test.sqlite3
+      SECRET_KEY: ci-seguridad-bsi
+      SESSION_COOKIE_SECURE: "false"
+      AI_SEARCH_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Compilar Python
+        run: python -m compileall -q app migrations tests
+      - name: Validar árbol de migraciones
+        run: python -m flask --app run.py db heads
+      - name: Pruebas BSI, HashPass, Inventario, Soporte, Agenda y CSRF
+        run: pytest -q tests/test_seguridad_operativa_bsi.py tests/test_hashpass.py tests/test_mantenimientos_control09.py tests/test_seguridad_inventario_09.py tests/test_soporte_tecnico.py tests/test_agenda_uct.py tests/test_csrf_referer.py

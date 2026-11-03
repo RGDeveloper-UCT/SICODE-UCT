@@ -41,3 +41,5 @@ from app.models.agenda import AgendaActividad, AgendaParticipante, AgendaComenta
 from app.models.nexo import NexoPropuesta
 
 from app.models.no_portador import (NoPortador, UbicacionNP, DocumentoNP, AnexoNP, PrestamoNP, VerificacionNP, AlertaNP, TrasladoVirtualNP)
+
+from app.models.seguridad_operativa import VulnerabilidadTI, SincronizacionVulnerabilidadesTI, BoletaSeguridadTI, InformeSeguridadTI

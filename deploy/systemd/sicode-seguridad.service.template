@@ -1,0 +1,16 @@
+[Unit]
+Description=SICODE-UCT - Sincronización diaria de vulnerabilidades (CISA y NVD)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=__SICODE_USER__
+WorkingDirectory=__SICODE_APPDIR__
+EnvironmentFile=__SICODE_APPDIR__/.env
+Environment=PYTHONPATH=__SICODE_APPDIR__
+ExecStart=__SICODE_PYTHON__ -m flask --app run.py seguridad-sincronizar
+TimeoutStartSec=15min
+PrivateTmp=true
+NoNewPrivileges=true
+Nice=10
