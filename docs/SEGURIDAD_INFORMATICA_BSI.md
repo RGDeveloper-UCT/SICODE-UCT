@@ -75,9 +75,13 @@ CISA incluye todo el catálogo de vulnerabilidades con explotación conocida. NV
 
 La primera sincronización inicializa el catálogo sin enviar avisos masivos históricos. Posteriores incorporaciones nuevas o confirmaciones nuevas de explotación crean notificaciones para usuarios autorizados usando el contador actual de Agenda UCT. Si no hay Internet, persiste el catálogo anterior y registra fecha/error en panel.
 
+## Recuperación de un despliegue parcial previo (3 de noviembre de 2026)
+
+La rama de Seguridad original no incluía las revisiones hp00120261029 y hp00220261029, por lo que un servidor con HashPass registraba `Can't locate revision identified by 'hp00220261029'`. No es un fallo de conectividad ni una instrucción para borrar tablas. **No ejecutar `flask db stamp`, `db downgrade` ni crear tablas manualmente.** El despliegue compatible parte de la rama `feature/integracion-hashpass-seguridad-20261103`. El timer de sincronización se mantiene deshabilitado hasta confirmar `flask db current` con `siuct20261103`.
+
 ## Instalación diaria
 
-**Antes del despliegue**: respaldo verificable de PostgreSQL, revisión de migraciones en base de pruebas, y aprobación del PR. La migración siuct20261103 depende de p8np20261029. Revisar las cabezas Alembic de la rama y del servidor antes de ejecutar upgrade. Seguir docs/OPERACION_SERVIDOR.md para despliegue seguro.
+**Antes del despliegue**: respaldo verificable de PostgreSQL, revisión de migraciones en base de pruebas, y aprobación del PR. En la rama de integración HashPass + Seguridad, la migración siuct20261103 depende de hp00220261029, que ya existe en la BD productiva. No usar la rama de Seguridad aislada en servidores con HashPass. Revisar las cabezas Alembic de la rama y del servidor antes de ejecutar upgrade. La base debe estar en hp00220261029 y después de la migración en siuct20261103. Seguir docs/OPERACION_SERVIDOR.md para despliegue seguro.
 
 El servidor documentado usa /opt/sicode/app, virtualenv /opt/sicode/venv y sicode.service. Configure un usuario de sistema real de SICODE antes de instalar las plantillas:
 
