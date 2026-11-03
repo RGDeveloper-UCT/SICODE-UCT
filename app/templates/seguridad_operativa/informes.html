@@ -12,7 +12,7 @@
  <td>{{ i.fecha_informe.strftime('%d/%m/%Y') if i.fecha_informe else '—' }}</td>
  <td>{{ i.fecha_recibido.strftime('%d/%m/%Y') if i.fecha_recibido else '—' }}</td>
  <td>{% for v in i.vulnerabilidades %}<span style="display:inline-block;margin:2px;padding:3px 7px;border:1px solid #42556d;border-radius:5px">{{ v.cve or v.titulo }}</span>{% else %}Sin CVE definidos{% endfor %}</td>
- <td><a href="{{ url_for('seguridad_operativa.descargar_informe', id_=i.id) }}">Descargar original ({{ i.nombre_original }})</a></td></tr>
+ <td><a href="{{ url_for('seguridad_operativa.archivo_informe', id_=i.id) }}">Descargar original ({{ i.nombre_original }})</a></td></tr>
  {% else %}<tr><td colspan="7">Todavía no hay informes cargados. Puede registrar los avisos de Chrome, Java/Python y PHP.</td></tr>{% endfor %}
  </tbody></table>
  {% if registros.pages > 1 %}<p>{% if registros.has_prev %}<a href="{{ url_for('seguridad_operativa.informes_seguridad', page=registros.prev_num) }}">Anterior</a>{% endif %} Página {{ registros.page }} de {{ registros.pages }} {% if registros.has_next %}<a href="{{ url_for('seguridad_operativa.informes_seguridad', page=registros.next_num) }}">Siguiente</a>{% endif %}</p>{% endif %}
