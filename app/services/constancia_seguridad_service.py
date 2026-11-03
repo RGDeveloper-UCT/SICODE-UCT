@@ -52,7 +52,8 @@ def generar_boleta_seguridad(b):
                 ("chrome", "Google Chrome"), ("java", "Java / JavaFX"),
                 ("python", "Python"), ("php", "PHP"), ("antivirus", "Antivirus"),
             )
-        ], [ancho * .28, ancho * .20, ancho * .52]),
+        ] + [["Resultado revisión Chrome", (b.versiones or {}).get("estado_chrome") or "No registrado",
+              "Actualizado / Pendiente / No aplica"]], [ancho * .28, ancho * .20, ancho * .52]),
         Spacer(1, 6),
         encabezado("2. DIAGNÓSTICO / MOTIVO DE INSPECCIÓN", ancho),
         tabla([[b.diagnostico or "Sin diagnóstico adicional."]], [ancho]),
