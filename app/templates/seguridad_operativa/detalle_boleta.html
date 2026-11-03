@@ -11,7 +11,7 @@
  </div>
  {% if b.estado == 'ANULADA' %}
  <div class="tarjeta"><p><strong>Boleta anulada:</strong> se conserva solamente como registro de auditoría. No puede modificarse ni generar un PDF definitivo.</p></div>
- {% elif current_user.puede_modificar and (b.tecnico_id == current_user.id or current_user.rol == 'ADMINISTRADOR') and (b.estado != 'FINALIZADO' or current_user.rol == 'ADMINISTRADOR') %}
+ {% elif current_user.puede_modificar and (b.tecnico_id == current_user.id or current_user.rol == 'administrador') and (b.estado != 'FINALIZADO' or current_user.rol == 'administrador') %}
  <details class="tarjeta" id="anular-boleta">
  <summary style="cursor:pointer;font-weight:700;color:#ec9b9b">Eliminar boleta creada por error</summary>
  <p>Esta acción anula la boleta, la retira de informes normales y del listado operativo. Conserva el folio y el historial por seguridad. Solo un administrador puede anular una boleta finalizada.</p>
