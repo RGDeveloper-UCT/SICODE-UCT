@@ -24,7 +24,7 @@
  <small>La duración se conserva en el servidor y las pausas no se cuentan.</small></div>
  <div class="tarjeta"><h2>Equipo inventariado · identificación CERT</h2>
  <p><strong>SICOIN:</strong> {{ b.equipo.codigo }} · <strong>Serie:</strong> {{ b.equipo.serie or '—' }} · <strong>Marca:</strong> {{ b.equipo.marca or '—' }} · <strong>Modelo:</strong> {{ b.equipo.modelo or '—' }}</p>
- <p><strong>Dependencia:</strong> {{ b.equipo.area or '—' }} · <strong>Dirección IP:</strong> {{ b.equipo.ip_estatica or '—' }} · <strong>Revisión:</strong> {{ b.creado_en.strftime('%d/%m/%Y') }} · <strong>Técnico:</strong> {{ b.tecnico.nombre }}</p>
+ <p><strong>Dependencia:</strong> {{ b.equipo.area or '—' }} · <strong>Dirección IP:</strong> {{ b.equipo.ip_estatica or '—' }} · <strong>Revisión:</strong> {{ (b.iniciado_en or b.creado_en).strftime('%d/%m/%Y') }} · <strong>Técnico:</strong> {{ b.tecnico.nombre }}</p>
  <p><strong>Custodio:</strong> {{ b.equipo.nombre_responsable }} · <strong>Usuario habitual:</strong> {{ b.equipo.nombre_usuario_habitual }}</p></div>
  <form method="post" id="form-seguridad"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
  <div class="tarjeta"><h2>Versiones instaladas y tecnologías verificadas</h2>
