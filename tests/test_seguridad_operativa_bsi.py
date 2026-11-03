@@ -228,3 +228,123 @@ def test_cisa_kev_sin_avisos_historicos_y_avisos_nuevos_idempotentes(entorno, mo
     r3 = sync.sincronizar_fuente("CISA_KEV")
     assert r3["nuevos"] == 0
     assert AgendaNotificacion.query.count() == 1
+
+
+
+def test_protocolo_cert_chrome_41_42_sin_repetir_controles_generales():
+    from app.services.checklist_seguridad import GRUPOS
+    checks = plantilla()
+    codigos = [fila["codigo"] for fila in checks]
+    assert len(codigos) == len(set(codigos))
+    assert VERSION == 3
+    nombres = [f["actividad"].lower() for f in checks]
+    for concepto in ("responsable", "fecha de revisión", "actualizaciones automáticas",
+                     "sistemas sensibles", "alertas de antivirus/edr", "descargas inusuales",
+                     "incidencias", "reducir temporalmente", "archivos inesperados",
+                     "extensiones", "repositorios de actualización", "herramientas de administración"):
+        assert any(concepto in item for item in nombres), concepto
+    assert sum(f["grupo"] == "cert_chrome_prioritario" for f in checks) == 7
+    assert sum(f["grupo"] == "cert_chrome_temporal" for f in checks) == 5
+
+
+def test_19_cert_se_incluyen_automaticamente_aun_con_catalogo_masivo(entorno):
+    client, equipo_id = entorno
+    cargar_catalogo_octubre_2026()
+    for num in range(220):
+        db.session.add(VulnerabilidadTI(
+            cve=f"CVE-2025-{10000+num}", titulo=f"CVE global {num}",
+            fuente="NVD", fuentes=["NVD"], severidad="ALTA",
+            descripcion="", recomendacion=""))
+    db.session.commit()
+    response = client.get("/seguridad-informatica/boletas/nueva")
+    assert response.status_code == 200
+    assert b'incluir_cert_19' in response.data
+    assert b'CVE-2026-76024' in response.data
+    response = client.post("/seguridad-informatica/boletas/nueva",
+                           data={"equipo_id": equipo_id, "incluir_cert_19": "si"})
+    assert response.status_code == 302
+    b = BoletaSeguridadTI.query.one()
+    filas = [x for x in b.checklist if x["codigo"].startswith("cve_")]
+    assert len(filas) == 19
+    assert len({x["codigo"] for x in filas}) == 19
+    assert {x["tecnologia"] for x in filas} == {"CHROME", "JAVA", "PYTHON", "PHP"}
+    assert EquipoInstitucional.query.count() == 1
+
+
+def test_no_instalado_automaticamente_no_aplica_y_no_se_confunde_con_corregido(entorno):
+    client, equipo_id = entorno
+    cargar_catalogo_octubre_2026()
+    client.post("/seguridad-informatica/boletas/nueva",
+                data={"equipo_id": equipo_id, "incluir_cert_19": "si"})
+    b = BoletaSeguridadTI.query.one()
+    form = {"accion": "guardar", "instalado_chrome": "SI",
+            "instalado_java": "NO", "instalado_python": "NO",
+            "instalado_php": "NO", "version_chrome": "156.0.8078.80"}
+    form.update({"resultado_" + x["codigo"]: "PENDIENTE" for x in b.checklist})
+    assert client.post(f"/seguridad-informatica/boletas/{b.id}/editar", data=form).status_code == 302
+    db.session.refresh(b)
+    for f in b.checklist:
+        if f["grupo"] == "vulnerabilidades" and f.get("tecnologia") in {"JAVA", "PYTHON", "PHP"}:
+            assert f["resultado"] == "NO_APLICA"
+            assert "no instalado" in f["observacion"].lower()
+        if f["grupo"] == "vulnerabilidades" and f.get("tecnologia") == "CHROME":
+            assert f["resultado"] == "PENDIENTE"
+        if f["grupo"] in {"java", "python", "php"}:
+            assert f["resultado"] == "NO_APLICA"
+    assert b.estado == "BORRADOR"
+
+
+def test_cve_sin_verificar_instalacion_impide_finalizar(entorno):
+    client, equipo_id = entorno
+    cargar_catalogo_octubre_2026()
+    client.post("/seguridad-informatica/boletas/nueva",
+                data={"equipo_id": equipo_id, "incluir_cert_19": "si"})
+    b = BoletaSeguridadTI.query.one()
+    client.post(f"/seguridad-informatica/boletas/{b.id}/reloj", data={"accion": "iniciar"})
+    form = {"accion": "finalizar", "resultado_final": "OPERATIVO"}
+    form.update({"resultado_" + x["codigo"]: "CUMPLE" for x in b.checklist})
+    assert client.post(f"/seguridad-informatica/boletas/{b.id}/editar", data=form).status_code == 200
+    db.session.refresh(b)
+    assert b.estado != "FINALIZADO"
+
+
+def test_anulacion_auditada_no_reutiliza_folio_ni_aparece_en_informes(entorno):
+    from app.models.bitacora import Bitacora
+    client, equipo_id = entorno
+    result = client.post("/seguridad-informatica/boletas/nueva", data={"equipo_id": equipo_id})
+    assert result.status_code == 302
+    b = BoletaSeguridadTI.query.one()
+    numero = b.numero
+    assert client.post(f"/seguridad-informatica/boletas/{b.id}/eliminar",
+                       data={"motivo": "equipo equivocado"}).status_code == 302
+    db.session.refresh(b)
+    assert b.estado == "ANULADA"
+    assert b.numero == numero
+    assert client.get(f"/seguridad-informatica/boletas/{b.id}/editar").status_code == 302
+    assert client.post(f"/seguridad-informatica/boletas/{b.id}/reloj",
+                       data={"accion": "iniciar"}).status_code == 302
+    assert b.estado == "ANULADA"
+    assert b.tramo_iniciado_en is None
+    assert client.post(f"/seguridad-informatica/boletas/{b.id}/eliminar",
+                       data={"motivo": "repetido"}).status_code == 302
+    listado = client.get("/seguridad-informatica/boletas").data
+    # Flash puede mencionar el folio anulado; comprobar únicamente filas de la tabla.
+    assert numero.encode() not in listado.split(b"<tbody>", 1)[1].split(b"</tbody>", 1)[0]
+    assert numero.encode() in client.get("/seguridad-informatica/boletas?anuladas=1").data
+    libro = load_workbook(BytesIO(client.get("/seguridad-informatica/boletas/informe.xlsx").data), read_only=True)
+    assert libro["Boletas"].max_row == 1
+    assert Bitacora.query.filter_by(accion="ANULAR_BOLETA_SEGURIDAD").count() == 1
+    client.post("/seguridad-informatica/boletas/nueva", data={"equipo_id": equipo_id})
+    nueva = BoletaSeguridadTI.query.order_by(BoletaSeguridadTI.id.desc()).first()
+    assert nueva.numero != numero
+
+
+def test_visores_no_pueden_anular_boletas(entorno):
+    client, equipo_id = entorno
+    client.post("/seguridad-informatica/boletas/nueva", data={"equipo_id": equipo_id})
+    b = BoletaSeguridadTI.query.one()
+    client.get("/__login_bsi_test?visor=1")
+    assert client.post(f"/seguridad-informatica/boletas/{b.id}/eliminar",
+                       data={"motivo": "equipo equivocado"}).status_code == 403
+    db.session.refresh(b)
+    assert b.estado == "BORRADOR"

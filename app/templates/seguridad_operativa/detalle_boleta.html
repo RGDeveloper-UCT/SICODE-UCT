@@ -7,8 +7,21 @@
   <p><strong>Equipo:</strong> {{ b.datos_equipo.codigo }} · {{ b.datos_equipo.nombre }} · <strong>Técnico:</strong> {{ b.tecnico.nombre }}</p>
   <p><strong>Estado:</strong> {{ b.estado }} · <strong>Duración:</strong> {{ '%02d:%02d:%02d'|format(b.segundos()//3600,(b.segundos()%3600)//60,b.segundos()%60) }} · <strong>Resultado:</strong> {{ b.resultado_final or 'Pendiente' }}</p>
   <p><strong>Diagnóstico:</strong> {{ b.diagnostico or '—' }} · <strong>Acciones:</strong> {{ b.acciones or '—' }} · <strong>Seguimiento:</strong> {{ 'Sí' if b.requiere_seguimiento else 'No' }}</p>
-  {% if b.estado == 'FINALIZADO' %}<a class="boton" href="{{ url_for('seguridad_operativa.boleta_pdf', id_=b.id) }}">📄 Descargar Boleta BSI PDF</a>{% elif current_user.puede_modificar %}<a class="boton" href="{{ url_for('seguridad_operativa.editar_boleta', id_=b.id) }}">Continuar checklist</a>{% endif %}
+  {% if b.estado == 'FINALIZADO' %}<a class="boton" href="{{ url_for('seguridad_operativa.boleta_pdf', id_=b.id) }}">📄 Descargar Boleta BSI PDF</a>{% elif b.estado != 'ANULADA' and current_user.puede_modificar %}<a class="boton" href="{{ url_for('seguridad_operativa.editar_boleta', id_=b.id) }}">Continuar checklist</a>{% endif %}
  </div>
+ {% if b.estado == 'ANULADA' %}
+ <div class="tarjeta"><p><strong>Boleta anulada:</strong> se conserva solamente como registro de auditoría. No puede modificarse ni generar un PDF definitivo.</p></div>
+ {% elif current_user.puede_modificar and (b.tecnico_id == current_user.id or current_user.rol == 'administrador') and (b.estado != 'FINALIZADO' or current_user.rol == 'administrador') %}
+ <details class="tarjeta" id="anular-boleta">
+ <summary style="cursor:pointer;font-weight:700;color:#ec9b9b">Eliminar boleta creada por error</summary>
+ <p>Esta acción anula la boleta, la retira de informes normales y del listado operativo. Conserva el folio y el historial por seguridad. Solo un administrador puede anular una boleta finalizada.</p>
+ <form method="post" action="{{ url_for('seguridad_operativa.eliminar_boleta', id_=b.id) }}" onsubmit="return confirm('¿Confirmar la anulación de {{ b.numero }}? No podrá editarla ni recuperar su estado.');">
+ <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+ <div class="campo"><label for="motivo-anulacion">Motivo de eliminación (obligatorio)</label>
+ <textarea required id="motivo-anulacion" name="motivo" minlength="8" maxlength="500" rows="2" style="width:100%" placeholder="Ej. Boleta creada para la computadora equivocada"></textarea></div>
+ <button type="submit" class="boton-secundario">Eliminar / anular {{ b.numero }}</button></form>
+ </details>
+ {% endif %}
  <div class="tarjeta"><h2>Versiones técnicas registradas</h2>
  <div style="overflow-x:auto"><table class="tabla"><thead><tr><th>Componente</th><th>Instalación</th><th>Versión declarada</th></tr></thead><tbody>
  {% for campo,nombre in [('sistema','Sistema operativo'),('chrome','Google Chrome'),('java','Java / JavaFX'),('python','Python'),('php','PHP'),('antivirus','Antivirus')] %}

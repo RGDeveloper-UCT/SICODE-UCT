@@ -1,7 +1,7 @@
 """Inspección de seguridad versionada; CVE vinculados por decisión humana."""
 from app.services.checklist_mantenimiento import validar_checklist, validar_cierre
 
-VERSION = 2
+VERSION = 3
 GRUPOS = (
     ("sistema", "Sistema operativo y actualizaciones", (
         "Versión del sistema operativo y soporte vigente",
@@ -15,6 +15,24 @@ GRUPOS = (
         "Google Chrome reiniciado para activar los parches de seguridad",
         "Otros navegadores y extensiones revisados",
         "Navegación segura y protección contra sitios maliciosos",
+    )),
+    # Apartados 4.1 y 4.2 del protocolo recibido; no repetir controles
+    # generales que ya aparecen en "navegador", "antivirus" o "firewall".
+    ("cert_chrome_prioritario", "CERT Chrome · verificaciones prioritarias (4.1)", (
+        "Identificar y registrar la dependencia o responsable del equipo (4.1.4)",
+        "Registrar fecha de revisión del equipo en la boleta (4.1.5)",
+        "Verificar el procedimiento institucional de actualización en sistemas sensibles (4.1.10)",
+        "Comprobar que Chrome recibe actualizaciones automáticas (4.1.11)",
+        "Revisar alertas de antivirus/EDR relacionadas con Chrome (4.1.12)",
+        "Revisar descargas inusuales o procesos sospechosos y reportarlos según procedimiento (4.1.13)",
+        "Registrar incidencias, fecha y actividades de corrección pendientes (4.1.14)",
+    )),
+    ("cert_chrome_temporal", "CERT Chrome · medidas temporales si no se puede actualizar (4.2)", (
+        "Reducir temporalmente el uso de Chrome cuando no se pueda actualizar (4.2.16)",
+        "Evitar descargas o apertura de archivos inesperados (4.2.18)",
+        "Verificar que no se habiliten extensiones de Chrome no oficiales (4.2.19)",
+        "Revisar conectividad con repositorios de actualización (4.2.20)",
+        "Coordinar instalación del parche mediante herramientas de administración disponibles (4.2.21)",
     )),
     ("java", "Java y JavaFX (si están instalados)", (
         "Identificar si Java/JavaFX está instalado y registrar versión y edición",
@@ -69,6 +87,7 @@ def plantilla(vulnerabilidades=()):
             "codigo": f"cve_{v.id}", "actividad": f"{v.cve or 'AVISO-'+str(v.id)} · {v.titulo}"[:320],
             "resultado": "PENDIENTE", "observacion": "",
             "vulnerabilidad_id": v.id, "severidad": v.severidad,
+            "tecnologia": tecnologia_del_cve(v.cve) or "",
         })
     return filas
 
@@ -79,3 +98,43 @@ def validar_resultados(datos, base):
 
 def validar_finalizacion(checklist):
     validar_cierre(checklist)
+
+
+# El mapa procede exclusivamente de los CVE de los tres informes MINGOB;
+# no se infiere la tecnología por palabras arbitrarias del catálogo mundial.
+def tecnologia_del_cve(cve):
+    from app.services.catalogo_informes_mingob_2026 import AVISOS
+    for tecnologia, filas in AVISOS.items():
+        if any(fila[0] == cve for fila in filas):
+            return tecnologia
+    return None
+
+
+def normalizar_por_instalacion(checklist, versiones, finalizar=False):
+    """CVE institucionales: ausencia verificada => No aplica.
+
+    Una tecnología por verificar no puede cerrar CVE asociados. El técnico
+    siempre decide el cumplimiento si la tecnología sí está instalada.
+    """
+    mapeo = {"CHROME": "chrome", "JAVA": "java", "PYTHON": "python", "PHP": "php"}
+    salida = []
+    for original in checklist:
+        fila = dict(original)
+        grupo_tecnologia = {"java": "java", "python": "python", "php": "php",
+                            "cert_chrome_prioritario": "chrome", "cert_chrome_temporal": "chrome"}
+        if fila.get("grupo") in grupo_tecnologia:
+            componente = grupo_tecnologia[fila["grupo"]]
+            if versiones.get("instalado_" + componente) == "NO":
+                fila["resultado"] = "NO_APLICA"
+                fila["observacion"] = "Componente no instalado; verificación declarada por el técnico."
+        if fila.get("grupo") == "vulnerabilidades":
+            cve = fila.get("actividad", "").split(" · ", 1)[0]
+            tecnologia = fila.get("tecnologia") or tecnologia_del_cve(cve)
+            estado = versiones.get("instalado_" + mapeo[tecnologia], "NO_VERIFICADO") if tecnologia in mapeo else None
+            if estado == "NO":
+                fila["resultado"] = "NO_APLICA"
+                fila["observacion"] = ("Componente no instalado; verificación declarada por el técnico.")
+            elif finalizar and estado == "NO_VERIFICADO":
+                raise ValueError(f"Antes de finalizar, indique si {tecnologia} está instalado para evaluar {cve}.")
+        salida.append(fila)
+    return salida

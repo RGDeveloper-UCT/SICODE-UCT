@@ -37,7 +37,7 @@
  </div></div>
 
  <div class="tarjeta"><h2>1. Diagnóstico inicial</h2><textarea name="diagnostico" maxlength="4000" rows="3" style="width:100%" placeholder="Especifique versión del sistema, navegador o motivo de revisión cuando corresponda.">{{ b.diagnostico }}</textarea></div>
- <p>2. Complete cada control usando botones. <strong>No cumple</strong> exige registrar el hallazgo; <strong>No aplica</strong> sirve para controles que no correspondan al equipo.</p>
+ <p>2. Complete cada control usando botones. <strong>No cumple</strong> exige registrar el hallazgo; <strong>No aplica</strong> sirve cuando no corresponde. Para las 19 vulnerabilidades CERT, seleccionar <strong>No instalado</strong> en su tecnología hará que esos CVE queden registrados como No aplica al guardar; si está instalada, evalúe versión y parches antes de cerrar.</p>
  <p id="avance-bsi" aria-live="polite">Verificaciones: 0 / {{ checklist|length }}</p>
  {% set ns = namespace(grupo='', abierto=false) %}
  {% for fila in checklist %}
@@ -47,8 +47,8 @@
  <details class="mnt-seccion" {% if loop.first %}open{% endif %}><summary>{{ fila.grupo_nombre }}</summary><div class="mnt-contenido">
  {% endif %}
  <div class="mnt-actividad">
-  <strong>{{ fila.actividad }}</strong>
-  <div class="mnt-opciones" role="radiogroup" aria-label="Resultado de {{ fila.actividad }}">
+  <strong>{{ fila.actividad }}</strong>{% if fila.grupo == 'vulnerabilidades' and fila.tecnologia %}<small style="display:block;margin:3px 0 8px;color:#9bb8d5">CERT/MINGOB · {{ fila.tecnologia }}: indique si está instalado y compruebe la actualización</small>{% endif %}
+  <div class="mnt-opciones" data-grupo="{{ fila.grupo }}" data-tecnologia="{{ fila.tecnologia or '' }}" role="radiogroup" aria-label="Resultado de {{ fila.actividad }}">
   {% for valor, etiqueta in [('CUMPLE','✓ Cumple / corregido'),('NO_CUMPLE','✕ No cumple / pendiente'),('NO_APLICA','— No aplica / no afectado'),('PENDIENTE','○ Pendiente')] %}
   <label class="mnt-opcion"><input type="radio" name="resultado_{{ fila.codigo }}" value="{{ valor }}" {% if fila.resultado==valor %}checked{% endif %}>{{ etiqueta }}</label>
   {% endfor %}
