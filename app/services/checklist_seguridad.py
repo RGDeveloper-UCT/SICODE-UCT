@@ -1,7 +1,7 @@
 """Inspección de seguridad versionada; CVE vinculados por decisión humana."""
 from app.services.checklist_mantenimiento import validar_checklist, validar_cierre
 
-VERSION = 1
+VERSION = 2
 GRUPOS = (
     ("sistema", "Sistema operativo y actualizaciones", (
         "Versión del sistema operativo y soporte vigente",
@@ -10,10 +10,27 @@ GRUPOS = (
         "Programas no autorizados revisados",
     )),
     ("navegador", "Google Chrome y navegadores", (
-        "Versión de Google Chrome identificada",
-        "Google Chrome actualizado a versión corregida disponible",
+        "Versión instalada y canal de Google Chrome comprobados",
+        "Google Chrome actualizado a la versión corregida de su plataforma/canal",
+        "Google Chrome reiniciado para activar los parches de seguridad",
         "Otros navegadores y extensiones revisados",
         "Navegación segura y protección contra sitios maliciosos",
+    )),
+    ("java", "Java y JavaFX (si están instalados)", (
+        "Identificar si Java/JavaFX está instalado y registrar versión y edición",
+        "Contrastar Java SE, Java Plugin, JavaFX o GraalVM con matriz Oracle de octubre 2026",
+        "Aplicar parches del proveedor si corresponden y comprobar compatibilidad",
+    )),
+    ("python", "Python y librerías (si están instaladas)", (
+        "Identificar versiones de Python y entornos virtuales instalados",
+        "Comprobar corrección de ssl / certificados eMudhra según versión y proveedor",
+        "Revisar procesamiento de TAR externos y filtro de seguridad tarfile",
+        "Verificar Expat/XML, biblioteca incorporada o parche retroportado del proveedor",
+    )),
+    ("php", "PHP y servicios web (si corresponden)", (
+        "Identificar versión y rama de PHP y servicio web/FPM utilizado",
+        "Verificar parches de CVE-2026-109618 y CVE-2026-109619",
+        "Comprobar reinicio de PHP-FPM/servidor web y operación de aplicaciones tras actualizar",
     )),
     ("antivirus", "Antivirus y detección", (
         "Antivirus corporativo activo y actualizado",
