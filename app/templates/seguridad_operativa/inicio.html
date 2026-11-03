@@ -7,6 +7,7 @@
     <article class="tarjeta"><h2>Panel 1 · Vulnerabilidades registradas</h2><p>Alertas del CERT, catálogo CISA de vulnerabilidades explotadas y CVE recientes de severidad alta o crítica de NVD.</p>
       <p><strong>{{ total }}</strong> registradas · <strong>{{ altas }}</strong> priorizadas</p>
       <a class="boton" href="{{ url_for('seguridad_operativa.vulnerabilidades') }}">Consultar catálogo</a>
+      <a class="boton-secundario" href="{{ url_for('seguridad_operativa.informes_seguridad') }}">Informes PDF/DOCX recibidos</a>
       {% if current_user.puede_modificar %}<a class="boton-secundario" href="{{ url_for('seguridad_operativa.nueva_vulnerabilidad') }}">+ Registrar aviso CERT</a>{% endif %}
     </article>
     <article class="tarjeta"><h2>Panel 2 · Control por computadora</h2><p>Boleta independiente BSI, checklist, cronómetro con pausas, PDF para firmas y seguimiento del inventario.</p>
