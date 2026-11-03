@@ -9,7 +9,7 @@ from app.models.seguridad_operativa import BoletaSeguridadTI
 from app.services.checklist_medidas_seguridad import (
     VERSION_MEDIDAS, GRUPOS_MEDIDAS, plantilla_medidas, validar_medidas,
 )
-from tests.test_seguridad_operativa_bsi import entorno
+from test_seguridad_operativa_bsi import entorno
 
 
 def _crear(client, equipo_id, url="/seguridad-informatica/boletas/medidas/nueva"):
