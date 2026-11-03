@@ -1,5 +1,43 @@
 # Seguridad Informática - Vulnerabilidades y Boletas BSI
 
+## Informes institucionales incorporados al diseño (octubre 2026)
+
+Se revisaron tres informes técnicos de Dirección de Informática / Ministerio de Gobernación, y se creó un catálogo inicial de **19 CVE**, sin copiar sus archivos originales a GitHub.
+
+| Informe | CVE | Controles requeridos |
+| --- | ---: | --- |
+| Chrome, 30/10/2026 | 9 | Versión y canal, parches, reinicio, extensiones, navegación |
+| Java y Python, 30/10/2026 | 8 | Java SE/JavaFX, Python, certificados, TAR, Expat/XML |
+| PHP, 21/10/2026 | 2 | PHP web/FPM, rama y versión, parches, pruebas posteriores |
+
+En el informe Python, CVE-2026-77214 / 102633 son dos identificadores separados (CVE-2026-77214 y CVE-2026-102633). Esto fue contrastado con el aviso de libexpat. La categoría MEDIA de Java CVE-2026-91395 reproduce la prioridad del informe (CVSS 6.5). En Python no se infieren calificaciones CVSS donde no se proporcionaron. Un aviso de explotación en un informe no equivale a una entrada en CISA KEV.
+
+Fuentes públicas contrastadas:
+- Chrome: https://chromereleases.googleblog.com/2026/10/stable-channel-update-for-desktop_02107719452.html y https://chromereleases.googleblog.com/2026/10/stable-channel-update-for-desktop_0562499947.html
+- Oracle: https://www.oracle.com/security-alerts/cpuoct2026.html
+- Python: https://www.python.org/downloads/release/python-31410/
+- Expat: https://www.openwall.com/lists/oss-security/2026/10/05/16
+- PHP: https://www.php.net/archive/2026.php
+
+### Carga segura del catálogo y de los documentos originales
+
+Después de actualizar y migrar una instancia autorizada, ejecute esta importación idempotente de metadatos:
+
+    cd /opt/sicode/app
+    /opt/sicode/venv/bin/python -m flask --app run.py seguridad-cargar-informes-2026
+
+El comando no lee archivos ni hace solicitudes web, no genera 19 alertas históricas y puede repetirse sin duplicar CVE. No modifica una PC ni su estado de afectación.
+
+En Seguridad Informática → Informes recibidos → Cargar informe PDF/DOCX, incorpore cada archivo original, su título y entidad emisora, fecha del informe, fecha real de recibido y la lista de CVE. El sistema vincula los CVE ya existentes, almacena el archivo en una carpeta privada, protege la descarga con login y detecta archivos repetidos mediante SHA-256. El máximo permitido es 8 MB y hasta 100 CVE por documento.
+
+Cargue un documento por informe: Chrome (9 CVE, informe del 30/10), Java/Python (8 CVE, informe del 30/10) y PHP (2 CVE, aviso del 21/10). Complete la fecha de recibido según el correo recibido, no asuma que coincide con la publicación.
+
+**Los archivos recibidos en este chat NO se copian automáticamente a la instalación productiva ni al repositorio**. Deben subirse desde la pantalla administrativa por personal autorizado después del despliegue. No se recomienda añadir originales institucionales a un repositorio público.
+
+### Revisión por equipo
+
+La nueva boleta tiene listas de Instalado, No instalado o Por verificar para Chrome, Java, Python y PHP, además de campos de versión de SO, Chrome, Java, Python, PHP y antivirus. Los controles de tecnologías ausentes se pueden marcar No aplica. El PDF y el Excel dejan constancia de las versiones y de los resultados, pero no prueban que SICODE haya escaneado el equipo.
+
 ## Arquitectura y alcance
 
 El acceso **Módulos SICODE → Seguridad Informática** presenta dos paneles:
@@ -15,7 +53,7 @@ El informe XLSX incluye tres hojas: Boletas, Hallazgos y Por equipo. Los datos h
 
 - Roles de administración y usuario autorizado: escritura, cierre, registro CERT y exportación Excel. El visor solo consulta y descarga PDF final.
 - Formularios protegidos con CSRF; validación de claves de checklist, no conformidades con observación obligatoria y cierre únicamente después de iniciar reloj.
-- PDF CERT con nombre aleatorio fuera de app/static, descarga autenticada y tamaño máximo de 8 MB. Solo boletines técnicos sin documentación sensible. La verificación de cabecera no sustituye el análisis antivirus del archivo recibido.
+- PDF individual o informe PDF/DOCX multi-CVE con nombre aleatorio fuera de app/static, descarga autenticada y tamaño máximo de 8 MB. Solo boletines técnicos sin documentación sensible. La verificación de cabecera no sustituye el análisis antivirus del archivo recibido.
 - Los textos se escapan en HTML y ReportLab. El Excel previene que los campos libres se ejecuten como fórmulas.
 - Registrar audit trail por creación, guardado, reloj, cierre, exportaciones y sincronización.
 
@@ -67,7 +105,7 @@ Para suspender: sudo systemctl disable --now sicode-seguridad.timer. La tarea no
 
     python -m compileall -q app migrations tests
     python -m flask --app run.py db heads
-    pytest -q tests/test_seguridad_operativa_bsi.py tests/test_mantenimientos_control09.py tests/test_agenda_uct.py
+    pytest -q tests/test_seguridad_operativa_bsi.py tests/test_mantenimientos_control09.py tests/test_agenda_uct.py tests/test_seguridad_inventario_09.py tests/test_soporte_tecnico.py
 
 1. Confirmar que aparece el menú Seguridad Informática sin modificar Inventario Tecnológico ni Mantenimientos.
 2. Registrar un aviso CERT de prueba; comprobar que un CVE duplicado es rechazado y que el PDF adjunto se descarga con autenticación.
