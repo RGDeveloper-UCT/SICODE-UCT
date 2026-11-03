@@ -74,6 +74,7 @@ def create_app():
     from app.routes.seguridad_informatica import seguridad_bp
     from app.routes.mantenimientos import mantenimientos_bp
     from app.routes.seguridad_operativa import seguridad_operativa_bp
+    from app.routes import seguridad_informes as _seguridad_informes
     from app.services.referencia_rc_re import instalar_deteccion_rc_re
     instalar_deteccion_rc_re()
 
