@@ -191,7 +191,10 @@ def validar_finalizacion(checklist, versiones=None):
                 raise ValueError(
                     f"Registre la versión instalada de {NOMBRES_TECNOLOGIA[tecnologia]}."
                 )
-            if fila["resultado"] == "NO_APLICA" and not fila["observacion"]:
+            if fila["resultado"] == "NO_APLICA" and (
+                not fila["observacion"]
+                or fila["observacion"].startswith("No instalado:")
+            ):
                 raise ValueError(
                     f"Justifique por qué {fila['actividad'].split(' · ')[0]} no afecta "
                     "a esta versión instalada."
