@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Registrar aviso CERT - SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+ <div class="encabezado-modulo"><div><h1>📩 Registrar aviso de vulnerabilidad CERT</h1><p>Registro administrativo manual de avisos recibidos; identificación CVE opcional.</p></div><a class="boton-secundario" href="{{ url_for('seguridad_operativa.vulnerabilidades') }}">← Catálogo</a></div>
+ <form method="POST" enctype="multipart/form-data" class="tarjeta">
+ <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+ <div class="seg-campos">
+  <div class="campo"><label>Título del aviso *</label><input required maxlength="220" name="titulo" placeholder="Ej. Vulnerabilidades en Google Chrome"></div>
+  <div class="campo"><label>CVE (si el aviso lo incluye)</label><input maxlength="28" name="cve" placeholder="CVE-2026-12345"></div>
+  <div class="campo"><label>Fabricante</label><input maxlength="140" name="fabricante" placeholder="Ej. Google"></div>
+  <div class="campo"><label>Producto</label><input maxlength="160" name="producto" placeholder="Ej. Google Chrome"></div>
+  <div class="campo"><label>Severidad</label><select name="severidad">{% for v in ['DESCONOCIDA','CRITICA','ALTA','MEDIA','BAJA'] %}<option value="{{ v }}">{{ v }}</option>{% endfor %}</select></div>
+  <div class="campo"><label>Fecha de recibido</label><input type="date" name="fecha_recibido"></div>
+  <div class="campo"><label>Fecha de publicación (opcional)</label><input type="date" name="fecha_publicacion"></div>
+  <div class="campo"><label>Referencia externa</label><input type="url" name="referencia" maxlength="500" placeholder="https://..."></div>
+ </div>
+ <div class="campo"><label>Descripción</label><textarea name="descripcion" maxlength="4000" rows="3"></textarea></div>
+ <div class="campo"><label>Medidas recomendadas</label><textarea name="recomendacion" maxlength="4000" rows="3"></textarea></div>
+ <label><input type="checkbox" name="explotada" value="si"> Se confirma explotación conocida según el aviso</label>
+ <div class="campo"><label>Adjuntar PDF del aviso (opcional, máximo 8 MB)</label><input type="file" name="archivo_pdf" accept="application/pdf,.pdf"><small>Solo almacene boletines técnicos, nunca información de expedientes ni credenciales. Los archivos se descargan con autenticación.</small></div>
+ <p><button type="submit" class="boton">Registrar aviso y notificar</button></p>
+ </form>
+</section>
+<style>.seg-campos{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.seg-campos input,.seg-campos select,.tarjeta textarea{width:100%;max-width:100%}</style>
+{% endblock %}
