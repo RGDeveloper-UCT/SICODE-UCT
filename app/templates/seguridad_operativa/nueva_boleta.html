@@ -11,12 +11,13 @@
  <select required name="equipo_id" id="equipo_id" style="width:100%"><option value="">Seleccione un equipo existente</option>
  {% for e in equipos %}<option value="{{ e.id }}" data-busqueda="{{ (e.codigo ~ ' ' ~ e.nombre ~ ' ' ~ e.nombre_responsable ~ ' ' ~ e.nombre_usuario_habitual)|lower }}">{{ e.codigo }} · {{ e.nombre }} · {{ e.nombre_usuario_habitual }}</option>{% endfor %}
  </select></div>
+ <p><a class="boton-secundario" href="{{ url_for('seguridad_operativa.informes_seguridad') }}">Consultar los informes del CERT/MINGOB</a></p>
  <h2>Vulnerabilidades concretas por verificar (opcional)</h2>
  <p>Marque únicamente las que puedan aplicar al equipo. Cada selección se agrega al checklist BSI. Los demás controles (antivirus, firewall, Chrome, etc.) se incluyen siempre.</p>
  <div class="campo"><label for="filtrar_cve">Buscar CVE, fabricante o producto</label><input id="filtrar_cve" type="search" placeholder="Ej. Chrome, CVE-2026-" style="width:100%"></div>
  <div class="seg-seleccion-cve" id="lista_cve" role="group" aria-label="Vulnerabilidades de referencia">
  {% for v in catalogo %}
- <label class="seg-cve" data-busqueda="{{ (v.cve or '' ~ ' ' ~ v.titulo ~ ' ' ~ (v.producto or '') ~ ' ' ~ (v.fabricante or ''))|lower }}">
+ <label class="seg-cve" data-busqueda="{{ ((v.cve or '') ~ ' ' ~ v.titulo ~ ' ' ~ (v.producto or '') ~ ' ' ~ (v.fabricante or ''))|lower }}">
   <input type="checkbox" name="vulnerabilidad_ids" value="{{ v.id }}">
   <span><strong>{{ v.cve or 'Aviso CERT #' ~ v.id }}</strong> · {{ v.titulo }}<br><small>{{ v.producto or 'Producto sin identificar' }} · {{ 'Explotación conocida' if v.explotada else v.severidad }}</small></span>
  </label>
