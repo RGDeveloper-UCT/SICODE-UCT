@@ -12,29 +12,39 @@
  {% for e in equipos %}<option value="{{ e.id }}" data-busqueda="{{ (e.codigo ~ ' ' ~ e.nombre ~ ' ' ~ e.nombre_responsable ~ ' ' ~ e.nombre_usuario_habitual)|lower }}">{{ e.codigo }} · {{ e.nombre }} · {{ e.nombre_usuario_habitual }}</option>{% endfor %}
  </select></div>
  <p><a class="boton-secundario" href="{{ url_for('seguridad_operativa.informes_seguridad') }}">Consultar los informes del CERT/MINGOB</a></p>
- <h2>Vulnerabilidades concretas por verificar (opcional)</h2>
- <p>Marque únicamente las que puedan aplicar al equipo. Cada selección se agrega al checklist BSI. Los demás controles (antivirus, firewall, Chrome, etc.) se incluyen siempre.</p>
+ <h2>19 vulnerabilidades del CERT/MINGOB · octubre 2026</h2>
+ <p>Este lote se incluye de manera predeterminada en cada boleta. Durante la revisión se indicará qué tecnologías están instaladas: cuando un componente no está instalado, sus CVE quedarán automáticamente como <strong>No aplica</strong>; no se marcarán como corregidos ni vulnerables sin verificar.</p>
+ <label class="seg-cve seg-cert-toggle"><input type="checkbox" name="incluir_cert_19" value="si" checked id="incluir_cert_19">
+ <span><strong>Incluir las 19 vulnerabilidades del CERT para verificar</strong><br><small>Chrome (9), Java (4), Python/Expat (4) y PHP (2). Se conservan las 19 incluso si se agregaron miles de CVE mundiales.</small></span></label>
+ {% if cert|length != 19 %}<p style="color:#f5ad67"><strong>Atención:</strong> se encontraron {{ cert|length }} de 19 CVE del catálogo institucional. Verifique la carga inicial con el comando seguridad-cargar-informes-2026. La boleta incluirá únicamente los que estén registrados.</p>{% endif %}
+ <details class="mnt-seccion"><summary>Consultar las {{ cert|length }} vulnerabilidades CERT disponibles</summary>
+  <div class="seg-seleccion-cve">
+   {% for v in cert %}<div class="seg-cve"><span><strong>{{ v.cve }}</strong> · {{ v.titulo }}<br><small>{{ v.producto or 'Tecnología por verificar' }}</small></span></div>{% else %}<p>El catálogo institucional aún no se ha cargado.</p>{% endfor %}
+  </div>
+ </details>
+ <h2>Otras vulnerabilidades (opcionales)</h2>
+ <p>Puede añadir hasta 11 CVE adicionales del catálogo mundial, sin duplicar el lote institucional.</p>
  <div class="campo"><label for="filtrar_cve">Buscar CVE, fabricante o producto</label><input id="filtrar_cve" type="search" placeholder="Ej. Chrome, CVE-2026-" style="width:100%"></div>
- <div class="seg-seleccion-cve" id="lista_cve" role="group" aria-label="Vulnerabilidades de referencia">
+ <div class="seg-seleccion-cve" id="lista_cve" role="group" aria-label="Vulnerabilidades adicionales">
  {% for v in catalogo %}
  <label class="seg-cve" data-busqueda="{{ ((v.cve or '') ~ ' ' ~ v.titulo ~ ' ' ~ (v.producto or '') ~ ' ' ~ (v.fabricante or ''))|lower }}">
   <input type="checkbox" name="vulnerabilidad_ids" value="{{ v.id }}">
   <span><strong>{{ v.cve or 'Aviso CERT #' ~ v.id }}</strong> · {{ v.titulo }}<br><small>{{ v.producto or 'Producto sin identificar' }} · {{ 'Explotación conocida' if v.explotada else v.severidad }}</small></span>
  </label>
- {% else %}<p>Catálogo vacío. Puede crear la boleta sin vincular vulnerabilidades.</p>{% endfor %}
+ {% else %}<p>No hay otras vulnerabilidades en el catálogo.</p>{% endfor %}
  </div>
- <p><small>Máximo 30 vulnerabilidades por boleta. Para las que no se revisen en esta intervención, abra otra boleta posteriormente.</small></p>
+ <p><small>Se incluyen hasta 30 CVE por boleta. Los controles generales de antivirus, firewall, Chrome y medidas temporales también se incluyen.</small></p>
  <button type="submit" class="boton">Crear borrador BSI</button>
  </form>
 </section>
-<style>.seg-seleccion-cve{max-height:330px;overflow:auto;border:1px solid #42556d;border-radius:12px;padding:10px}.seg-cve{display:flex;align-items:flex-start;gap:10px;padding:9px;border-bottom:1px solid #33445b}.seg-cve:has(input:checked){background:rgba(43,117,191,.2);border-radius:9px}.seg-cve input{margin-top:5px}</style>
+<style>.seg-seleccion-cve{max-height:330px;overflow:auto;border:1px solid #42556d;border-radius:12px;padding:10px}.seg-cve{display:flex;align-items:flex-start;gap:10px;padding:9px;border-bottom:1px solid #33445b}.seg-cve:has(input:checked){background:rgba(43,117,191,.2);border-radius:9px}.seg-cve input{margin-top:5px}.seg-cert-toggle{border:1px solid #4389c8;border-radius:10px;background:rgba(25,106,190,.12);margin-bottom:12px}.mnt-seccion{margin:10px 0}.mnt-seccion>summary{cursor:pointer;padding:12px}</style>
 <script>
 (()=>{
  const equipo=document.getElementById('equipo_id'), buscar=document.getElementById('filtrar_equipo');
  buscar.addEventListener('input',()=>{const q=buscar.value.toLowerCase().trim();for(const o of equipo.options){if(o.value)o.hidden=!!q&&!o.dataset.busqueda.includes(q)}if(equipo.selectedOptions[0]?.hidden)equipo.value=''});
  const cve=document.getElementById('filtrar_cve');
  cve.addEventListener('input',()=>{const q=cve.value.toLowerCase().trim();for(const x of document.querySelectorAll('.seg-cve')){x.hidden=!!q&&!x.dataset.busqueda.includes(q)}});
- document.querySelector('form').addEventListener('submit',e=>{if(document.querySelectorAll('input[name="vulnerabilidad_ids"]:checked').length>30){e.preventDefault();alert('Seleccione como máximo 30 vulnerabilidades.')}});
+ document.querySelector('form').addEventListener('submit',e=>{if(document.querySelectorAll('input[name="vulnerabilidad_ids"]:checked').length>11){e.preventDefault();alert('Seleccione como máximo 11 CVE adicionales.')}});
 })();
 </script>
 {% endblock %}
