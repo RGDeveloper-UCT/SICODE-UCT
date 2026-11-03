@@ -10,6 +10,7 @@
   {% if b.estado == 'FINALIZADO' %}<a class="boton" href="{{ url_for('seguridad_operativa.boleta_pdf', id_=b.id) }}">📄 Descargar Boleta BSI PDF</a>{% elif b.estado != 'ANULADA' and current_user.puede_modificar %}<a class="boton" href="{{ url_for('seguridad_operativa.editar_boleta', id_=b.id) }}">Continuar checklist</a>{% endif %}
  </div>
  <div class="tarjeta"><h2>Identificación complementaria CERT</h2><p><strong>Dependencia:</strong> {{ (b.datos_equipo or {}).get("area") or "—" }} · <strong>Hostname:</strong> {{ (b.versiones or {}).get("hostname") or "—" }} · <strong>IP:</strong> {{ (b.datos_equipo or {}).get("ip_estatica") or "—" }} · <strong>Fecha de revisión:</strong> {{ (b.iniciado_en or b.creado_en).strftime("%d/%m/%Y") if (b.iniciado_en or b.creado_en) else "—" }}</p></div>
+ <div class="tarjeta"><h2>Resultado de revisión de Chrome</h2><p><strong>{{ (b.versiones or {}).get('estado_chrome','No registrado').replace('_',' ') }}</strong></p></div>
  <div class="tarjeta"><h2>Versiones técnicas registradas</h2>
  <div style="overflow-x:auto"><table class="tabla"><thead><tr><th>Componente</th><th>Instalación</th><th>Versión declarada</th></tr></thead><tbody>
  {% for campo,nombre in [('sistema','Sistema operativo'),('chrome','Google Chrome'),('java','Java / JavaFX'),('python','Python'),('php','PHP'),('antivirus','Antivirus')] %}
