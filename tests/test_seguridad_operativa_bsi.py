@@ -103,6 +103,8 @@ def test_informe_multi_cve_docx_y_descarga_autenticada(entorno):
     # Cualquier intento de duplicar el mismo archivo se rechaza sin nueva notificación.
     assert _registrar_informe(client, "CVE-2026-118306").status_code == 200
     assert InformeSeguridadTI.query.count() == 1
+    assert client.get("/__login_bsi_test?visor=1").status_code == 200
+    assert client.get(f"/seguridad-informatica/informes/{informe.id}/archivo").status_code == 200
 
 
 def test_informe_con_identificadores_invalidos_no_se_guarda(entorno):
@@ -188,3 +190,31 @@ def test_visor_puede_consultar_pero_no_registrar(entorno):
     assert client.get("/seguridad-informatica/informes").status_code == 200
     assert client.get("/seguridad-informatica/boletas/nueva").status_code == 403
     assert client.post("/seguridad-informatica/informes/nuevo", data={}).status_code == 403
+
+
+def test_cisa_kev_sin_avisos_historicos_y_avisos_nuevos_idempotentes(entorno, monkeypatch):
+    from app.services import sincronizacion_vulnerabilidades as sync
+    from app.models.agenda import AgendaNotificacion
+    client, _ = entorno
+    carga = {"vulnerabilities": [
+        {"cveID": "CVE-2026-109618", "vulnerabilityName": "PHP RCE crítica",
+         "vendorProject": "PHP Group", "product": "PHP", "dateAdded": "2026-11-01",
+         "shortDescription": "Revisión de versión PHP", "requiredAction": "Actualizar PHP"},
+    ]}
+    monkeypatch.setattr(sync, "_descargar", lambda url: carga)
+    r = sync.sincronizar_fuente("CISA_KEV")
+    assert r["nuevos"] == 1
+    assert r["avisos"] == 0  # Primera ejecución: se establece línea de base.
+    assert VulnerabilidadTI.query.filter_by(cve="CVE-2026-109618").one().explotada
+    assert AgendaNotificacion.query.count() == 0
+    carga["vulnerabilities"].append({
+        "cveID": "CVE-2026-76024", "vulnerabilityName": "Aviso posterior Chrome",
+        "vendorProject": "Google", "product": "Chrome", "dateAdded": "2026-11-02",
+        "shortDescription": "Revisar canal y versión", "requiredAction": "Actualizar"
+    })
+    r2 = sync.sincronizar_fuente("CISA_KEV")
+    assert r2 == {"fuente": "CISA_KEV", "nuevos": 1, "avisos": 1}
+    assert AgendaNotificacion.query.count() == 1
+    r3 = sync.sincronizar_fuente("CISA_KEV")
+    assert r3["nuevos"] == 0
+    assert AgendaNotificacion.query.count() == 1
