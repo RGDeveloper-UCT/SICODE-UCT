@@ -30,6 +30,8 @@ El comando no lee archivos ni hace solicitudes web, no genera 19 alertas histór
 
 En Seguridad Informática → Informes recibidos → Cargar informe PDF/DOCX, incorpore cada archivo original, su título y entidad emisora, fecha del informe, fecha real de recibido y la lista de CVE. El sistema vincula los CVE ya existentes, almacena el archivo en una carpeta privada, protege la descarga con login y detecta archivos repetidos mediante SHA-256. El máximo permitido es 8 MB y hasta 100 CVE por documento.
 
+Respaldo obligatorio: la base de datos guarda vínculos y metadatos, pero los adjuntos originales se guardan en disco. El plan de respaldo debe incluir tanto PostgreSQL como la carpeta privada instance/seguridad/avisos_cert, manteniendo permisos y relación entre ambos. Un respaldo de PostgreSQL por sí solo no recupera los archivos cargados.
+
 Cargue un documento por informe: Chrome (9 CVE, informe del 30/10), Java/Python (8 CVE, informe del 30/10) y PHP (2 CVE, aviso del 21/10). Complete la fecha de recibido según el correo recibido, no asuma que coincide con la publicación.
 
 **Los archivos recibidos en este chat NO se copian automáticamente a la instalación productiva ni al repositorio**. Deben subirse desde la pantalla administrativa por personal autorizado después del despliegue. No se recomienda añadir originales institucionales a un repositorio público.
