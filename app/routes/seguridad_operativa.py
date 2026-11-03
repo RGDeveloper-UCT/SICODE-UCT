@@ -377,9 +377,9 @@ def anular_boleta(id_):
     b = db.get_or_404(BoletaSeguridadTI, id_)
     if not _puede_anular(b):
         abort(403)
-    motivo = _texto("motivo_anulacion", 400, obligatorio=True)
-    if len(motivo) < 8:
-        flash("Indique un motivo de anulación de al menos ocho caracteres.", "warning")
+    motivo = (request.form.get("motivo_anulacion") or "").strip()
+    if not 8 <= len(motivo) <= 400:
+        flash("Indique un motivo de anulación entre 8 y 400 caracteres.", "warning")
         return redirect(url_for("seguridad_operativa.detalle_boleta", id_=id_))
     estado_anterior = b.estado
     if b.tramo_iniciado_en:
