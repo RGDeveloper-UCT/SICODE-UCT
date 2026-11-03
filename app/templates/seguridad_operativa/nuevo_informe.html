@@ -1,11 +1,52 @@
 {% extends "base.html" %}
-{% block title %}Cargar informe de seguridad - SICODE-UCT{% endblock %}
+{% block title %}Cargar informe de seguridad - SICODE-UCT<script>
+(() => {
+  const presets = {
+    chrome: {
+      titulo: "Vulnerabilidades en Google Chrome - octubre 2026",
+      tecnologia: "CHROME", fecha: "2026-10-30",
+      cves: ["CVE-2026-76024","CVE-2026-118306","CVE-2026-118331",
+             "CVE-2026-118348","CVE-2026-118344","CVE-2026-113303",
+             "CVE-2026-110136","CVE-2026-118318","CVE-2026-119269"]
+    },
+    java_python: {
+      titulo: "Vulnerabilidades en Java y Python - octubre 2026",
+      tecnologia: "JAVA_PYTHON", fecha: "2026-10-30",
+      cves: ["CVE-2026-91484","CVE-2026-43660","CVE-2026-91415",
+             "CVE-2026-91395","CVE-2026-115557","CVE-2026-114583",
+             "CVE-2026-77214","CVE-2026-102633"]
+    },
+    php: {
+      titulo: "Vulnerabilidades críticas de ejecución remota en PHP",
+      tecnologia: "PHP", fecha: "2026-10-21",
+      cves: ["CVE-2026-109618","CVE-2026-109619"]
+    }
+  };
+  const selector = document.getElementById("preset-informe");
+  selector.addEventListener("change", () => {
+    const datos = presets[selector.value];
+    if (!datos) return;
+    document.getElementById("titulo").value = datos.titulo;
+    document.getElementById("tecnologia").value = datos.tecnologia;
+    document.getElementById("fecha_informe").value = datos.fecha;
+    document.getElementById("cves").value = datos.cves.join("\n");
+    document.getElementById("prioridad").value = "alta";
+  });
+})();
+</script>
+{% endblock %}
 {% block content %}
 <section class="panel panel-ancho">
  <div class="encabezado-modulo"><div><h1>📄 Cargar informe CERT/MINGOB</h1><p>Un mismo documento puede contener varios CVE; el catálogo evitará duplicarlos.</p></div><a class="boton-secundario" href="{{ url_for('seguridad_operativa.informes_seguridad') }}">← Informes recibidos</a></div>
  <form method="POST" enctype="multipart/form-data" class="tarjeta">
  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
- <div class="seg-campos">
+ <div class="campo"><label for="preset-informe">Precargar metadatos de los tres informes recibidos</label>
+<select id="preset-informe"><option value="">Seleccionar informe (opcional)</option>
+<option value="chrome">Google Chrome - 30/10/2026 · 9 CVE</option>
+<option value="java_python">Java y Python - 30/10/2026 · 8 CVE</option>
+<option value="php">PHP - 21/10/2026 · 2 CVE</option></select>
+<small>El formulario propondrá título, fecha y CVE. Compruebe que correspondan al documento que adjuntará. La fecha real de recibido debe completarse manualmente.</small></div>
+<div class="seg-campos">
  <div class="campo"><label for="titulo">Título del informe *</label><input required id="titulo" name="titulo" maxlength="220" placeholder="Ej. Vulnerabilidades Google Chrome - octubre 2026"></div>
  <div class="campo"><label for="emisor">Entidad emisora *</label><input required id="emisor" name="emisor" maxlength="160" value="Dirección de Informática · MINGOB"></div>
  <div class="campo"><label for="tecnologia">Tecnología *</label><select required id="tecnologia" name="tecnologia">
