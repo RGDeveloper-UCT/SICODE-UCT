@@ -40,6 +40,20 @@ Cargue un documento por informe: Chrome (9 CVE, informe del 30/10), Java/Python 
 
 La nueva boleta tiene listas de Instalado, No instalado o Por verificar para Chrome, Java, Python y PHP, además de campos de versión de SO, Chrome, Java, Python, PHP y antivirus. Los controles de tecnologías ausentes se pueden marcar No aplica. El PDF y el Excel dejan constancia de las versiones y de los resultados, pero no prueban que SICODE haya escaneado el equipo.
 
+## Actualización de boletas BSI · Protocolo Chrome 4.1/4.2 y 19 CVE CERT
+
+La boleta versión 3 incorpora los controles adicionales del formulario CERT recibido para Chrome. Se mantienen, sin duplicar, los controles ya existentes: instalación y versión de Chrome, versión de sistema operativo, actualización, reinicio, navegación segura, extensiones, antivirus/EDR y conectividad general.
+
+Nuevas verificaciones específicas del numeral 4.1: dependencia o responsable (4), fecha de revisión (5), sistemas sensibles (10), actualizaciones automáticas (11), alertas antivirus/EDR de Chrome (12), descargas y procesos sospechosos (13), incidencias y fechas de actuación (14). Nuevas medidas 4.2: reducción temporal de uso (16), archivos inesperados (18), extensiones no oficiales (19), conexión a repositorios de actualización (20), coordinación de instalación administrativa (21). Las recomendaciones sobre sitios no confiables ya estaban contempladas en el control general de navegación segura. El formato de PDF utiliza el checklist íntegro y conserva sus encabezados por grupo.
+
+**Lote institucional predeterminado:** el formulario de nueva boleta incluye marcada la opción "Incluir las 19 vulnerabilidades del CERT"; toma los 19 CVE por identificador exacto de los informes, incluso si el catálogo de CISA y NVD crece a miles. Adicionalmente pueden escogerse hasta 11 CVE globales opcionales (máximo 30). Si alguno de los 19 no se ha cargado, se avisa al usuario; ejecute la importación idempotente documentada anteriormente.
+
+**Ausencias:** al guardar, cuando el técnico selecciona "No instalado" para Chrome, Java, Python o PHP, los CVE institucionales correspondientes quedan en No aplica, con observación de ausencia declarada. Los grupos técnicos específicos de Java, Python, PHP y protocolo Chrome también quedan No aplica. Si una tecnología está instalada, el técnico debe verificar versión y corrección: SICODE nunca presupone que un CVE está corregido. Si una tecnología queda "Por verificar", no se puede finalizar la boleta con CVE de esa tecnología. Se mantiene el checklist de las boletas anteriores sin reescritura retroactiva.
+
+**Eliminar boleta:** se implementa como ANULACIÓN LÓGICA, no un borrado físico. Se exige motivo y confirmación, queda registro en Bitácora, no se reutiliza el folio BSI y desaparece del listado e informe XLSX vigentes. El administrador consulta las anuladas desde el enlace de auditoría. Un técnico puede anular sus propias boletas abiertas; una boleta finalizada solo puede ser anulada por un administrador. Ni la boleta anulada ni su cronómetro pueden modificarse o generar un PDF final.
+
+**Despliegue:** se trata de un cambio de código sin migración de esquema adicional. Conservar la rama compatible con HashPass y validar tests antes de aplicar un nuevo despliegue seguro; no volver a ejecutar la migración inicial ni borrar tablas.
+
 ## Arquitectura y alcance
 
 El acceso **Módulos SICODE → Seguridad Informática** presenta dos paneles:
