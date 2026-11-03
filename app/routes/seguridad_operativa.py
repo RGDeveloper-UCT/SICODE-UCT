@@ -10,7 +10,7 @@ from flask import Blueprint, abort, current_app, flash, redirect, render_templat
 from flask_login import current_user, login_required
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
-from sqlalchemy import or_
+from sqlalchemy import or_, cast, String
 from sqlalchemy.exc import IntegrityError
 
 from app import db
@@ -105,8 +105,11 @@ def vulnerabilidades():
             VulnerabilidadTI.producto.ilike(f"%{q}%"),
             VulnerabilidadTI.fabricante.ilike(f"%{q}%"),
         ))
-    if fuente in {"CERT", "CISA_KEV", "NVD"}:
-        consulta = consulta.filter(VulnerabilidadTI.fuentes.contains([fuente]))
+    if fuente in {"CERT", "MINGOB", "CISA_KEV", "NVD"}:
+        consulta = consulta.filter(or_(
+            VulnerabilidadTI.fuente == fuente,
+            cast(VulnerabilidadTI.fuentes, String).ilike('%"' + fuente + '"%'),
+        ))
     page = max(1, request.args.get("page", 1, type=int))
     registros = consulta.order_by(VulnerabilidadTI.explotada.desc(),
                                   VulnerabilidadTI.creado_en.desc(), VulnerabilidadTI.id.desc()).paginate(
