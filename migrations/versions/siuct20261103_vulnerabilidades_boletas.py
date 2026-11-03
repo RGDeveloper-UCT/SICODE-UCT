@@ -46,6 +46,27 @@ def upgrade():
         sa.Column("registros_nuevos", sa.Integer(), nullable=False),
     )
     op.create_table(
+        "informes_seguridad_ti",
+        sa.Column("id", sa.Integer(), primary_key=True),
+        sa.Column("titulo", sa.String(220), nullable=False),
+        sa.Column("emisor", sa.String(160), nullable=False),
+        sa.Column("tecnologia", sa.String(40), nullable=False),
+        sa.Column("fecha_informe", sa.Date()),
+        sa.Column("fecha_recibido", sa.Date()),
+        sa.Column("resumen", sa.Text(), nullable=False),
+        sa.Column("archivo_nombre", sa.String(80), nullable=False, unique=True),
+        sa.Column("nombre_original", sa.String(180), nullable=False),
+        sa.Column("sha256", sa.String(64), nullable=False, unique=True),
+        sa.Column("creado_por_id", sa.Integer(), sa.ForeignKey("usuarios.id"), nullable=False),
+        sa.Column("creado_en", sa.DateTime(), nullable=False),
+    )
+    op.create_index("ix_informes_seguridad_ti_sha256", "informes_seguridad_ti", ["sha256"], unique=True)
+    op.create_table(
+        "informe_vulnerabilidad_ti",
+        sa.Column("informe_id", sa.Integer(), sa.ForeignKey("informes_seguridad_ti.id", ondelete="CASCADE"), primary_key=True),
+        sa.Column("vulnerabilidad_id", sa.Integer(), sa.ForeignKey("vulnerabilidades_ti.id", ondelete="RESTRICT"), primary_key=True),
+    )
+    op.create_table(
         "boletas_seguridad_ti",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("equipo_id", sa.Integer(), sa.ForeignKey("equipos_institucionales.id", ondelete="RESTRICT"), nullable=False),
@@ -54,6 +75,7 @@ def upgrade():
         sa.Column("checklist_version", sa.Integer(), nullable=False),
         sa.Column("checklist", sa.JSON(), nullable=False),
         sa.Column("datos_equipo", sa.JSON(), nullable=False),
+        sa.Column("versiones", sa.JSON(), nullable=False),
         sa.Column("diagnostico", sa.Text(), nullable=False),
         sa.Column("acciones", sa.Text(), nullable=False),
         sa.Column("resultado_final", sa.String(30)),
@@ -71,5 +93,8 @@ def upgrade():
 
 def downgrade():
     op.drop_table("boletas_seguridad_ti")
+    op.drop_table("informe_vulnerabilidad_ti")
+    op.drop_index("ix_informes_seguridad_ti_sha256", table_name="informes_seguridad_ti")
+    op.drop_table("informes_seguridad_ti")
     op.drop_table("sincronizaciones_vulnerabilidades_ti")
     op.drop_table("vulnerabilidades_ti")
