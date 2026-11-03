@@ -22,11 +22,15 @@
  <p>Tiempo acumulado: <strong id="reloj" data-segundos="{{ b.segundos() }}" data-activo="{{ 'si' if b.tramo_iniciado_en else 'no' }}">{{ '%02d:%02d:%02d'|format(b.segundos()//3600,(b.segundos()%3600)//60,b.segundos()%60) }}</strong></p>
  <form method="post" action="{{ url_for('seguridad_operativa.reloj', id_=b.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="boton" name="accion" value="{{ 'pausar' if b.tramo_iniciado_en else 'iniciar' }}">{{ '⏸ Pausar' if b.tramo_iniciado_en else '▶ Iniciar / reanudar' }}</button></form>
  <small>La duración se conserva en el servidor y las pausas no se cuentan.</small></div>
- <div class="tarjeta"><h2>Equipo inventariado</h2><p><strong>SICOIN:</strong> {{ b.equipo.codigo }} · <strong>Serie:</strong> {{ b.equipo.serie or '—' }} · <strong>Marca:</strong> {{ b.equipo.marca or '—' }} · <strong>Modelo:</strong> {{ b.equipo.modelo or '—' }}</p><p><strong>Custodio:</strong> {{ b.equipo.nombre_responsable }} · <strong>Usuario habitual:</strong> {{ b.equipo.nombre_usuario_habitual }}</p></div>
+ <div class="tarjeta"><h2>Equipo inventariado · identificación CERT</h2>
+ <p><strong>SICOIN:</strong> {{ b.equipo.codigo }} · <strong>Serie:</strong> {{ b.equipo.serie or '—' }} · <strong>Marca:</strong> {{ b.equipo.marca or '—' }} · <strong>Modelo:</strong> {{ b.equipo.modelo or '—' }}</p>
+ <p><strong>Dependencia:</strong> {{ b.equipo.area or '—' }} · <strong>Dirección IP:</strong> {{ b.equipo.ip_estatica or '—' }} · <strong>Revisión:</strong> {{ b.creado_en.strftime('%d/%m/%Y') }} · <strong>Técnico:</strong> {{ b.tecnico.nombre }}</p>
+ <p><strong>Custodio:</strong> {{ b.equipo.nombre_responsable }} · <strong>Usuario habitual:</strong> {{ b.equipo.nombre_usuario_habitual }}</p></div>
  <form method="post" id="form-seguridad"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
  <div class="tarjeta"><h2>Versiones instaladas y tecnologías verificadas</h2>
  <p>Documente las versiones comprobadas. Use <b>No instalado</b> o <b>Por verificar</b> cuando corresponda; no atribuya vulnerabilidades sin comprobar versión, componente y exposición.</p>
  <div class="seg-versiones">
+ <div class="campo"><label for="version_hostname">Hostname / nombre de red del equipo</label><input id="version_hostname" name="version_hostname" maxlength="100" value="{{ (b.versiones or {}).get('hostname','') }}" placeholder="Ej. PC-UCT-005"></div>
  <div class="campo"><label for="version_sistema">Sistema operativo / versión</label><input id="version_sistema" name="version_sistema" maxlength="100" value="{{ (b.versiones or {}).get('sistema','') }}" placeholder="Windows 11 24H2, Ubuntu 24.04..."></div>
  <div class="campo"><label for="version_antivirus">Antivirus / versión</label><input id="version_antivirus" name="version_antivirus" maxlength="100" value="{{ (b.versiones or {}).get('antivirus','') }}" placeholder="Producto y versión"></div>
  {% for t,nombre in [('chrome','Google Chrome'),('java','Java / JavaFX'),('python','Python'),('php','PHP')] %}
@@ -37,7 +41,8 @@
  </div></div>
 
  <div class="tarjeta"><h2>1. Diagnóstico inicial</h2><textarea name="diagnostico" maxlength="4000" rows="3" style="width:100%" placeholder="Especifique versión del sistema, navegador o motivo de revisión cuando corresponda.">{{ b.diagnostico }}</textarea></div>
- <p>2. Complete cada control usando botones. <strong>No cumple</strong> exige registrar el hallazgo; <strong>No aplica</strong> sirve para controles que no correspondan al equipo.</p>
+ <p>2. Complete cada control usando botones. Se incluyen los numerales <strong>CERT 4.1 (1–14)</strong> y <strong>4.2 (16–21)</strong>, controles generales y las CVE seleccionadas.</p>
+ <p>Cuando indique <strong>No instalado</strong> para Chrome, Java, Python o PHP, sus verificaciones específicas y CVE cambiarán a <strong>No aplica</strong> con constancia del motivo. Para tecnología instalada, revise versiones y parches. «No aplica / no afectado» requiere una justificación en cada CVE.</p>
  <p id="avance-bsi" aria-live="polite">Verificaciones: 0 / {{ checklist|length }}</p>
  {% set ns = namespace(grupo='', abierto=false) %}
  {% for fila in checklist %}
@@ -46,14 +51,14 @@
  {% set ns.grupo=fila.grupo %}{% set ns.abierto=true %}
  <details class="mnt-seccion" {% if loop.first %}open{% endif %}><summary>{{ fila.grupo_nombre }}</summary><div class="mnt-contenido">
  {% endif %}
- <div class="mnt-actividad">
+ <div class="mnt-actividad" data-tecnologia="{{ fila.get('tecnologia') or '' }}" data-conservar-sin-chrome="{{ 'si' if (fila.grupo == 'cert41' and fila.get('numero_cert') in [1,3,4,5,14]) else 'no' }}">
   <strong>{{ fila.actividad }}</strong>
   <div class="mnt-opciones" role="radiogroup" aria-label="Resultado de {{ fila.actividad }}">
   {% for valor, etiqueta in [('CUMPLE','✓ Cumple / corregido'),('NO_CUMPLE','✕ No cumple / pendiente'),('NO_APLICA','— No aplica / no afectado'),('PENDIENTE','○ Pendiente')] %}
   <label class="mnt-opcion"><input type="radio" name="resultado_{{ fila.codigo }}" value="{{ valor }}" {% if fila.resultado==valor %}checked{% endif %}>{{ etiqueta }}</label>
   {% endfor %}
   </div>
-  <input class="mnt-observacion" name="observacion_{{ fila.codigo }}" value="{{ fila.observacion }}" maxlength="1000" placeholder="Detalle técnico o medida correctiva (obligatorio cuando No cumple)" aria-label="Observación de {{ fila.actividad }}">
+  <input class="mnt-observacion" name="observacion_{{ fila.codigo }}" value="{{ fila.observacion }}" maxlength="1000" placeholder="Detalle técnico / evidencia / motivo No aplica (obligatorio si No cumple)" aria-label="Observación de {{ fila.actividad }}">
  </div>
  {% if loop.last %}</div></details>{% endif %}
  {% endfor %}
@@ -64,13 +69,48 @@
   <p><button class="boton-secundario" type="submit" name="accion" value="guardar">Guardar avance</button> <button class="boton" type="submit" name="accion" value="finalizar" onclick="return confirm('¿Finalizar la boleta? Quedará cerrada y disponible en PDF.')">Finalizar y habilitar PDF</button></p>
  </div>
  </form>
+ {% include "seguridad_operativa/partials/accion_anular.html" %}
 </section>
 <script>
 (()=>{
  const reloj=document.getElementById('reloj');if(reloj?.dataset.activo==='si'){let n=Number(reloj.dataset.segundos);setInterval(()=>{n++;const p=x=>String(x).padStart(2,'0');reloj.textContent=p(Math.floor(n/3600))+':'+p(Math.floor(n%3600/60))+':'+p(n%60)},1000)}
  const form=document.getElementById('form-seguridad'),avance=document.getElementById('avance-bsi');
- function actualizar(){const filas=[...form.querySelectorAll('.mnt-actividad')],resueltas=filas.filter(f=>f.querySelector('input[type=radio]:checked')?.value!=='PENDIENTE').length;avance.textContent='Verificaciones completadas: '+resueltas+' / '+filas.length}
- form.addEventListener('change',actualizar);actualizar();
+ const controles=[...form.querySelectorAll('.mnt-actividad')];
+ const nombres={chrome:'Google Chrome',java:'Java/JavaFX',python:'Python/Expat',php:'PHP'};
+ const autoPrefix='No instalado:';
+ function normalizarAusencias(){
+   for(const fila of controles){
+     const tecnologia=fila.dataset.tecnologia;
+     const selector=tecnologia&&document.getElementById('instalado_'+tecnologia);
+     if(!selector)continue;
+     if(tecnologia==='chrome'&&fila.dataset.conservarSinChrome==='si')continue;
+     const noAplica=fila.querySelector('input[type=radio][value=NO_APLICA]');
+     const pendiente=fila.querySelector('input[type=radio][value=PENDIENTE]');
+     const observacion=fila.querySelector('.mnt-observacion');
+     if(selector.value==='NO'){
+       if(noAplica)noAplica.checked=true;
+       if(observacion&&!observacion.value.startsWith(autoPrefix))
+         observacion.value='No instalado: '+nombres[tecnologia]+'. Ausencia verificada y declarada por el técnico.';
+     } else if(observacion?.value.startsWith(autoPrefix)){
+       observacion.value='';
+       if(noAplica?.checked&&pendiente)pendiente.checked=true;
+     }
+   }
+ }
+ function actualizar(){
+   const resueltas=controles.filter(f=>{
+     const respuesta=f.querySelector('input[type=radio]:checked')?.value;
+     return respuesta && respuesta!=='PENDIENTE';
+   }).length;
+   avance.textContent='Verificaciones completadas: '+resueltas+' / '+controles.length;
+ }
+ for(const t of Object.keys(nombres)){
+   document.getElementById('instalado_'+t)?.addEventListener('change',()=>{
+     normalizarAusencias();actualizar();
+   });
+ }
+ form.addEventListener('change',actualizar);
+ normalizarAusencias();actualizar();
 })();
 </script>
 {% endblock %}
