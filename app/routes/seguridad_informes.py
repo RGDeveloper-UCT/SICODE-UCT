@@ -10,6 +10,7 @@ from zipfile import BadZipFile, ZipFile
 from flask import abort, flash, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
 from sqlalchemy.exc import IntegrityError
+from pypdf import PdfReader
 from werkzeug.utils import secure_filename
 
 from app import db
@@ -34,10 +35,18 @@ def _validar_archivo(nombre, datos):
     if extension == ".pdf":
         if not datos.startswith(b"%PDF-") or b"%%EOF" not in datos[-2048:]:
             raise ValueError("El archivo PDF no presenta una estructura válida.")
+        try:
+            documento = PdfReader(BytesIO(datos), strict=False)
+            if documento.is_encrypted or not documento.pages:
+                raise ValueError("El PDF está cifrado o no contiene páginas.")
+        except Exception as error:
+            raise ValueError("No se pudo validar el contenido del PDF.") from error
     else:
         try:
             with ZipFile(BytesIO(datos)) as z:
                 nombres = set(z.namelist())
+                if sum(entry.file_size for entry in z.infolist()) > 60 * 1024 * 1024:
+                    raise ValueError("El DOCX contiene demasiados datos descomprimidos.")
                 if not {"[Content_Types].xml", "word/document.xml"}.issubset(nombres):
                     raise ValueError("El archivo no corresponde a un DOCX válido.")
                 if any(x.lower().endswith(("vbaproject.bin", ".exe", ".js", ".vbs")) for x in nombres):
