@@ -362,7 +362,10 @@ def eliminar_boleta(id_):
     if b.estado == "ANULADA":
         flash("Esta boleta ya está anulada.", "warning")
         return redirect(url_for("seguridad_operativa.boletas"))
-    motivo = _texto("motivo", 500, True)
+    try:
+        motivo = _texto("motivo", 500, True)
+    except ValueError:
+        abort(400)
     if len(motivo) < 8:
         flash("Indique un motivo de al menos 8 caracteres para eliminar la boleta.", "warning")
         return redirect(url_for("seguridad_operativa.detalle_boleta", id_=id_))
