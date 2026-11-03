@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Cargar informe de seguridad - SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+ <div class="encabezado-modulo"><div><h1>📄 Cargar informe CERT/MINGOB</h1><p>Un mismo documento puede contener varios CVE; el catálogo evitará duplicarlos.</p></div><a class="boton-secundario" href="{{ url_for('seguridad_operativa.informes_seguridad') }}">← Informes recibidos</a></div>
+ <form method="POST" enctype="multipart/form-data" class="tarjeta">
+ <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+ <div class="seg-campos">
+ <div class="campo"><label for="titulo">Título del informe *</label><input required id="titulo" name="titulo" maxlength="220" placeholder="Ej. Vulnerabilidades Google Chrome - octubre 2026"></div>
+ <div class="campo"><label for="emisor">Entidad emisora *</label><input required id="emisor" name="emisor" maxlength="160" value="Dirección de Informática · MINGOB"></div>
+ <div class="campo"><label for="tecnologia">Tecnología *</label><select required id="tecnologia" name="tecnologia">
+ <option value="CHROME">Google Chrome</option><option value="JAVA_PYTHON">Java y Python</option><option value="PHP">PHP</option><option value="MULTIPLE">Varias tecnologías</option><option value="OTRO">Otra</option></select></div>
+ <div class="campo"><label for="prioridad">Prioridad de revisión</label><select id="prioridad" name="prioridad"><option value="media">Media</option><option value="alta">Alta</option></select></div>
+ <div class="campo"><label for="fecha_informe">Fecha del informe</label><input type="date" id="fecha_informe" name="fecha_informe"></div>
+ <div class="campo"><label for="fecha_recibido">Fecha de recibido</label><input type="date" id="fecha_recibido"></div>
+ </div>
+ <div class="campo"><label for="resumen">Resumen / instrucciones institucionales</label><textarea id="resumen" name="resumen" maxlength="4000" rows="3" style="width:100%"></textarea></div>
+ <div class="campo"><label for="cves">CVE citados en el informe (uno por línea o separados por comas)</label><textarea id="cves" name="cves" rows="6" spellcheck="false" style="width:100%" placeholder="CVE-2026-76024&#10;CVE-2026-118306&#10;CVE-2026-118331"></textarea>
+ <small>Hasta 100 CVE. Puede dejarlos vacíos si el documento no contiene identificadores. No se extraen datos automáticamente del archivo; los identificadores requieren revisión humana.</small></div>
+ <div class="campo"><label for="archivo">Archivo original recibido (PDF o DOCX, máximo 8 MB) *</label><input required id="archivo" type="file" name="archivo" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"><small>El archivo se almacena fuera del directorio público y únicamente puede descargarse con sesión autenticada.</small></div>
+ <p><button class="boton" type="submit">Registrar informe y vincular CVE</button></p>
+ </form>
+</section>
+<style>.seg-campos{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}.seg-campos input,.seg-campos select{width:100%}</style>
+{% endblock %}
