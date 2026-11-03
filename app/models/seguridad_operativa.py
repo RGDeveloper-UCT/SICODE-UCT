@@ -98,7 +98,7 @@ class BoletaSeguridadTI(db.Model):
 
     def cambiar_reloj(self, accion, ahora=None):
         ahora = ahora or datetime.utcnow()
-        if self.estado == "FINALIZADO":
+        if self.estado in {"FINALIZADO", "ANULADA"}:
             raise ValueError("La boleta cerrada no admite cambios.")
         if accion == "iniciar":
             if not self.tramo_iniciado_en:
