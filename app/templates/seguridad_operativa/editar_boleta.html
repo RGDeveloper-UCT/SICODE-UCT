@@ -32,6 +32,11 @@
  <div class="seg-versiones">
  <div class="campo"><label for="version_hostname">Hostname / nombre de red del equipo</label><input id="version_hostname" name="version_hostname" maxlength="100" value="{{ (b.versiones or {}).get('hostname','') }}" placeholder="Ej. PC-UCT-005"></div>
  <div class="campo"><label for="version_sistema">Sistema operativo / versión</label><input id="version_sistema" name="version_sistema" maxlength="100" value="{{ (b.versiones or {}).get('sistema','') }}" placeholder="Windows 11 24H2, Ubuntu 24.04..."></div>
+ <div class="campo"><label for="estado_chrome">Resultado de revisión de Google Chrome (según boleta CERT)</label>
+ <select id="estado_chrome" name="estado_chrome">
+ {% for clave,etiqueta in [('POR_VERIFICAR','Por verificar'),('ACTUALIZADO','Actualizado'),('PENDIENTE','Pendiente de actualización'),('NO_APLICA','No aplica (Chrome no instalado)')] %}
+ <option value="{{ clave }}" {% if (b.versiones or {}).get('estado_chrome','POR_VERIFICAR') == clave %}selected{% endif %}>{{ etiqueta }}</option>
+ {% endfor %}</select></div>
  <div class="campo"><label for="version_antivirus">Antivirus / versión</label><input id="version_antivirus" name="version_antivirus" maxlength="100" value="{{ (b.versiones or {}).get('antivirus','') }}" placeholder="Producto y versión"></div>
  {% for t,nombre in [('chrome','Google Chrome'),('java','Java / JavaFX'),('python','Python'),('php','PHP')] %}
  <div class="campo"><label for="instalado_{{ t }}">{{ nombre }} instalado</label><select id="instalado_{{ t }}" name="instalado_{{ t }}">
@@ -77,8 +82,15 @@
  const form=document.getElementById('form-seguridad'),avance=document.getElementById('avance-bsi');
  const controles=[...form.querySelectorAll('.mnt-actividad')];
  const nombres={chrome:'Google Chrome',java:'Java/JavaFX',python:'Python/Expat',php:'PHP'};
+ const estadoChrome=document.getElementById('estado_chrome');
+ let chromeNoEstaba=document.getElementById('instalado_chrome')?.value==='NO';
+
  const autoPrefix='No instalado:';
  function normalizarAusencias(){
+   const noChrome=document.getElementById('instalado_chrome')?.value==='NO';
+   if(noChrome){estadoChrome.value='NO_APLICA';}
+   else if(chromeNoEstaba && estadoChrome.value==='NO_APLICA'){estadoChrome.value='POR_VERIFICAR';}
+   chromeNoEstaba=noChrome;
    for(const fila of controles){
      const tecnologia=fila.dataset.tecnologia;
      const selector=tecnologia&&document.getElementById('instalado_'+tecnologia);
