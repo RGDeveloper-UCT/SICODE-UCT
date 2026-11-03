@@ -61,6 +61,16 @@ def _docx_prueba():
     return buffer
 
 
+def _pdf_prueba():
+    from reportlab.pdfgen import canvas
+    archivo = BytesIO()
+    pdf = canvas.Canvas(archivo)
+    pdf.drawString(50, 720, "Informe técnico de ensayo")
+    pdf.save()
+    archivo.seek(0)
+    return archivo
+
+
 def _registrar_informe(client, cves, nombre="reporte.docx", archivo=None):
     return client.post("/seguridad-informatica/informes/nuevo", data={
         "titulo": "Aviso conjunto del CERT MINGOB",
@@ -117,7 +127,7 @@ def test_informe_con_identificadores_invalidos_no_se_guarda(entorno):
 def test_informe_php_admite_pdf(entorno):
     client, _ = entorno
     response = _registrar_informe(client, "CVE-2026-109618\nCVE-2026-109619",
-                                  "informe.pdf", BytesIO(b"%PDF-1.4\nbody\n%%EOF\n"))
+                                  "informe.pdf", _pdf_prueba())
     assert response.status_code == 302
     assert InformeSeguridadTI.query.count() == 1
     assert VulnerabilidadTI.query.count() == 2
