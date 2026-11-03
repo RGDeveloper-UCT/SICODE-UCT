@@ -9,6 +9,11 @@
   <p><strong>Diagnóstico:</strong> {{ b.diagnostico or '—' }} · <strong>Acciones:</strong> {{ b.acciones or '—' }} · <strong>Seguimiento:</strong> {{ 'Sí' if b.requiere_seguimiento else 'No' }}</p>
   {% if b.estado == 'FINALIZADO' %}<a class="boton" href="{{ url_for('seguridad_operativa.boleta_pdf', id_=b.id) }}">📄 Descargar Boleta BSI PDF</a>{% elif current_user.puede_modificar %}<a class="boton" href="{{ url_for('seguridad_operativa.editar_boleta', id_=b.id) }}">Continuar checklist</a>{% endif %}
  </div>
+ <div class="tarjeta"><h2>Versiones técnicas registradas</h2>
+ <div style="overflow-x:auto"><table class="tabla"><thead><tr><th>Componente</th><th>Instalación</th><th>Versión declarada</th></tr></thead><tbody>
+ {% for campo,nombre in [('sistema','Sistema operativo'),('chrome','Google Chrome'),('java','Java / JavaFX'),('python','Python'),('php','PHP'),('antivirus','Antivirus')] %}
+ <tr><td>{{ nombre }}</td><td>{{ (b.versiones or {}).get('instalado_' ~ campo, '—') }}</td><td>{{ (b.versiones or {}).get(campo,'—') or '—' }}</td></tr>{% endfor %}
+ </tbody></table></div></div>
  <div class="tarjeta"><h2>Resultado de verificaciones ({{ b.checklist|length }})</h2><div style="overflow-x:auto"><table class="tabla"><thead><tr><th>Grupo</th><th>Control / CVE</th><th>Resultado</th><th>Observaciones</th></tr></thead><tbody>
  {% for f in b.checklist %}<tr><td>{{ f.grupo_nombre }}</td><td>{{ f.actividad }}</td><td>{{ f.resultado.replace('_',' ') }}</td><td>{{ f.observacion or '—' }}</td></tr>{% endfor %}
  </tbody></table></div></div>
