@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Seguridad Informática - SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+  <div class="encabezado-modulo"><div><h1>🛡️ Seguridad Informática</h1><p>Vulnerabilidades, avisos CERT y verificaciones de equipos institucionales</p></div><a class="boton-secundario" href="{{ url_for('seguridad.inicio') }}">Inventario Tecnológico</a></div>
+  <div class="seg-grid">
+    <article class="tarjeta"><h2>Panel 1 · Vulnerabilidades registradas</h2><p>Alertas del CERT, catálogo CISA de vulnerabilidades explotadas y CVE recientes de severidad alta o crítica de NVD.</p>
+      <p><strong>{{ total }}</strong> registradas · <strong>{{ altas }}</strong> priorizadas</p>
+      <a class="boton" href="{{ url_for('seguridad_operativa.vulnerabilidades') }}">Consultar catálogo</a>
+      {% if current_user.puede_modificar %}<a class="boton-secundario" href="{{ url_for('seguridad_operativa.nueva_vulnerabilidad') }}">+ Registrar aviso CERT</a>{% endif %}
+    </article>
+    <article class="tarjeta"><h2>Panel 2 · Control por computadora</h2><p>Boleta independiente BSI, checklist, cronómetro con pausas, PDF para firmas y seguimiento del inventario.</p>
+      <p><strong>{{ boletas }}</strong> boletas · <strong>{{ pendientes }}</strong> pendientes de cierre</p>
+      <a class="boton" href="{{ url_for('seguridad_operativa.boletas') }}">Ver boletas</a>
+      {% if current_user.puede_modificar %}<a class="boton-secundario" href="{{ url_for('seguridad_operativa.nueva_boleta') }}">+ Nueva boleta BSI</a>
+      <a class="boton-secundario" href="{{ url_for('seguridad_operativa.informe') }}">Exportar informe masivo XLSX</a>{% endif %}
+    </article>
+  </div>
+  <div class="tarjeta"><h2>Estado de fuentes internacionales</h2>
+    <p>La sincronización se ejecuta desde el servidor (tarea programada). Sin conexión externa, el registro manual y las boletas siguen operando.</p>
+    {% if fuentes %}
+    <div style="overflow-x:auto"><table class="tabla"><thead><tr><th>Fuente</th><th>Última actualización correcta (UTC)</th><th>Nuevos en última consulta</th><th>Estado</th></tr></thead><tbody>
+      {% for f in fuentes %}<tr><td>{{ f.fuente }}</td><td>{{ f.ultimo_exito.strftime('%d/%m/%Y %H:%M') if f.ultimo_exito else 'Sin sincronizar' }}</td><td>{{ f.registros_nuevos }}</td><td>{{ f.ultimo_error or 'Correcto' }}</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% else %}<p>Aún no se ha ejecutado el sincronizador diario.</p>{% endif %}
+  </div>
+  <div class="tarjeta"><h2>Últimas vulnerabilidades incorporadas</h2><div style="overflow-x:auto">
+    <table class="tabla"><thead><tr><th>CVE / Fuente</th><th>Producto</th><th>Nombre</th><th>Prioridad</th></tr></thead><tbody>
+    {% for v in recientes %}<tr><td>{{ v.cve or v.fuente }}<br><small>{{ (v.fuentes or [v.fuente])|join(', ') }}</small></td><td>{{ v.producto or 'Sin identificar' }}</td><td>{{ v.titulo }}</td><td>{{ 'Explotación confirmada' if v.explotada else v.severidad }}</td></tr>
+    {% else %}<tr><td colspan="4">No hay vulnerabilidades cargadas.</td></tr>{% endfor %}
+    </tbody></table>
+  </div></div>
+  <p><small>Importante: que un CVE esté en el catálogo no demuestra que una computadora sea vulnerable. La aplicabilidad y las correcciones se documentan por equipo en la boleta BSI.</small></p>
+</section>
+<style>.seg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin:18px 0}.seg-grid .tarjeta{margin:0}.seg-grid .boton,.seg-grid .boton-secundario{display:inline-block;margin:5px 7px 0 0}</style>
+{% endblock %}
