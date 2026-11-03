@@ -166,7 +166,7 @@ def test_boleta_con_cve_cierre_pdf_y_xlsx(entorno):
 
     form = {"accion": "finalizar", "resultado_final": "OPERATIVO",
             "version_sistema": "Windows 11 24H2", "version_chrome": "156.0.8078.80",
-            "instalado_chrome": "SI", "instalado_java": "NO",
+            "instalado_chrome": "SI", "estado_chrome": "ACTUALIZADO", "instalado_java": "NO",
             "instalado_python": "NO", "instalado_php": "NO"}
     form.update({"resultado_" + f["codigo"]: "CUMPLE" for f in b.checklist})
     # Un cierre sin iniciar cronómetro debe rechazarse.
@@ -316,7 +316,7 @@ def test_cve_tech_instalada_requiere_version_y_justificacion_de_no_afecta(entorn
     client.post(f"/seguridad-informatica/boletas/{b.id}/reloj", data={"accion": "iniciar"})
     form = {
         "accion": "finalizar", "resultado_final": "OPERATIVO",
-        "instalado_chrome": "SI", "instalado_java": "NO",
+        "instalado_chrome": "SI", "estado_chrome": "ACTUALIZADO", "instalado_java": "NO",
         "instalado_python": "NO", "instalado_php": "NO",
     }
     form.update({"resultado_" + x["codigo"]: "CUMPLE" for x in b.checklist})
