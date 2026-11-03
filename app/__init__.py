@@ -73,6 +73,8 @@ def create_app():
     )
     from app.routes.seguridad_informatica import seguridad_bp
     from app.routes.mantenimientos import mantenimientos_bp
+    from app.routes.seguridad_operativa import seguridad_operativa_bp
+    from app.routes import seguridad_informes as _seguridad_informes
     from app.services.referencia_rc_re import instalar_deteccion_rc_re
     instalar_deteccion_rc_re()
 
@@ -88,7 +90,29 @@ def create_app():
 
     app.register_blueprint(seguridad_bp)
     app.register_blueprint(mantenimientos_bp)
+    app.register_blueprint(seguridad_operativa_bp)
     instalar_registro_monitoreo(app)
+
+
+    @click.command("seguridad-sincronizar")
+    def seguridad_sincronizar():
+        """Descarga CISA KEV y NVD para el catálogo, fuera del ciclo HTTP."""
+        from app.services.sincronizacion_vulnerabilidades import sincronizar_todo
+        resultados = sincronizar_todo()
+        for resultado in resultados:
+            click.echo(str(resultado))
+        if any("error" in item for item in resultados):
+            raise click.ClickException("Una o más fuentes no se sincronizaron. Revise el panel Seguridad Informática.")
+
+    app.cli.add_command(seguridad_sincronizar)
+
+    @click.command("seguridad-cargar-informes-2026")
+    def seguridad_cargar_informes_2026():
+        """Incorpora metadatos de los 19 CVE de los informes MINGOB de octubre 2026."""
+        from app.services.catalogo_informes_mingob_2026 import cargar_catalogo_octubre_2026
+        click.echo(str(cargar_catalogo_octubre_2026()))
+
+    app.cli.add_command(seguridad_cargar_informes_2026)
 
     @click.command("nexo-revisar")
     def nexo_revisar():
