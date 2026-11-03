@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}{{ b.numero }} · Medidas Prioritarias y Temporales - SICODE-UCT{% endblock %}
+{% block content %}
+<style>
+.med-grupo{margin:14px 0;border:1px solid #40516c;border-radius:11px;overflow:hidden}
+.med-grupo summary{cursor:pointer;padding:14px;background:rgba(38,80,124,.15);font-weight:700}
+.med-lista{padding:12px;display:grid;gap:11px}
+.med-control{border:1px solid #34465c;border-radius:10px;padding:12px}
+.med-control strong{display:block;margin-bottom:9px}
+.med-opciones{display:flex;flex-wrap:wrap;gap:8px}
+.med-opciones label{display:inline-flex;align-items:center;gap:6px;border:1px solid #435676;padding:8px;border-radius:8px;cursor:pointer}
+.med-opciones label:has(input:checked){background:#244977;color:white}
+.med-campos{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:11px}
+.med-campos select,.med-campos input,.med-control input{width:100%}
+</style>
+<section class="panel panel-ancho">
+ <div class="encabezado-modulo"><div><h1>🛡️ {{ b.numero }} · Medidas prioritarias y temporales</h1>
+ <p>{{ b.equipo.codigo }} · {{ b.equipo.nombre }} · {{ b.estado.replace('_',' ') }} · Recomendaciones CERT/MINGOB</p></div>
+ <a class="boton-secundario" href="{{ url_for('seguridad_operativa.detalle_boleta', id_=b.id) }}">Ver boleta</a></div>
+ <div class="tarjeta"><h2>⏱️ Tiempo de revisión</h2>
+ <p><strong id="reloj_medidas" data-segundos="{{ b.segundos() }}" data-activo="{{ 'si' if b.tramo_iniciado_en else 'no' }}">{{ '%02d:%02d:%02d'|format(b.segundos()//3600,(b.segundos()%3600)//60,b.segundos()%60) }}</strong></p>
+ <form method="post" action="{{ url_for('seguridad_operativa.reloj', id_=b.id) }}">
+ <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+ <button class="boton" name="accion" value="{{ 'pausar' if b.tramo_iniciado_en else 'iniciar' }}">{{ '⏸ Pausar' if b.tramo_iniciado_en else '▶ Iniciar / reanudar' }}</button>
+ </form></div>
+ <form method="post" id="form_medidas">
+ <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+ <div class="tarjeta">
+ <h2>1. Diagnóstico y tecnologías instaladas</h2>
+ <p>Marque No instalado solo tras comprobarlo. Las medidas de PHP/Chrome pasarán a No aplica si no existe el componente; las de Java/Python, solo si ninguno de los dos está instalado.</p>
+ <div class="med-campos">
+ {% for clave, titulo in [('chrome','Google Chrome'),('java','Java/JavaFX'),('python','Python'),('php','PHP')] %}
+ <div class="campo"><label for="instalado_{{ clave }}">{{ titulo }} instalado</label>
+ <select name="instalado_{{ clave }}" id="instalado_{{ clave }}">
+ {% for valor, etiqueta in [('NO_VERIFICADO','Por verificar'),('SI','Instalado'),('NO','No instalado')] %}
+ <option value="{{ valor }}" {% if (b.versiones or {}).get('instalado_' ~ clave,'NO_VERIFICADO') == valor %}selected{% endif %}>{{ etiqueta }}</option>{% endfor %}
+ </select></div>
+ <div class="campo"><label for="version_{{ clave }}">Versión {{ titulo }}</label>
+ <input maxlength="100" id="version_{{ clave }}" name="version_{{ clave }}" value="{{ (b.versiones or {}).get(clave, '') }}" placeholder="Versión comprobada"></div>
+ {% endfor %}
+ </div>
+ <div class="campo"><label for="diagnostico_medidas">Motivo de revisión / diagnóstico</label>
+ <textarea id="diagnostico_medidas" name="diagnostico" maxlength="4000" rows="3" style="width:100%">{{ b.diagnostico }}</textarea></div>
+ </div>
+ <div class="tarjeta"><h2>2. Medidas recomendadas por CERT/MINGOB</h2>
+ <p>Solo se listan medidas prioritarias (4.1) y temporales (4.2). Si una medida temporal no es necesaria porque el componente ya fue corregido, use No aplica y explique brevemente la condición.</p>
+ <p id="avance_medidas" aria-live="polite"></p></div>
+ {% set ns = namespace(grupo='', abierto=false) %}
+ {% for fila in checklist %}
+ {% if fila.grupo != ns.grupo %}
+ {% if ns.abierto %}</div></details>{% endif %}
+ {% set ns.grupo=fila.grupo %}{% set ns.abierto=true %}
+ <details class="med-grupo" {% if loop.first %}open{% endif %}>
+ <summary>{{ fila.grupo_nombre }}</summary><div class="med-lista">
+ {% endif %}
+ <div class="med-control">
+ <strong>{{ loop.index }}. {{ fila.actividad }}</strong>
+ <div class="med-opciones" role="radiogroup" aria-label="{{ fila.actividad }}">
+ {% for valor, texto in [('CUMPLE','✓ Cumple / aplicado'),('NO_CUMPLE','✕ No cumple'),('NO_APLICA','— No aplica'),('PENDIENTE','○ Pendiente')] %}
+ <label><input type="radio" name="resultado_{{ fila.codigo }}" value="{{ valor }}" {% if fila.resultado == valor %}checked{% endif %}>{{ texto }}</label>
+ {% endfor %}
+ </div>
+ <input style="margin-top:9px" name="observacion_{{ fila.codigo }}" aria-label="Observación de {{ fila.actividad }}" maxlength="1000" value="{{ fila.observacion }}" placeholder="Evidencia o medida aplicada; obligatorio si No cumple">
+ </div>
+ {% if loop.last %}</div></details>{% endif %}
+ {% endfor %}
+ <div class="tarjeta"><h2>3. Acciones y cierre</h2>
+ <div class="campo"><label for="acciones_medidas">Acciones realizadas / hallazgos pendientes</label>
+ <textarea name="acciones" id="acciones_medidas" maxlength="8000" rows="4" style="width:100%">{{ b.acciones }}</textarea></div>
+ <div class="campo"><label for="resultado_final_medidas">Resultado final</label>
+ <select name="resultado_final" id="resultado_final_medidas">
+ <option value="">Seleccionar resultado</option>
+ {% for valor, texto in [('OPERATIVO','Medidas verificadas / equipo operativo'),('CON_HALLAZGOS','Operativo con hallazgos'),('REQUIERE_INTERVENCION','Requiere intervención')] %}
+ <option value="{{ valor }}" {% if b.resultado_final == valor %}selected{% endif %}>{{ texto }}</option>{% endfor %}
+ </select></div>
+ <label><input type="checkbox" name="requiere_seguimiento" value="si" {% if b.requiere_seguimiento %}checked{% endif %}> Requiere seguimiento posterior</label>
+ <p><button class="boton-secundario" type="submit" name="accion" value="guardar">Guardar avance</button>
+ <button class="boton" type="submit" name="accion" value="finalizar" onclick="return confirm('¿Finalizar la boleta {{ b.numero }}? Quedará en solo lectura con PDF institucional.')">Finalizar y generar PDF</button></p>
+ </div>
+ </form>
+</section>
+<script>
+(()=>{
+ const reloj=document.getElementById('reloj_medidas');
+ if(reloj.dataset.activo==='si'){
+  let s=Number(reloj.dataset.segundos);
+  setInterval(()=>{s++;const p=n=>String(n).padStart(2,'0');reloj.textContent=p(Math.floor(s/3600))+':'+p(Math.floor(s%3600/60))+':'+p(s%60)},1000);
+ }
+ const form=document.getElementById('form_medidas'),avance=document.getElementById('avance_medidas');
+ function actualizar(){
+  const filas=[...form.querySelectorAll('.med-control')];
+  const completos=filas.filter(f=>f.querySelector('input[type=radio]:checked')?.value!=='PENDIENTE').length;
+  avance.textContent='Verificaciones completadas: '+completos+' / '+filas.length;
+ }
+ form.addEventListener('change',actualizar);
+ actualizar();
+})();
+</script>
+{% endblock %}
