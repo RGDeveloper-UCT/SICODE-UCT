@@ -120,6 +120,13 @@ def normalizar_por_instalacion(checklist, versiones, finalizar=False):
     salida = []
     for original in checklist:
         fila = dict(original)
+        grupo_tecnologia = {"java": "java", "python": "python", "php": "php",
+                            "cert_chrome_prioritario": "chrome", "cert_chrome_temporal": "chrome"}
+        if fila.get("grupo") in grupo_tecnologia:
+            componente = grupo_tecnologia[fila["grupo"]]
+            if versiones.get("instalado_" + componente) == "NO":
+                fila["resultado"] = "NO_APLICA"
+                fila["observacion"] = "Componente no instalado; verificación declarada por el técnico."
         if fila.get("grupo") == "vulnerabilidades":
             cve = fila.get("actividad", "").split(" · ", 1)[0]
             tecnologia = fila.get("tecnologia") or tecnologia_del_cve(cve)
