@@ -13,6 +13,8 @@
 .mnt-opcion:has(input:checked){background:#244978;border-color:#70b7ff;color:white}
 .mnt-opcion input{margin:0;accent-color:#7cb9ff;cursor:pointer}
 .mnt-observacion{margin-top:9px;width:100%;max-width:100%}
+
+.seg-versiones{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}.seg-versiones input,.seg-versiones select{width:100%}
 </style>
 <section class="panel panel-ancho">
  <div class="encabezado-modulo"><div><h1>🛡️ {{ b.numero }} · {{ b.equipo.codigo }}</h1><p>{{ b.equipo.nombre }} · {{ b.estado.replace('_',' ') }}</p></div><a class="boton-secundario" href="{{ url_for('seguridad_operativa.boletas') }}">← Historial BSI</a></div>
@@ -22,6 +24,18 @@
  <small>La duración se conserva en el servidor y las pausas no se cuentan.</small></div>
  <div class="tarjeta"><h2>Equipo inventariado</h2><p><strong>SICOIN:</strong> {{ b.equipo.codigo }} · <strong>Serie:</strong> {{ b.equipo.serie or '—' }} · <strong>Marca:</strong> {{ b.equipo.marca or '—' }} · <strong>Modelo:</strong> {{ b.equipo.modelo or '—' }}</p><p><strong>Custodio:</strong> {{ b.equipo.nombre_responsable }} · <strong>Usuario habitual:</strong> {{ b.equipo.nombre_usuario_habitual }}</p></div>
  <form method="post" id="form-seguridad"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+ <div class="tarjeta"><h2>Versiones instaladas y tecnologías verificadas</h2>
+ <p>Documente las versiones comprobadas. Use <b>No instalado</b> o <b>Por verificar</b> cuando corresponda; no atribuya vulnerabilidades sin comprobar versión, componente y exposición.</p>
+ <div class="seg-versiones">
+ <div class="campo"><label for="version_sistema">Sistema operativo / versión</label><input id="version_sistema" name="version_sistema" maxlength="100" value="{{ (b.versiones or {}).get('sistema','') }}" placeholder="Windows 11 24H2, Ubuntu 24.04..."></div>
+ <div class="campo"><label for="version_antivirus">Antivirus / versión</label><input id="version_antivirus" name="version_antivirus" maxlength="100" value="{{ (b.versiones or {}).get('antivirus','') }}" placeholder="Producto y versión"></div>
+ {% for t,nombre in [('chrome','Google Chrome'),('java','Java / JavaFX'),('python','Python'),('php','PHP')] %}
+ <div class="campo"><label for="instalado_{{ t }}">{{ nombre }} instalado</label><select id="instalado_{{ t }}" name="instalado_{{ t }}">
+ {% for clave,etiqueta in [('NO_VERIFICADO','Por verificar'),('SI','Sí'),('NO','No instalado')] %}<option value="{{ clave }}" {% if (b.versiones or {}).get('instalado_' ~ t,'NO_VERIFICADO')==clave %}selected{% endif %}>{{ etiqueta }}</option>{% endfor %}</select></div>
+ <div class="campo"><label for="version_{{ t }}">Versión de {{ nombre }}</label><input id="version_{{ t }}" name="version_{{ t }}" maxlength="100" value="{{ (b.versiones or {}).get(t,'') }}" placeholder="Versión exacta comprobada"></div>
+ {% endfor %}
+ </div></div>
+
  <div class="tarjeta"><h2>1. Diagnóstico inicial</h2><textarea name="diagnostico" maxlength="4000" rows="3" style="width:100%" placeholder="Especifique versión del sistema, navegador o motivo de revisión cuando corresponda.">{{ b.diagnostico }}</textarea></div>
  <p>2. Complete cada control usando botones. <strong>No cumple</strong> exige registrar el hallazgo; <strong>No aplica</strong> sirve para controles que no correspondan al equipo.</p>
  <p id="avance-bsi" aria-live="polite">Verificaciones: 0 / {{ checklist|length }}</p>
