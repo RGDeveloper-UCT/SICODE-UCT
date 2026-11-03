@@ -318,6 +318,12 @@ def editar_boleta(id_):
                 if presente not in {"SI", "NO", "NO_VERIFICADO"}:
                     raise ValueError("Estado de instalación inválido para " + campo)
                 versiones["instalado_" + campo] = presente
+            estado_chrome = _texto("estado_chrome", 20) or "POR_VERIFICAR"
+            if estado_chrome not in {"POR_VERIFICAR", "ACTUALIZADO", "PENDIENTE", "NO_APLICA"}:
+                raise ValueError("Resultado de revisión de Chrome inválido.")
+            if versiones["instalado_chrome"] == "NO":
+                estado_chrome = "NO_APLICA"
+            versiones["estado_chrome"] = estado_chrome
 
             # Se valida del lado del servidor: JavaScript no puede falsificar la ausencia.
             datos = aplicar_ausencias(datos, b.checklist, versiones)
@@ -326,6 +332,10 @@ def editar_boleta(id_):
                 raise ValueError("Resultado final inválido.")
             if accion == "finalizar":
                 validar_finalizacion(validados, versiones)
+                if versiones["instalado_chrome"] == "SI" and estado_chrome in {"POR_VERIFICAR", "NO_APLICA"}:
+                    raise ValueError("Indique si la actualización de Chrome quedó aplicada o pendiente.")
+                if estado_chrome == "PENDIENTE" and resultado == "OPERATIVO":
+                    raise ValueError("Si Chrome tiene actualización pendiente, seleccione resultado con hallazgos o intervención.")
                 if not b.iniciado_en or not resultado:
                     raise ValueError("Para finalizar inicie el reloj y seleccione el resultado final.")
                 if b.tramo_iniciado_en:
@@ -450,7 +460,7 @@ def informe():
     ws.append(["Número", "SICOIN", "Equipo", "Área", "Técnico", "Estado", "Creado",
                "Inicio", "Cierre", "Duración (s)", "Resultado", "Seguimiento",
                "Cumple", "No cumple", "No aplica", "Pendiente", "CVE verificados", "Diagnóstico", "Acciones",
-               "Versión SO", "Versión Chrome", "Versión Java", "Versión Python", "Versión PHP", "Antivirus"])
+               "Versión SO", "Versión Chrome", "Versión Java", "Versión Python", "Versión PHP", "Antivirus", "Revisión Chrome"])
     ws_h = wb.create_sheet("Hallazgos")
     ws_h.append(["Boleta", "SICOIN", "Grupo", "Control / CVE", "Resultado", "Observación"])
     ws_e = wb.create_sheet("Por equipo")
@@ -474,6 +484,7 @@ def informe():
             respuestas.count("PENDIENTE"), ", ".join(f.get("actividad", "").split(" · ", 1)[0] for f in b.checklist if f["codigo"].startswith("cve_")),
             _celda_segura(b.diagnostico), _celda_segura(b.acciones),
             *[_celda_segura((b.versiones or {}).get(f)) for f in ("sistema", "chrome", "java", "python", "php", "antivirus")],
+            _celda_segura((b.versiones or {}).get("estado_chrome")),
         ])
         for f in b.checklist:
             if f.get("resultado") == "NO_CUMPLE":
