@@ -42,6 +42,17 @@ def generar_boleta_seguridad(b):
             ["Custodio", d.get("custodio") or "—", "Usuario habitual", d.get("usuario_habitual") or "—"],
         ], [ancho * .15, ancho * .35, ancho * .17, ancho * .33]),
         Spacer(1, 6),
+        encabezado("VERSIONES Y TECNOLOGÍAS VERIFICADAS", ancho),
+        tabla([
+            [nombre, (b.versiones or {}).get("instalado_" + clave, "—"),
+             (b.versiones or {}).get(clave) or "No registrada"]
+            for clave, nombre in (
+                ("sistema", "Sistema operativo"),
+                ("chrome", "Google Chrome"), ("java", "Java / JavaFX"),
+                ("python", "Python"), ("php", "PHP"), ("antivirus", "Antivirus"),
+            )
+        ], [ancho * .28, ancho * .20, ancho * .52]),
+        Spacer(1, 6),
         encabezado("2. DIAGNÓSTICO / MOTIVO DE INSPECCIÓN", ancho),
         tabla([[b.diagnostico or "Sin diagnóstico adicional."]], [ancho]),
         Spacer(1, 7),
