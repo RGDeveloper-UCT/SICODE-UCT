@@ -82,10 +82,17 @@ class BoletaSeguridadTI(db.Model):
     tramo_iniciado_en = db.Column(db.DateTime)
     segundos_acumulados = db.Column(db.Integer, nullable=False, default=0)
     cerrado_en = db.Column(db.DateTime)
+    # Se conserva el registro y la numeración: eliminación lógica reversible.
+    estado_anterior = db.Column(db.String(20))
+    anulada_en = db.Column(db.DateTime)
+    anulada_por_id = db.Column(db.Integer, db.ForeignKey("usuarios.id", ondelete="RESTRICT"))
+    motivo_anulacion = db.Column(db.String(400))
+
     creado_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     actualizado_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     equipo = db.relationship("EquipoInstitucional")
-    tecnico = db.relationship("Usuario")
+    tecnico = db.relationship("Usuario", foreign_keys=[tecnico_id])
+    anulada_por = db.relationship("Usuario", foreign_keys=[anulada_por_id])
 
     @property
     def numero(self):
@@ -98,7 +105,7 @@ class BoletaSeguridadTI(db.Model):
 
     def cambiar_reloj(self, accion, ahora=None):
         ahora = ahora or datetime.utcnow()
-        if self.estado == "FINALIZADO":
+        if self.estado in ("FINALIZADO", "ANULADA"):
             raise ValueError("La boleta cerrada no admite cambios.")
         if accion == "iniciar":
             if not self.tramo_iniciado_en:

@@ -40,6 +40,55 @@ Cargue un documento por informe: Chrome (9 CVE, informe del 30/10), Java/Python 
 
 La nueva boleta tiene listas de Instalado, No instalado o Por verificar para Chrome, Java, Python y PHP, además de campos de versión de SO, Chrome, Java, Python, PHP y antivirus. Los controles de tecnologías ausentes se pueden marcar No aplica. El PDF y el Excel dejan constancia de las versiones y de los resultados, pero no prueban que SICODE haya escaneado el equipo.
 
+## Actualización BSI v3 — checklist CERT 4.1/4.2 (03/11/2026)
+
+Se contrastó la boleta fotografiada con el checklist anterior. Se integran los numerales
+**4.1 Acciones prioritarias, actividades 1–14** y **4.2 Medidas temporales,
+actividades 16–21**, manteniendo la numeración original (el documento no contiene 15).
+Se eliminan duplicaciones de versión/actualización/reinicio de Chrome de la sección
+genérica; permanecen los controles de otros navegadores, antivirus, firewall, Java,
+Python, PHP y la seguridad del sistema. El PDF conserva las actividades y el detalle de
+cumplimiento u observaciones.
+
+### Selección CERT/MINGOB (19 CVE)
+
+En **Boletas → Nueva**, las CVE de los tres informes oficiales se muestran al principio
+y quedan marcadas por defecto mediante la lista fija del catálogo inicial (no por un
+límite de las últimas 200 entradas CISA/NVD). Botones para marcar/desmarcar las
+19 del CERT; otras CVE son opcionales, con máximo de 30 por boleta.
+Si no están cargadas las 19, aparece una advertencia; el operador puede ejecutar
+la importación idempotente desde el CLI (fuera del navegador). No hay descarga de
+boletines privados desde GitHub.
+
+Si se declara **No instalado** en Chrome, Java, Python o PHP, los controles de esa
+tecnología y sus CVE cambian a **No aplica**, indicando en la observación
+«No instalado». Los controles administrativos de Chrome (1, 3, 4, 5, 14)
+se siguen registrando. El servidor verifica nuevamente las ausencias al
+guardar (no basta con JavaScript). El cierre exige que las cuatro
+tecnologías estén marcadas como **Sí** o **No**; si se confirma instalación
+de una tecnología con CVE seleccionadas, se registra versión comprobada.
+Un CVE **No aplica** con tecnología instalada requiere justificación.
+No se infiere que un CVE esté presente únicamente porque existe la tecnología;
+el técnico debe comparar versión y avisos oficiales.
+
+### Anular/recuperar boletas sin borrado físico
+
+En el detalle (y durante la edición) aparece **Eliminar boleta (anular registro)**,
+con motivo obligatorio de 8–400 caracteres y confirmación.
+Solo el autor puede anular sus boletas abiertas; administradores pueden
+anular también las finalizadas. Visores no tienen permiso.
+La acción detiene el cronómetro, conserva la numeración y el historial,
+y deja auditoría. Las anuladas se excluyen del contador, listado operativo
+e informe XLSX; un administrador puede consultarlas separadamente y
+restaurarlas sin reactivar el cronómetro. Nunca hacer `DELETE` SQL
+ni reutilizar el consecutivo BSI.
+
+**Migración adicional:** `siuct20261103b` depende de `siuct20261103` y añade
+únicamente columnas de anulación. No usar `flask db stamp`.
+Actualizar código y migrar según `scripts/actualizar_servidor_seguro.sh`,
+con copia de seguridad y pruebas antes de desplegar. No activar en
+producción sin revisar el CI del PR.
+
 ## Arquitectura y alcance
 
 El acceso **Módulos SICODE → Seguridad Informática** presenta dos paneles:

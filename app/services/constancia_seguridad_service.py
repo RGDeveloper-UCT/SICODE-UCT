@@ -36,9 +36,10 @@ def generar_boleta_seguridad(b):
         encabezado("1. IDENTIFICACIÓN DEL EQUIPO", ancho),
         tabla([
             ["SICOIN", d.get("codigo") or "—", "Equipo", d.get("nombre") or "—"],
+            ["Hostname", (b.versiones or {}).get("hostname") or "No registrado", "Fecha revisión", FECHA(b.iniciado_en or b.creado_en)],
             ["Tipo", d.get("tipo") or "—", "Marca / modelo", (d.get("marca") or "—") + " / " + (d.get("modelo") or "—")],
             ["Serie", d.get("serie") or "—", "IP", d.get("ip_estatica") or "—"],
-            ["Área", d.get("area") or "—", "Ubicación", d.get("ubicacion") or "—"],
+            ["Dependencia", d.get("area") or "—", "Ubicación", d.get("ubicacion") or "—"],
             ["Custodio", d.get("custodio") or "—", "Usuario habitual", d.get("usuario_habitual") or "—"],
         ], [ancho * .15, ancho * .35, ancho * .17, ancho * .33]),
         Spacer(1, 6),
@@ -51,7 +52,8 @@ def generar_boleta_seguridad(b):
                 ("chrome", "Google Chrome"), ("java", "Java / JavaFX"),
                 ("python", "Python"), ("php", "PHP"), ("antivirus", "Antivirus"),
             )
-        ], [ancho * .28, ancho * .20, ancho * .52]),
+        ] + [["Resultado revisión Chrome", (b.versiones or {}).get("estado_chrome") or "No registrado",
+              "Actualizado / Pendiente / No aplica"]], [ancho * .28, ancho * .20, ancho * .52]),
         Spacer(1, 6),
         encabezado("2. DIAGNÓSTICO / MOTIVO DE INSPECCIÓN", ancho),
         tabla([[b.diagnostico or "Sin diagnóstico adicional."]], [ancho]),
