@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Nueva Boleta de Seguridad - SICODE-UCT{% endblock %}
+{% block content %}
+<section class="panel panel-ancho">
+ <div class="encabezado-modulo"><div><h1>🧾 Nueva Boleta de Seguridad Informática</h1><p>Selección de equipo del inventario maestro y avisos aplicables para verificar</p></div><a class="boton-secundario" href="{{ url_for('seguridad_operativa.boletas') }}">← Historial</a></div>
+ <div class="tarjeta"><p><strong>Inventario único:</strong> la boleta no crea ni modifica la computadora. Si falta el activo, regístrelo primero.</p><a class="boton-secundario" href="{{ url_for('seguridad.nuevo') }}">+ Registrar equipo en Inventario Tecnológico</a></div>
+ <form method="post" class="tarjeta" style="margin-top:16px">
+ <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+ <div class="campo"><label for="filtrar_equipo">Buscar equipo por SICOIN, nombre o usuario</label><input type="search" id="filtrar_equipo" placeholder="Filtrar" autocomplete="off" style="width:100%"></div>
+ <div class="campo"><label for="equipo_id">Computadora del Inventario Tecnológico *</label>
+ <select required name="equipo_id" id="equipo_id" style="width:100%"><option value="">Seleccione un equipo existente</option>
+ {% for e in equipos %}<option value="{{ e.id }}" data-busqueda="{{ (e.codigo ~ ' ' ~ e.nombre ~ ' ' ~ e.nombre_responsable ~ ' ' ~ e.nombre_usuario_habitual)|lower }}">{{ e.codigo }} · {{ e.nombre }} · {{ e.nombre_usuario_habitual }}</option>{% endfor %}
+ </select></div>
+ <p><a class="boton-secundario" href="{{ url_for('seguridad_operativa.informes_seguridad') }}">Consultar los informes del CERT/MINGOB</a></p>
+ <h2>Vulnerabilidades concretas por verificar (opcional)</h2>
+ <p>Marque únicamente las que puedan aplicar al equipo. Cada selección se agrega al checklist BSI. Los demás controles (antivirus, firewall, Chrome, etc.) se incluyen siempre.</p>
+ <div class="campo"><label for="filtrar_cve">Buscar CVE, fabricante o producto</label><input id="filtrar_cve" type="search" placeholder="Ej. Chrome, CVE-2026-" style="width:100%"></div>
+ <div class="seg-seleccion-cve" id="lista_cve" role="group" aria-label="Vulnerabilidades de referencia">
+ {% for v in catalogo %}
+ <label class="seg-cve" data-busqueda="{{ ((v.cve or '') ~ ' ' ~ v.titulo ~ ' ' ~ (v.producto or '') ~ ' ' ~ (v.fabricante or ''))|lower }}">
+  <input type="checkbox" name="vulnerabilidad_ids" value="{{ v.id }}">
+  <span><strong>{{ v.cve or 'Aviso CERT #' ~ v.id }}</strong> · {{ v.titulo }}<br><small>{{ v.producto or 'Producto sin identificar' }} · {{ 'Explotación conocida' if v.explotada else v.severidad }}</small></span>
+ </label>
+ {% else %}<p>Catálogo vacío. Puede crear la boleta sin vincular vulnerabilidades.</p>{% endfor %}
+ </div>
+ <p><small>Máximo 30 vulnerabilidades por boleta. Para las que no se revisen en esta intervención, abra otra boleta posteriormente.</small></p>
+ <button type="submit" class="boton">Crear borrador BSI</button>
+ </form>
+</section>
+<style>.seg-seleccion-cve{max-height:330px;overflow:auto;border:1px solid #42556d;border-radius:12px;padding:10px}.seg-cve{display:flex;align-items:flex-start;gap:10px;padding:9px;border-bottom:1px solid #33445b}.seg-cve:has(input:checked){background:rgba(43,117,191,.2);border-radius:9px}.seg-cve input{margin-top:5px}</style>
+<script>
+(()=>{
+ const equipo=document.getElementById('equipo_id'), buscar=document.getElementById('filtrar_equipo');
+ buscar.addEventListener('input',()=>{const q=buscar.value.toLowerCase().trim();for(const o of equipo.options){if(o.value)o.hidden=!!q&&!o.dataset.busqueda.includes(q)}if(equipo.selectedOptions[0]?.hidden)equipo.value=''});
+ const cve=document.getElementById('filtrar_cve');
+ cve.addEventListener('input',()=>{const q=cve.value.toLowerCase().trim();for(const x of document.querySelectorAll('.seg-cve')){x.hidden=!!q&&!x.dataset.busqueda.includes(q)}});
+ document.querySelector('form').addEventListener('submit',e=>{if(document.querySelectorAll('input[name="vulnerabilidad_ids"]:checked').length>30){e.preventDefault();alert('Seleccione como máximo 30 vulnerabilidades.')}});
+})();
+</script>
+{% endblock %}
