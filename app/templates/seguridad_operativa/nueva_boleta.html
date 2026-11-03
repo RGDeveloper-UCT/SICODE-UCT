@@ -22,6 +22,12 @@
    {% for v in cert %}<div class="seg-cve"><span><strong>{{ v.cve }}</strong> · {{ v.titulo }}<br><small>{{ v.producto or 'Tecnología por verificar' }}</small></span></div>{% else %}<p>El catálogo institucional aún no se ha cargado.</p>{% endfor %}
   </div>
  </details>
+ <div class="tarjeta" style="margin:14px 0;border:1px solid #417da8">
+ <h2>🛡️ Medidas prioritarias y temporales</h2>
+ <p><strong>Otro formulario de Seguridad Informática.</strong> Permite verificar únicamente las recomendaciones 4.1 y 4.2 de los informes de Google Chrome, Java/Python y PHP, sin repetir los 64 controles ni cada CVE por separado.</p>
+ <p>Se genera una boleta distinta con el <strong>mismo correlativo BSI</strong>, cronómetro y PDF institucional en un formato específico para estas medidas.</p>
+ <a class="boton" id="enlace_nueva_medidas" href="{{ url_for('seguridad_operativa.nueva_boleta_medidas') }}">Crear boleta de Medidas Prioritarias y Temporales</a>
+ </div>
  <h2>Otras vulnerabilidades (opcionales)</h2>
  <p>Puede añadir hasta 11 CVE adicionales del catálogo mundial, sin duplicar el lote institucional.</p>
  <div class="campo"><label for="filtrar_cve">Buscar CVE, fabricante o producto</label><input id="filtrar_cve" type="search" placeholder="Ej. Chrome, CVE-2026-" style="width:100%"></div>
@@ -42,6 +48,10 @@
 (()=>{
  const equipo=document.getElementById('equipo_id'), buscar=document.getElementById('filtrar_equipo');
  buscar.addEventListener('input',()=>{const q=buscar.value.toLowerCase().trim();for(const o of equipo.options){if(o.value)o.hidden=!!q&&!o.dataset.busqueda.includes(q)}if(equipo.selectedOptions[0]?.hidden)equipo.value=''});
+ const enlaceMedidas=document.getElementById('enlace_nueva_medidas');
+ const urlBase=enlaceMedidas.href;
+ equipo.addEventListener('change',()=>{enlaceMedidas.href=equipo.value ? urlBase+'?equipo_id='+encodeURIComponent(equipo.value) : urlBase});
+ if(equipo.value)enlaceMedidas.href=urlBase+'?equipo_id='+encodeURIComponent(equipo.value);
  const cve=document.getElementById('filtrar_cve');
  cve.addEventListener('input',()=>{const q=cve.value.toLowerCase().trim();for(const x of document.querySelectorAll('.seg-cve')){x.hidden=!!q&&!x.dataset.busqueda.includes(q)}});
  document.querySelector('form').addEventListener('submit',e=>{if(document.querySelectorAll('input[name="vulnerabilidad_ids"]:checked').length>11){e.preventDefault();alert('Seleccione como máximo 11 CVE adicionales.')}});
