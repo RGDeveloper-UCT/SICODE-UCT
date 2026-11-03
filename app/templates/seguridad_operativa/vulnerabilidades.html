@@ -3,7 +3,7 @@
 {% block content %}
 <section class="panel panel-ancho">
  <div class="encabezado-modulo"><div><h1>🛡️ Vulnerabilidades registradas</h1><p>Consulta de avisos CERT, CISA KEV y NVD. No implica exposición verificada en la institución.</p></div><a class="boton-secundario" href="{{ url_for('seguridad_operativa.inicio') }}">← Seguridad Informática</a></div>
- {% if current_user.puede_modificar %}<p><a class="boton" href="{{ url_for('seguridad_operativa.nueva_vulnerabilidad') }}">+ Incorporar aviso CERT</a></p>{% endif %}
+ {% if current_user.puede_modificar %}<p><a class="boton" href="{{ url_for('seguridad_operativa.nueva_vulnerabilidad') }}">+ Incorporar aviso CERT</a> <a class="boton-secundario" href="{{ url_for('seguridad_operativa.nuevo_informe') }}">+ Cargar informe con varios CVE</a></p>{% endif %}
  <form method="get" class="tarjeta" style="display:flex;gap:10px;flex-wrap:wrap">
   <input type="search" name="q" maxlength="120" value="{{ q }}" placeholder="Buscar CVE, fabricante, producto o descripción" style="flex:1;min-width:220px">
   <select name="fuente" aria-label="Filtrar fuente"><option value="">Todas las fuentes</option>{% for f in ['CERT','CISA_KEV','NVD'] %}<option value="{{ f }}" {% if fuente==f %}selected{% endif %}>{{ f }}</option>{% endfor %}</select>
@@ -12,7 +12,7 @@
  <div class="tarjeta"><p>{{ registros.total }} registros · Página {{ registros.page }} de {{ registros.pages or 1 }}</p>
  <div style="overflow-x:auto"><table class="tabla"><thead><tr><th>CVE / origen</th><th>Vulnerabilidad</th><th>Producto</th><th>Prioridad</th><th>Fecha</th><th>Documento</th></tr></thead><tbody>
  {% for v in registros.items %}
- <tr><td><strong>{{ v.cve or 'Aviso CERT' }}</strong><br><small>{{ (v.fuentes or [v.fuente])|join(', ') }}</small></td>
+ <tr><td><strong>{{ v.cve or 'Aviso CERT' }}</strong><br><small>{{ (v.fuentes or [v.fuente])|join(', ') }}</small>{% for i in v.informes %}<br><a href="{{ url_for('seguridad_operativa.descargar_informe', id_=i.id) }}">Informe recibido {{ i.id }}</a>{% endfor %}</td>
  <td><strong>{{ v.titulo }}</strong><br><small>{{ v.descripcion[:350] if v.descripcion else 'Sin descripción' }}</small><br>
  <small><b>Recomendación:</b> {{ v.recomendacion[:350] if v.recomendacion else 'Validar en fuente oficial' }}</small>
  {% if v.referencia %}<br><a href="{{ v.referencia }}" target="_blank" rel="noopener noreferrer">Fuente oficial / referencia</a>{% endif %}
