@@ -137,7 +137,7 @@ def nuevo_informe():
     return render_template("seguridad_operativa/nuevo_informe.html", tecnologias=sorted(TECNOLOGIAS))
 
 
-@seguridad_operativa_bp.get("/informes/<int:id_>/archivo")
+@seguridad_operativa_bp.get("/informes/<int:id_>/archivo", endpoint="archivo_informe")
 @login_required
 def descargar_informe(id_):
     informe = db.get_or_404(InformeSeguridadTI, id_)
