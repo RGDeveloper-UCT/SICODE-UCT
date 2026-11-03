@@ -327,7 +327,9 @@ def test_anulacion_auditada_no_reutiliza_folio_ni_aparece_en_informes(entorno):
     assert b.tramo_iniciado_en is None
     assert client.post(f"/seguridad-informatica/boletas/{b.id}/eliminar",
                        data={"motivo": "repetido"}).status_code == 302
-    assert client.get("/seguridad-informatica/boletas").data.count(numero.encode()) == 0
+    listado = client.get("/seguridad-informatica/boletas").data
+    # Flash puede mencionar el folio anulado; comprobar únicamente filas de la tabla.
+    assert numero.encode() not in listado.split(b"<tbody>", 1)[1].split(b"</tbody>", 1)[0]
     assert numero.encode() in client.get("/seguridad-informatica/boletas?anuladas=1").data
     libro = load_workbook(BytesIO(client.get("/seguridad-informatica/boletas/informe.xlsx").data), read_only=True)
     assert libro["Boletas"].max_row == 1
