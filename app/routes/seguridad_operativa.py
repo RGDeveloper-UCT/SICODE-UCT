@@ -271,6 +271,15 @@ def editar_boleta(id_):
             diagnostico = _texto("diagnostico", 4000)
             acciones = _texto("acciones", 8000)
             resultado = _texto("resultado_final", 30) or None
+            versiones = {}
+            for campo in ("sistema", "chrome", "java", "python", "php", "antivirus"):
+                versiones[campo] = _texto("version_" + campo, 100)
+            for campo in ("chrome", "java", "python", "php"):
+                presente = _texto("instalado_" + campo, 16) or "NO_VERIFICADO"
+                if presente not in {"SI", "NO", "NO_VERIFICADO"}:
+                    raise ValueError("Estado de instalación inválido para " + campo)
+                versiones["instalado_" + campo] = presente
+
             if resultado and resultado not in RESULTADOS:
                 raise ValueError("Resultado final inválido.")
             if accion == "finalizar":
@@ -284,6 +293,7 @@ def editar_boleta(id_):
             b.checklist = validados
             b.diagnostico = diagnostico
             b.acciones = acciones
+            b.versiones = versiones
             b.resultado_final = resultado
             b.requiere_seguimiento = request.form.get("requiere_seguimiento") == "si"
             _auditoria("FINALIZAR_BOLETA_SEGURIDAD" if accion == "finalizar" else "GUARDAR_BOLETA_SEGURIDAD",
@@ -345,7 +355,8 @@ def informe():
     ws.title = "Boletas"
     ws.append(["Número", "SICOIN", "Equipo", "Área", "Técnico", "Estado", "Creado",
                "Inicio", "Cierre", "Duración (s)", "Resultado", "Seguimiento",
-               "Cumple", "No cumple", "No aplica", "Pendiente", "CVE verificados", "Diagnóstico", "Acciones"])
+               "Cumple", "No cumple", "No aplica", "Pendiente", "CVE verificados", "Diagnóstico", "Acciones",
+               "Versión SO", "Versión Chrome", "Versión Java", "Versión Python", "Versión PHP", "Antivirus"])
     ws_h = wb.create_sheet("Hallazgos")
     ws_h.append(["Boleta", "SICOIN", "Grupo", "Control / CVE", "Resultado", "Observación"])
     ws_e = wb.create_sheet("Por equipo")
@@ -364,8 +375,9 @@ def informe():
             b.cerrado_en.isoformat(sep=" ", timespec="minutes") if b.cerrado_en else "",
             b.segundos(), b.resultado_final or "", "Sí" if b.requiere_seguimiento else "No",
             respuestas.count("CUMPLE"), respuestas.count("NO_CUMPLE"), respuestas.count("NO_APLICA"),
-            respuestas.count("PENDIENTE"), ", ".join(f["codigo"][4:] for f in b.checklist if f["codigo"].startswith("cve_")),
+            respuestas.count("PENDIENTE"), ", ".join(f.get("actividad", "").split(" · ", 1)[0] for f in b.checklist if f["codigo"].startswith("cve_")),
             _celda_segura(b.diagnostico), _celda_segura(b.acciones),
+            *[_celda_segura((b.versiones or {}).get(f)) for f in ("sistema", "chrome", "java", "python", "php", "antivirus")],
         ])
         for f in b.checklist:
             if f.get("resultado") == "NO_CUMPLE":
