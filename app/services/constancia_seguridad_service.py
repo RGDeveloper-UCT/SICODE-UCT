@@ -36,7 +36,7 @@ def generar_boleta_seguridad(b):
         encabezado("1. IDENTIFICACIÓN DEL EQUIPO", ancho),
         tabla([
             ["SICOIN", d.get("codigo") or "—", "Equipo", d.get("nombre") or "—"],
-            ["Hostname", (b.versiones or {}).get("hostname") or "No registrado", "Fecha revisión", FECHA(b.creado_en)],
+            ["Hostname", (b.versiones or {}).get("hostname") or "No registrado", "Fecha revisión", FECHA(b.iniciado_en or b.creado_en)],
             ["Tipo", d.get("tipo") or "—", "Marca / modelo", (d.get("marca") or "—") + " / " + (d.get("modelo") or "—")],
             ["Serie", d.get("serie") or "—", "IP", d.get("ip_estatica") or "—"],
             ["Dependencia", d.get("area") or "—", "Ubicación", d.get("ubicacion") or "—"],
