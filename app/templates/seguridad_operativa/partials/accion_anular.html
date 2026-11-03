@@ -3,7 +3,7 @@
  <h2>Boleta anulada (conservada en auditoría)</h2>
  <p><strong>Motivo:</strong> {{ b.motivo_anulacion or '—' }}</p>
  <p><strong>Anulada el:</strong> {{ b.anulada_en.strftime('%d/%m/%Y %H:%M') if b.anulada_en else '—' }}</p>
- {% if current_user.rol == 'ADMINISTRADOR' %}
+ {% if current_user.rol == 'administrador' %}
  <form method="post" action="{{ url_for('seguridad_operativa.restaurar_boleta', id_=b.id) }}" onsubmit="return confirm('¿Restaurar la boleta {{ b.numero }}?')">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <button type="submit" class="boton-secundario">Restaurar boleta</button>
