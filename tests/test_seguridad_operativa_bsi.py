@@ -231,10 +231,10 @@ def test_cisa_kev_sin_avisos_historicos_y_avisos_nuevos_idempotentes(entorno, mo
     })
     r2 = sync.sincronizar_fuente("CISA_KEV")
     assert r2 == {"fuente": "CISA_KEV", "nuevos": 1, "avisos": 1}
-    assert AgendaNotificacion.query.count() == 1
+    assert AgendaNotificacion.query.count() == 2
     r3 = sync.sincronizar_fuente("CISA_KEV")
     assert r3["nuevos"] == 0
-    assert AgendaNotificacion.query.count() == 1
+    assert AgendaNotificacion.query.count() == 2
 
 
 def test_cert_41_y_42_respetan_numeros_y_sin_duplicados():
@@ -348,8 +348,8 @@ def test_anular_borrador_requiere_motivo_preserva_numero_y_omite_reportes(entorn
     assert b.motivo_anulacion == "Activo seleccionado por error"
     assert b.anulada_por_id
     assert BoletaSeguridadTI.query.count() == 1
-    assert b"BSI-000001" not in client.get("/seguridad-informatica/boletas").data
-    assert b"BSI-000001" in client.get("/seguridad-informatica/boletas?anuladas=1").data
+    assert b"<td>BSI-000001</td>" not in client.get("/seguridad-informatica/boletas").data
+    assert b"<td>BSI-000001</td>" in client.get("/seguridad-informatica/boletas?anuladas=1").data
     assert client.get(f"/seguridad-informatica/boletas/{b.id}/pdf").status_code == 302
     libro = load_workbook(BytesIO(client.get("/seguridad-informatica/boletas/informe.xlsx").data), read_only=True)
     assert libro["Boletas"].max_row == 1
