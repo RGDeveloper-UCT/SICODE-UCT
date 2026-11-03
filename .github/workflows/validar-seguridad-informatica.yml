@@ -9,6 +9,7 @@ on:
   push:
     branches:
       - feature/seguridad-vulnerabilidades-boletas-20261103
+      - feature/integracion-hashpass-seguridad-20261103
   workflow_dispatch:
 
 jobs:
@@ -30,5 +31,5 @@ jobs:
         run: python -m compileall -q app migrations tests
       - name: Validar árbol de migraciones
         run: python -m flask --app run.py db heads
-      - name: Pruebas BSI, Inventario, Soporte, Agenda y CSRF
-        run: pytest -q tests/test_seguridad_operativa_bsi.py tests/test_mantenimientos_control09.py tests/test_seguridad_inventario_09.py tests/test_soporte_tecnico.py tests/test_agenda_uct.py tests/test_csrf_referer.py
+      - name: Pruebas BSI, HashPass, Inventario, Soporte, Agenda y CSRF
+        run: pytest -q tests/test_seguridad_operativa_bsi.py tests/test_hashpass.py tests/test_mantenimientos_control09.py tests/test_seguridad_inventario_09.py tests/test_soporte_tecnico.py tests/test_agenda_uct.py tests/test_csrf_referer.py
