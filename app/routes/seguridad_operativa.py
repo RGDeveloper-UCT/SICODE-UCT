@@ -238,7 +238,8 @@ def nueva_boleta():
     cert = VulnerabilidadTI.query.filter(VulnerabilidadTI.cve.in_(CVE_CERT_19)).order_by(
         VulnerabilidadTI.cve).all()
     otros = VulnerabilidadTI.query.filter(
-        ~VulnerabilidadTI.cve.in_(CVE_CERT_19)
+        or_(VulnerabilidadTI.cve.is_(None),
+            ~VulnerabilidadTI.cve.in_(CVE_CERT_19))
     ).order_by(VulnerabilidadTI.explotada.desc(),
                VulnerabilidadTI.creado_en.desc()).limit(100).all()
     catalogo = cert + otros
