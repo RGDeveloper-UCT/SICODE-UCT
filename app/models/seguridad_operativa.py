@@ -91,7 +91,8 @@ class BoletaSeguridadTI(db.Model):
     creado_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     actualizado_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     equipo = db.relationship("EquipoInstitucional")
-    tecnico = db.relationship("Usuario")
+    tecnico = db.relationship("Usuario", foreign_keys=[tecnico_id])
+    anulada_por = db.relationship("Usuario", foreign_keys=[anulada_por_id])
 
     @property
     def numero(self):
