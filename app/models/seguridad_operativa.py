@@ -69,6 +69,7 @@ class BoletaSeguridadTI(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     equipo_id = db.Column(db.Integer, db.ForeignKey("equipos_institucionales.id", ondelete="RESTRICT"), nullable=False, index=True)
     tecnico_id = db.Column(db.Integer, db.ForeignKey("usuarios.id", ondelete="RESTRICT"), nullable=False)
+    tipo_boleta = db.Column(db.String(20), nullable=False, default="INTEGRAL", server_default="INTEGRAL")
     estado = db.Column(db.String(20), nullable=False, default="BORRADOR", index=True)
     checklist_version = db.Column(db.Integer, nullable=False, default=1)
     checklist = db.Column(db.JSON, nullable=False, default=list)
