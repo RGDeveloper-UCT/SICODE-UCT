@@ -106,6 +106,14 @@ def create_app():
 
     app.cli.add_command(seguridad_sincronizar)
 
+    @click.command("seguridad-cargar-informes-2026")
+    def seguridad_cargar_informes_2026():
+        """Incorpora metadatos de los 19 CVE de los informes MINGOB de octubre 2026."""
+        from app.services.catalogo_informes_mingob_2026 import cargar_catalogo_octubre_2026
+        click.echo(str(cargar_catalogo_octubre_2026()))
+
+    app.cli.add_command(seguridad_cargar_informes_2026)
+
     @click.command("nexo-revisar")
     def nexo_revisar():
         """Analiza NEXO de manera controlada; invocable desde systemd/cron."""
