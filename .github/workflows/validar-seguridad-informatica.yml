@@ -10,6 +10,7 @@ on:
     branches:
       - feature/seguridad-vulnerabilidades-boletas-20261103
       - feature/integracion-hashpass-seguridad-20261103
+      - feature/bsi-cert19-controles-anulacion-20261103
   workflow_dispatch:
 
 jobs:
