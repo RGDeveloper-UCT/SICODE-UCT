@@ -7,8 +7,9 @@
   <p><strong>Equipo:</strong> {{ b.datos_equipo.codigo }} · {{ b.datos_equipo.nombre }} · <strong>Técnico:</strong> {{ b.tecnico.nombre }}</p>
   <p><strong>Estado:</strong> {{ b.estado }} · <strong>Duración:</strong> {{ '%02d:%02d:%02d'|format(b.segundos()//3600,(b.segundos()%3600)//60,b.segundos()%60) }} · <strong>Resultado:</strong> {{ b.resultado_final or 'Pendiente' }}</p>
   <p><strong>Diagnóstico:</strong> {{ b.diagnostico or '—' }} · <strong>Acciones:</strong> {{ b.acciones or '—' }} · <strong>Seguimiento:</strong> {{ 'Sí' if b.requiere_seguimiento else 'No' }}</p>
-  {% if b.estado == 'FINALIZADO' %}<a class="boton" href="{{ url_for('seguridad_operativa.boleta_pdf', id_=b.id) }}">📄 Descargar Boleta BSI PDF</a>{% elif current_user.puede_modificar %}<a class="boton" href="{{ url_for('seguridad_operativa.editar_boleta', id_=b.id) }}">Continuar checklist</a>{% endif %}
+  {% if b.estado == 'FINALIZADO' %}<a class="boton" href="{{ url_for('seguridad_operativa.boleta_pdf', id_=b.id) }}">📄 Descargar Boleta BSI PDF</a>{% elif b.estado != 'ANULADA' and current_user.puede_modificar %}<a class="boton" href="{{ url_for('seguridad_operativa.editar_boleta', id_=b.id) }}">Continuar checklist</a>{% endif %}
  </div>
+ <div class="tarjeta"><h2>Identificación complementaria CERT</h2><p><strong>Dependencia:</strong> {{ (b.datos_equipo or {}).get("area") or "—" }} · <strong>Hostname:</strong> {{ (b.versiones or {}).get("hostname") or "—" }} · <strong>IP:</strong> {{ (b.datos_equipo or {}).get("ip_estatica") or "—" }} · <strong>Fecha de revisión:</strong> {{ b.creado_en.strftime("%d/%m/%Y") if b.creado_en else "—" }}</p></div>
  <div class="tarjeta"><h2>Versiones técnicas registradas</h2>
  <div style="overflow-x:auto"><table class="tabla"><thead><tr><th>Componente</th><th>Instalación</th><th>Versión declarada</th></tr></thead><tbody>
  {% for campo,nombre in [('sistema','Sistema operativo'),('chrome','Google Chrome'),('java','Java / JavaFX'),('python','Python'),('php','PHP'),('antivirus','Antivirus')] %}
@@ -17,4 +18,5 @@
  <div class="tarjeta"><h2>Resultado de verificaciones ({{ b.checklist|length }})</h2><div style="overflow-x:auto"><table class="tabla"><thead><tr><th>Grupo</th><th>Control / CVE</th><th>Resultado</th><th>Observaciones</th></tr></thead><tbody>
  {% for f in b.checklist %}<tr><td>{{ f.grupo_nombre }}</td><td>{{ f.actividad }}</td><td>{{ f.resultado.replace('_',' ') }}</td><td>{{ f.observacion or '—' }}</td></tr>{% endfor %}
  </tbody></table></div></div>
+{% include "seguridad_operativa/partials/accion_anular.html" %}
 </section>{% endblock %}
