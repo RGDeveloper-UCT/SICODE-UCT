@@ -24,6 +24,35 @@ class VulnerabilidadTI(db.Model):
     actualizado_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+informe_vulnerabilidad_ti = db.Table(
+    "informe_vulnerabilidad_ti",
+    db.Column("informe_id", db.Integer, db.ForeignKey("informes_seguridad_ti.id", ondelete="CASCADE"),
+              primary_key=True),
+    db.Column("vulnerabilidad_id", db.Integer, db.ForeignKey("vulnerabilidades_ti.id", ondelete="RESTRICT"),
+              primary_key=True),
+)
+
+
+class InformeSeguridadTI(db.Model):
+    """Un informe CERT/MINGOB puede vincularse a varios CVE sin duplicarlos."""
+    __tablename__ = "informes_seguridad_ti"
+    id = db.Column(db.Integer, primary_key=True)
+    titulo = db.Column(db.String(220), nullable=False)
+    emisor = db.Column(db.String(160), nullable=False, default="CERT MINGOB")
+    tecnologia = db.Column(db.String(40), nullable=False)
+    fecha_informe = db.Column(db.Date)
+    fecha_recibido = db.Column(db.Date)
+    resumen = db.Column(db.Text, nullable=False, default="")
+    archivo_nombre = db.Column(db.String(80), nullable=False, unique=True)
+    nombre_original = db.Column(db.String(180), nullable=False)
+    sha256 = db.Column(db.String(64), nullable=False, unique=True, index=True)
+    creado_por_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False)
+    creado_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    creador = db.relationship("Usuario")
+    vulnerabilidades = db.relationship("VulnerabilidadTI", secondary=informe_vulnerabilidad_ti,
+                                        backref="informes", lazy="select")
+
+
 class SincronizacionVulnerabilidadesTI(db.Model):
     __tablename__ = "sincronizaciones_vulnerabilidades_ti"
     id = db.Column(db.Integer, primary_key=True)
@@ -44,6 +73,7 @@ class BoletaSeguridadTI(db.Model):
     checklist_version = db.Column(db.Integer, nullable=False, default=1)
     checklist = db.Column(db.JSON, nullable=False, default=list)
     datos_equipo = db.Column(db.JSON, nullable=False, default=dict)
+    versiones = db.Column(db.JSON, nullable=False, default=dict)
     diagnostico = db.Column(db.Text, nullable=False, default="")
     acciones = db.Column(db.Text, nullable=False, default="")
     resultado_final = db.Column(db.String(30))
