@@ -12,7 +12,7 @@
  <div class="tarjeta"><p>{{ registros.total }} registros · Página {{ registros.page }} de {{ registros.pages or 1 }}</p>
  <div style="overflow-x:auto"><table class="tabla"><thead><tr><th>CVE / origen</th><th>Vulnerabilidad</th><th>Producto</th><th>Prioridad</th><th>Fecha</th><th>Documento</th></tr></thead><tbody>
  {% for v in registros.items %}
- <tr><td><strong>{{ v.cve or 'Aviso CERT' }}</strong><br><small>{{ (v.fuentes or [v.fuente])|join(', ') }}</small>{% for i in v.informes %}<br><a href="{{ url_for('seguridad_operativa.descargar_informe', id_=i.id) }}">Informe recibido {{ i.id }}</a>{% endfor %}</td>
+ <tr><td><strong>{{ v.cve or 'Aviso CERT' }}</strong><br><small>{{ (v.fuentes or [v.fuente])|join(', ') }}</small>{% for i in v.informes %}<br><a href="{{ url_for('seguridad_operativa.archivo_informe', id_=i.id) }}">Informe recibido {{ i.id }}</a>{% endfor %}</td>
  <td><strong>{{ v.titulo }}</strong><br><small>{{ v.descripcion[:350] if v.descripcion else 'Sin descripción' }}</small><br>
  <small><b>Recomendación:</b> {{ v.recomendacion[:350] if v.recomendacion else 'Validar en fuente oficial' }}</small>
  {% if v.referencia %}<br><a href="{{ v.referencia }}" target="_blank" rel="noopener noreferrer">Fuente oficial / referencia</a>{% endif %}
