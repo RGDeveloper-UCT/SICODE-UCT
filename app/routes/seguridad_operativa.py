@@ -19,15 +19,17 @@ from app.models.seguridad_operativa import BoletaSeguridadTI, VulnerabilidadTI, 
 from app.services.agenda_service import notificar
 from app.models.usuario import Usuario
 from app.services.bitacora_service import registrar_bitacora
-from app.services.checklist_seguridad import VERSION, plantilla, validar_resultados, validar_finalizacion
+from app.services.checklist_seguridad import VERSION, plantilla, validar_resultados, validar_finalizacion, normalizar_por_instalacion
 from app.services.constancia_seguridad_service import generar_boleta_seguridad
 from app.services.sincronizacion_vulnerabilidades import CVE_PATTERN
+from app.services.catalogo_informes_mingob_2026 import AVISOS
 
 seguridad_operativa_bp = Blueprint("seguridad_operativa", __name__, url_prefix="/seguridad-informatica")
 SEVERIDADES = {"CRITICA", "ALTA", "MEDIA", "BAJA", "DESCONOCIDA"}
 RESULTADOS = {"OPERATIVO", "CON_HALLAZGOS", "REQUIERE_INTERVENCION"}
 TIPOS_EQUIPO = {"COMPUTADORA", "PORTATIL", "SERVIDOR", "TABLETA"}
 TAMANO_PDF_MAXIMO = 8 * 1024 * 1024
+CERT_19_CVES = tuple(fila[0] for grupo in AVISOS.values() for fila in grupo)
 
 
 def _escritura():
@@ -84,8 +86,8 @@ def inicio():
     altas = VulnerabilidadTI.query.filter(
         or_(VulnerabilidadTI.explotada.is_(True), VulnerabilidadTI.severidad.in_(("ALTA", "CRITICA")))
     ).count()
-    boletas = BoletaSeguridadTI.query.count()
-    pendientes = BoletaSeguridadTI.query.filter(BoletaSeguridadTI.estado != "FINALIZADO").count()
+    boletas = BoletaSeguridadTI.query.filter(BoletaSeguridadTI.estado != "ANULADA").count()
+    pendientes = BoletaSeguridadTI.query.filter(BoletaSeguridadTI.estado.notin_(("FINALIZADO", "ANULADA"))).count()
     recientes = VulnerabilidadTI.query.order_by(VulnerabilidadTI.creado_en.desc(), VulnerabilidadTI.id.desc()).limit(8).all()
     fuentes = SincronizacionVulnerabilidadesTI.query.order_by(SincronizacionVulnerabilidadesTI.fuente).all()
     return render_template("seguridad_operativa/inicio.html", total=total, altas=altas,
@@ -198,13 +200,16 @@ def aviso_pdf(id_):
 @login_required
 def boletas():
     q = request.args.get("q", "").strip()[:120]
+    mostrar_anuladas = request.args.get("anuladas") == "1" and current_user.rol == Usuario.ROL_ADMINISTRADOR
     consulta = BoletaSeguridadTI.query.join(EquipoInstitucional)
+    consulta = consulta.filter(BoletaSeguridadTI.estado == "ANULADA" if mostrar_anuladas else
+                               BoletaSeguridadTI.estado != "ANULADA")
     if q:
         consulta = consulta.filter(or_(EquipoInstitucional.codigo.ilike(f"%{q}%"),
                                       EquipoInstitucional.nombre.ilike(f"%{q}%")))
     page = max(1, request.args.get("page", 1, type=int))
     registros = consulta.order_by(BoletaSeguridadTI.id.desc()).paginate(page=page, per_page=25, error_out=False)
-    return render_template("seguridad_operativa/boletas.html", registros=registros, q=q)
+    return render_template("seguridad_operativa/boletas.html", registros=registros, q=q, mostrar_anuladas=mostrar_anuladas)
 
 
 @seguridad_operativa_bp.route("/boletas/nueva", methods=["GET", "POST"])
@@ -213,21 +218,33 @@ def nueva_boleta():
     _escritura()
     equipos = EquipoInstitucional.query.filter(EquipoInstitucional.tipo.in_(TIPOS_EQUIPO)).order_by(
         EquipoInstitucional.codigo).all()
-    catalogo = VulnerabilidadTI.query.order_by(VulnerabilidadTI.explotada.desc(),
-                        VulnerabilidadTI.creado_en.desc()).limit(200).all()
+    # Los 19 CVE del informe CERT se cargan como lote predeterminado,
+    # aunque el catálogo mundial ya haya superado sus primeros 200 resultados.
+    cert = VulnerabilidadTI.query.filter(VulnerabilidadTI.cve.in_(CERT_19_CVES)).all()
+    cert.sort(key=lambda v: CERT_19_CVES.index(v.cve))
+    catalogo = VulnerabilidadTI.query.filter(
+        ~VulnerabilidadTI.cve.in_(CERT_19_CVES)
+    ).order_by(VulnerabilidadTI.explotada.desc(),
+               VulnerabilidadTI.creado_en.desc()).limit(100).all()
     if request.method == "POST":
         try:
             equipo = db.session.get(EquipoInstitucional, int(request.form.get("equipo_id", "")))
             if equipo is None or equipo.tipo not in TIPOS_EQUIPO:
                 raise ValueError("Seleccione un equipo informático existente del inventario.")
             bruto = request.form.getlist("vulnerabilidad_ids")
-            if len(bruto) > 30 or len(set(bruto)) != len(bruto):
-                raise ValueError("Seleccione hasta 30 vulnerabilidades distintas.")
+            if len(bruto) > 11 or len(set(bruto)) != len(bruto):
+                raise ValueError("Seleccione hasta 11 vulnerabilidades adicionales distintas.")
             ids = [int(x) for x in bruto]
-            seleccionadas = VulnerabilidadTI.query.filter(VulnerabilidadTI.id.in_(ids)).order_by(
-                VulnerabilidadTI.id).all() if ids else []
-            if len(ids) != len(seleccionadas):
+            extras = VulnerabilidadTI.query.filter(VulnerabilidadTI.id.in_(ids)).all() if ids else []
+            if len(extras) != len(ids):
                 raise ValueError("Hay vulnerabilidades inexistentes en la selección.")
+            incluir_cert = request.form.get("incluir_cert_19") == "si"
+            seleccionadas = list(cert) if incluir_cert else []
+            ids_ya = {v.id for v in seleccionadas}
+            seleccionadas.extend(v for v in extras if v.id not in ids_ya)
+            if len(seleccionadas) > 30:
+                raise ValueError("Límite de 30 CVE por boleta.")
+
             b = BoletaSeguridadTI(
                 equipo_id=equipo.id, tecnico_id=current_user.id, estado="BORRADOR",
                 checklist_version=VERSION, checklist=plantilla(seleccionadas),
@@ -241,7 +258,7 @@ def nueva_boleta():
         except (ValueError, TypeError) as error:
             db.session.rollback()
             flash(str(error), "warning")
-    return render_template("seguridad_operativa/nueva_boleta.html", equipos=equipos, catalogo=catalogo)
+    return render_template("seguridad_operativa/nueva_boleta.html", equipos=equipos, catalogo=catalogo, cert=cert)
 
 
 @seguridad_operativa_bp.get("/boletas/<int:id_>")
@@ -256,7 +273,7 @@ def detalle_boleta(id_):
 def editar_boleta(id_):
     _escritura()
     b = db.get_or_404(BoletaSeguridadTI, id_)
-    if b.estado == "FINALIZADO":
+    if b.estado in {"FINALIZADO", "ANULADA"}:
         flash("Esta boleta está cerrada y es de solo lectura.", "warning")
         return redirect(url_for("seguridad_operativa.detalle_boleta", id_=id_))
     if request.method == "POST":
@@ -285,6 +302,7 @@ def editar_boleta(id_):
 
             if resultado and resultado not in RESULTADOS:
                 raise ValueError("Resultado final inválido.")
+            validados = normalizar_por_instalacion(validados, versiones, finalizar=accion == "finalizar")
             if accion == "finalizar":
                 validar_finalizacion(validados)
                 if not b.iniciado_en or not resultado:
@@ -330,6 +348,36 @@ def reloj(id_):
                             "seguridad_operativa.detalle_boleta", id_=b.id))
 
 
+
+
+@seguridad_operativa_bp.post("/boletas/<int:id_>/eliminar")
+@login_required
+def eliminar_boleta(id_):
+    """Anulación lógica: nunca reutilizar folio ni borrar evidencia de auditoría."""
+    _escritura()
+    b = db.get_or_404(BoletaSeguridadTI, id_)
+    es_admin = current_user.rol == Usuario.ROL_ADMINISTRADOR
+    if not es_admin and (b.tecnico_id != current_user.id or b.estado == "FINALIZADO"):
+        abort(403)
+    if b.estado == "ANULADA":
+        flash("Esta boleta ya está anulada.", "warning")
+        return redirect(url_for("seguridad_operativa.boletas"))
+    motivo = _texto("motivo", 500, True)
+    if len(motivo) < 8:
+        flash("Indique un motivo de al menos 8 caracteres para eliminar la boleta.", "warning")
+        return redirect(url_for("seguridad_operativa.detalle_boleta", id_=id_))
+    estado_anterior = b.estado
+    if b.tramo_iniciado_en:
+        b.cambiar_reloj("pausar")
+    b.estado = "ANULADA"
+    _auditoria("ANULAR_BOLETA_SEGURIDAD", "BoletaSeguridadTI", b.id,
+               f"{b.numero}: {motivo}",
+               {"estado_anterior": estado_anterior, "estado": "ANULADA",
+                "motivo": motivo, "SICOIN": (b.datos_equipo or {}).get("codigo")})
+    db.session.commit()
+    flash(f"{b.numero} anulada. No aparecerá en informes ni se reutilizará su número.", "success")
+    return redirect(url_for("seguridad_operativa.boletas"))
+
 @seguridad_operativa_bp.get("/boletas/<int:id_>/pdf")
 @login_required
 def boleta_pdf(id_):
@@ -366,7 +414,7 @@ def informe():
     ws_e.append(["SICOIN", "Equipo", "Total boletas", "Finalizadas", "Última boleta",
                  "Último resultado", "Con hallazgos"])
     por_equipo = {}
-    for b in BoletaSeguridadTI.query.order_by(BoletaSeguridadTI.id.desc()).yield_per(100):
+    for b in BoletaSeguridadTI.query.filter(BoletaSeguridadTI.estado != "ANULADA").order_by(BoletaSeguridadTI.id.desc()).yield_per(100):
         datos = b.datos_equipo or {}
         cod = datos.get("codigo") or b.equipo.codigo
         respuestas = [f.get("resultado") for f in b.checklist]
