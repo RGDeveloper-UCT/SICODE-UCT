@@ -93,6 +93,8 @@
   let pendiente = false, procesando = false, cola = false;
   async function refrescarVista() {
     if (document.querySelector("[data-agenda-root]")) return;
+    // La bóveda HashPass tiene estado criptográfico interactivo: no reconciliar HTML.
+    if (window.location.pathname.startsWith("/hashpass")) return;
     if (document.hidden) { pendiente = true; return; }
     if (hayDialogoVisible()) {
       pendiente = true;
