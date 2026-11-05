@@ -21,7 +21,8 @@ _LOG = logging.getLogger(__name__)
 
 def _modulos(tabla):
     tabla = (tabla or "").lower()
-    if not tabla or "presencia" in tabla or tabla == "bitacora":
+    # HashPass contiene secretos: no anunciar ni el momento de sus cambios a otras sesiones.
+    if not tabla or "presencia" in tabla or tabla == "bitacora" or tabla.startswith("hashpass_"):
         return set()
     modulos = {"global", "dashboard", "bitacora"}
     if tabla.startswith("agenda_"):
