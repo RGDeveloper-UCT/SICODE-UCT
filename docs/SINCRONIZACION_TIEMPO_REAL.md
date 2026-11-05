@@ -32,6 +32,9 @@ diálogos, controles y posición de desplazamiento.
   indica que una vista debe reconsultar información.
 - No se distribuyen nombres, números de SP, valores de formulario, expedientes,
   identificadores personales ni contenido de documentos en Redis/SSE.
+- Las operaciones de bóvedas de HashPass se excluyen del canal global para
+  proteger también la privacidad del momento de sus cambios. Su interfaz no
+  debe reconciliar contenido criptográfico mediante eventos de otros usuarios.
 - El mecanismo cubre cambios hechos mediante **sesiones ORM de SQLAlchemy**.
   Las escrituras SQL directas no generan eventos automáticamente y deberán
   emitir una invalidación explícita si existieran en algún módulo.
