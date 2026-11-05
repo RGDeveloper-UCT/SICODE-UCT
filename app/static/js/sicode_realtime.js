@@ -85,11 +85,16 @@
 
   // Las vistas con su propio renderizador (Agenda UCT) se actualizan mediante
   // su API; el resto recibe actualización incremental del HTML autorizado.
+  const hayDialogoVisible = () => [...document.querySelectorAll(
+    "dialog[open],[aria-modal='true']"
+  )].some(el => el.matches("dialog[open]") || (
+    !el.hidden && el.getClientRects().length > 0
+  ));
   let pendiente = false, procesando = false, cola = false;
   async function refrescarVista() {
     if (document.querySelector("[data-agenda-root]")) return;
     if (document.hidden) { pendiente = true; return; }
-    if (document.querySelector("dialog[open],[aria-modal='true']")) {
+    if (hayDialogoVisible()) {
       pendiente = true;
       return;
     }
