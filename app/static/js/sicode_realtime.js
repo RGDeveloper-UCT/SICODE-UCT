@@ -40,14 +40,15 @@
   function reconciliar(actual, nuevo) {
     if (actual.nodeType !== nuevo.nodeType ||
         (actual.nodeType === 1 && actual.tagName !== nuevo.tagName)) {
-      actual.replaceWith(nuevo.cloneNode(true));
-      return;
+      const reemplazo = nuevo.cloneNode(true);
+      actual.replaceWith(reemplazo);
+      return reemplazo;
     }
     if (actual.nodeType === 3) {
       if (actual.nodeValue !== nuevo.nodeValue) actual.nodeValue = nuevo.nodeValue;
-      return;
+      return actual;
     }
-    if (actual.nodeType !== 1 || protegido(actual)) return;
+    if (actual.nodeType !== 1 || protegido(actual)) return actual;
     for (const attr of [...actual.attributes]) {
       if (!nuevo.hasAttribute(attr.name)) actual.removeAttribute(attr.name);
     }
@@ -71,7 +72,7 @@
         continue;
       }
       if (coincidente !== cursor) actual.insertBefore(coincidente, cursor);
-      reconciliar(coincidente, candidato);
+      coincidente = reconciliar(coincidente, candidato);
       cursor = coincidente.nextSibling;
     }
     while (cursor) {
@@ -79,6 +80,7 @@
       if (!protegido(cursor)) cursor.remove();
       cursor = siguiente;
     }
+    return actual;
   }
 
   // Las vistas con su propio renderizador (Agenda UCT) se actualizan mediante
