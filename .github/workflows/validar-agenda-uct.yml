@@ -29,6 +29,7 @@ jobs:
           python-version: "3.11"
       - run: pip install -r requirements.txt
       - run: python -m compileall -q app migrations tests
+      - run: bash -n scripts/qa_realtime_aislada.sh
       - run: pytest -q tests/test_agenda_uct.py tests/test_sincronizacion_global.py
       - run: node --check app/static/js/agenda.js && node --check app/static/js/agenda_global.js && node --check app/static/js/sicode_realtime.js
       - run: pytest -q
