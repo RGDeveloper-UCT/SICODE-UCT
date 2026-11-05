@@ -7,7 +7,9 @@ from flask_login import LoginManager, current_user
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
-from sqlalchemy import text
+from werkzeug.middleware.proxy_fix import ProxyFix
+from sqlalchemy import inspect, text
+from sqlalchemy.exc import SQLAlchemyError
 
 from config import Config
 
@@ -34,6 +36,11 @@ def create_app():
     Config.validar()
     app = Flask(__name__)
     app.config.from_object(Config)
+    if app.config.get("HASHPASS_PROXY_PROTO_COUNT", 0):
+        # Confiar sólo en el proxy Nginx cuando Gunicorn escucha en loopback.
+        app.wsgi_app = ProxyFix(
+            app.wsgi_app, x_proto=app.config["HASHPASS_PROXY_PROTO_COUNT"],
+        )
     db.init_app(app); migrate.init_app(app, db); csrf.init_app(app)
     login_manager.init_app(app)
     login_manager.login_view = "auth.login"
@@ -88,6 +95,8 @@ def create_app():
 
     app.register_blueprint(seguridad_bp)
     app.register_blueprint(mantenimientos_bp)
+    from app.hashpass import hashpass_bp, permiso_activo
+    app.register_blueprint(hashpass_bp)
     instalar_registro_monitoreo(app)
 
     @click.command("nexo-revisar")
@@ -117,6 +126,8 @@ def create_app():
     def restringir_visor_solo_lectura():
         if not current_user.is_authenticated or not getattr(current_user, "es_visor", False): return None
         if request.endpoint in {"cuenta.cambiar_password", "auth.logout", "static", "uo.pulso"}: return None
+        # HashPass tiene permisos separados, incluso para el rol Visor.
+        if (request.endpoint or "").startswith("hashpass."): return None
         if request.endpoint == "busqueda.ia": return None
         if request.endpoint and request.endpoint.split(".", 1)[0] in {"sicode_ia", "sicode_ia_jobs", "favoritos"}: return None
         if request.method not in {"GET", "HEAD", "OPTIONS"}: abort(403)
@@ -200,9 +211,58 @@ def create_app():
             respuesta.headers.setdefault("Pragma", "no-cache")
         return respuesta
 
+    def _hashpass_tablas_disponibles():
+        try:
+            inspector = inspect(db.engine)
+            return all(inspector.has_table(nombre) for nombre in (
+                "hashpass_permisos", "hashpass_bovedas", "hashpass_registros",
+            ))
+        except SQLAlchemyError:
+            db.session.rollback()
+            return False
+
+    @click.command("hashpass-status")
+    def hashpass_status():
+        """Diagnóstico sin revelar credenciales ni variables secretas."""
+        click.echo("HashPass — estado efectivo del proceso Flask")
+        click.echo(f"HASHPASS_ENABLED={app.config.get('HASHPASS_ENABLED', False)}")
+        click.echo(f"HASHPASS_REQUIRE_HTTPS={app.config.get('HASHPASS_REQUIRE_HTTPS', True)}")
+        click.echo(f"SESSION_COOKIE_SECURE={app.config.get('SESSION_COOKIE_SECURE', False)}")
+        click.echo(f"HASHPASS_PROXY_PROTO_COUNT={app.config.get('HASHPASS_PROXY_PROTO_COUNT', 0)}")
+        click.echo(f"Tablas HashPass presentes={_hashpass_tablas_disponibles()}")
+        click.echo("Nota: compruebe HTTPS desde un navegador cliente; este comando no valida el proxy.")
+
+    app.cli.add_command(hashpass_status)
+
+    @app.context_processor
+    def contexto_hashpass():
+        habilitado = bool(app.config.get("HASHPASS_ENABLED", False))
+        tablas_listas = bool(habilitado and current_user.is_authenticated and _hashpass_tablas_disponibles())
+        transporte_seguro = bool(
+            app.testing or (
+                request.is_secure
+                and app.config.get("HASHPASS_REQUIRE_HTTPS", True)
+                and app.config.get("SESSION_COOKIE_SECURE", False)
+            )
+        )
+        autorizado = bool(
+            tablas_listas and transporte_seguro and current_user.is_authenticated
+            and current_user.activo and permiso_activo(current_user.id)
+        )
+        return {
+            "hashpass_habilitado": habilitado,
+            "hashpass_tablas_listas": tablas_listas,
+            "hashpass_transporte_seguro": transporte_seguro,
+            "hashpass_autorizado": autorizado,
+        }
+
     @app.context_processor
     def contexto_version():
-        return {"sicode_version": obtener_version(), "modo_solo_lectura": bool(current_user.is_authenticated and getattr(current_user, "es_visor", False))}
+        visor_expedientes = bool(
+            current_user.is_authenticated and getattr(current_user, "es_visor", False)
+            and not (request.endpoint or "").startswith("hashpass.")
+        )
+        return {"sicode_version": obtener_version(), "modo_solo_lectura": visor_expedientes}
 
     @app.route("/")
     def inicio(): return redirect(url_for("auth.login"))

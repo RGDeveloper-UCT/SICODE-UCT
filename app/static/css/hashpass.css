@@ -1,0 +1,35 @@
+/* HashPass: panel informativo de cifrado, sin dependencias externas. */
+.hashpass-seguridad {
+  margin: 1rem 0 1.5rem;
+  padding: 1.2rem;
+  border: 1px solid #b9ced1;
+  border-left: 4px solid #1b6572;
+  border-radius: 12px;
+  background: #f3f8f8;
+  color: #17343c;
+}
+.hashpass-seguridad__titulo {
+  display: flex;
+  align-items: center;
+  gap: .85rem;
+  margin-bottom: .9rem;
+}
+.hashpass-seguridad__icono { font-size: 2rem; flex: none; }
+.hashpass-seguridad__titulo h2 {
+  margin: 0 0 .2rem;
+  color: #174856;
+  font-size: 1.15rem;
+  line-height: 1.35;
+}
+.hashpass-seguridad__titulo p, .hashpass-seguridad p { margin: .3rem 0; line-height: 1.55; }
+.hashpass-seguridad__grid { display: grid; gap: .8rem; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.hashpass-seguridad__grid > div { padding: .8rem; background: #fff; border: 1px solid #d8e5e7; border-radius: 8px; }
+.hashpass-seguridad__grid h3 { color: #14525d; font-size: .98rem; margin: 0 0 .5rem; }
+.hashpass-seguridad__limite { margin-top: .85rem !important; padding: .8rem; border-radius: 8px; background: #eaf0f1; }
+@media (max-width: 900px) { .hashpass-seguridad__grid { grid-template-columns: 1fr; } }
+@media (prefers-color-scheme: dark) {
+  .hashpass-seguridad { background: #18272b; border-color: #56838a; color: #e2f1f3; }
+  .hashpass-seguridad__titulo h2, .hashpass-seguridad__grid h3 { color: #bce4ea; }
+  .hashpass-seguridad__grid > div { background: #203439; border-color: #3d5b62; }
+  .hashpass-seguridad__limite { background: #284047; }
+}

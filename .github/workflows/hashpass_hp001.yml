@@ -1,0 +1,44 @@
+name: HashPass HP-001 - Pruebas aisladas
+
+on:
+  push:
+    branches:
+      - feature/hashpass-hp001-np-compatible
+  pull_request:
+    paths:
+      - 'app/hashpass.py'
+      - 'app/services/hashpass_crypto.py'
+      - 'tests/test_hashpass.py'
+      - 'migrations/versions/hp00120261029_hashpass.py'
+      - '.github/workflows/hashpass_hp001.yml'
+
+jobs:
+  hashpass-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SECRET_KEY: clave-ci-hashpass-uso-exclusivo-pruebas
+      DATABASE_URL: sqlite:////tmp/sicode_hashpass_ci.sqlite3
+      DOCUMENT_ANALYSIS_AI_TIMEOUT: '75'
+      SESSION_COOKIE_SECURE: 'false'
+      HASHPASS_ENABLED: 'true'
+      HASHPASS_REQUIRE_HTTPS: 'false'
+      AI_SEARCH_ENABLED: 'false'
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@v4
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar dependencias
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
+      - name: Compilar Python
+        run: python -m compileall -q app migrations tests
+      - name: Pruebas focalizadas en HashPass y perfil IA documental
+        run: python -m pytest -q tests/test_hashpass.py tests/test_config_analisis_documental_runtime.py
+      - name: Una sola cabeza de Alembic
+        run: |
+          python -m flask --app run.py db heads > /tmp/hashpass-heads.txt
+          cat /tmp/hashpass-heads.txt
+          grep -Fx 'hp00120261029 (head)' /tmp/hashpass-heads.txt
