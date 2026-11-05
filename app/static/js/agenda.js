@@ -262,7 +262,8 @@
         ${data.asistencias.some(a=>a.usuario_id===currentId)?'<div class="agenda-acciones"><button type="button" class="agenda-boton" data-agenda-rsvp="aceptada">Asistiré</button><button type="button" class="agenda-boton" data-agenda-rsvp="rechazada">No asistiré</button></div>':""}` : ""}
         <h3>Comentarios</h3><div class="agenda-lista">${notas.map(n=>`<p class="agenda-texto-enlaces"><strong>${safe(n.usuario)}:</strong> ${conEnlaces(n.texto)} <small>${safe(fecha(n.fecha))}</small></p>`).join("") || '<p>Sin comentarios todavía.</p>'}</div>
         ${puede ? '<form id="agenda-form-comentario"><textarea name="texto" maxlength="2000" placeholder="Escriba una actualización…" required></textarea><button type="submit" class="agenda-boton">Agregar comentario</button></form>' : ""}`;
-      $("#agenda-detalle-dialog").showModal();
+      const dialogoDetalle = $("#agenda-detalle-dialog");
+      if (!dialogoDetalle.open) dialogoDetalle.showModal();
     } catch(error) { notification(error.message); }
   }
   document.addEventListener("click", async e => {
@@ -361,7 +362,12 @@
   // Actualiza Tablón, Mi día, Calendario, tareas y avisos de otros usuarios.
   // El formulario abierto no se reemplaza, por lo que no se pierde su contenido.
   window.addEventListener("sicode:actualizacion", e => {
-    if (e.detail?.modulos?.includes("agenda")) refrescar();
+    if (!e.detail?.modulos?.includes("agenda")) return;
+    refrescar();
+    const dlg = $("#agenda-detalle-dialog");
+    if (dlg?.open && actual?.id && !dlg.querySelector("textarea")?.value?.trim()) {
+      detalle(actual.id);
+    }
   });
   window.addEventListener("sicode:reconexion", refrescar);
   const initial = location.hash.replace("#","");
