@@ -297,3 +297,22 @@ def test_papelera_no_genera_alertas_de_plazo_y_aparece_en_interfaz(sistema):
     assert 'id="agenda-eliminadas-lista"' in html
     assert 'data-agenda-eliminar' in script
     assert 'data-agenda-restaurar' in script
+
+
+def test_conflicto_de_edicion_obsoleta_entre_dos_usuarios(sistema):
+    """Una vista antigua no debe sobreescribir un estado guardado por otro."""
+    c1, c2 = cliente(sistema, "uno"), cliente(sistema, "dos")
+    inicial = crear(c1, responsable_id=2).get_json()["actividad"]
+    version_antigua = inicial["actualizado_en"]
+    ruta = f'/agenda/api/actividades/{inicial["id"]}'
+    actualizado = c2.post(ruta + "/estado", json={
+        "estado": "en_proceso", "actualizado_en": version_antigua,
+    })
+    assert actualizado.status_code == 200
+    assert actualizado.get_json()["actividad"]["actualizado_en"] != version_antigua
+    conflicto = c1.patch(ruta, json={
+        "titulo": "Texto antiguo", "actualizado_en": version_antigua,
+    })
+    assert conflicto.status_code == 409
+    assert "otra sesión" in conflicto.get_json()["error"]
+    assert c1.get(ruta).get_json()["actividad"]["titulo"] == "Verificar expediente"
