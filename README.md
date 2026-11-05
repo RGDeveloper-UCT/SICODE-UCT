@@ -99,6 +99,10 @@ python -m flask --app run.py db heads
 
 GitHub Actions ejecuta smoke tests de Coordinación y Portadores, además de la suite pytest de auditoría y las pruebas del extractor documental.
 
+## Sincronización multiusuario
+
+La sincronización entre sesiones usa Redis/Valkey Pub/Sub y Server-Sent Events, sin transportar datos sensibles. Consulte [`docs/SINCRONIZACION_TIEMPO_REAL.md`](docs/SINCRONIZACION_TIEMPO_REAL.md) para configurar Gunicorn gthread y Nginx sin buffering. No se modifica el esquema de PostgreSQL.
+
 ## Producción institucional
 
 El procedimiento documentado está en [`docs/OPERACION_SERVIDOR.md`](docs/OPERACION_SERVIDOR.md). Incluye backup, actualización Git, dependencias, migración, reinicio y rollback.
