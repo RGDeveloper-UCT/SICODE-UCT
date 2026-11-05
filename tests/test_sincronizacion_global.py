@@ -114,3 +114,15 @@ def test_hashpass_no_emite_eventos_de_otros_usuarios():
     assert _modulos("hashpass_registros") == set()
     assert _modulos("hashpass_compartidos") == set()
     assert "agenda" in _modulos("agenda_actividades")
+
+
+def test_permite_aislar_canal_qa_sin_modificar_redis(sistema):
+    app, falso = sistema
+    with app.app_context():
+        app.config["TESTING"] = False
+        app.config["SICODE_REALTIME_CHANNEL"] = "sicode:qa:aislado"
+        usuario = Usuario.query.filter_by(usuario="tiempo_real").first()
+        db.session.add(AgendaCumpleanos(usuario_id=usuario.id, dia=3, mes=2, visible=True))
+        db.session.commit()
+        assert falso.publicados[-1][0] == "sicode:qa:aislado"
+        app.config["TESTING"] = True
