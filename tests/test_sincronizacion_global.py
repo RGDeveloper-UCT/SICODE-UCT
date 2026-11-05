@@ -107,3 +107,10 @@ def test_lecturas_y_presencia_no_provocan_invalidacion(sistema):
         db.session.commit()
         assert falso.publicados == []
         app.config["TESTING"] = True
+
+
+def test_hashpass_no_emite_eventos_de_otros_usuarios():
+    from app.services.sincronizacion import _modulos
+    assert _modulos("hashpass_registros") == set()
+    assert _modulos("hashpass_compartidos") == set()
+    assert "agenda" in _modulos("agenda_actividades")
