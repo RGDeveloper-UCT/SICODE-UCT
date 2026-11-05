@@ -21,7 +21,7 @@ _LOG = logging.getLogger(__name__)
 
 def _modulos(tabla):
     tabla = (tabla or "").lower()
-    if not tabla or "presencia" in tabla:
+    if not tabla or "presencia" in tabla or tabla == "bitacora":
         return set()
     modulos = {"global", "dashboard", "bitacora"}
     if tabla.startswith("agenda_"):
