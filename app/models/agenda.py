@@ -41,6 +41,7 @@ class AgendaActividad(db.Model):
         return {
             "id": self.id, "titulo": self.titulo, "descripcion": self.descripcion or "",
             "tipo": self.tipo, "estado": self.estado, "prioridad": self.prioridad,
+            "actualizado_en": self.actualizado_en.isoformat() if self.actualizado_en else None,
             "visibilidad": self.visibilidad, "creado_por_id": self.creado_por_id,
             "creado_por": self.creado_por.nombre if self.creado_por else "",
             "responsable_id": self.responsable_id,
