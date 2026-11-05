@@ -34,6 +34,7 @@ def eventos():
     if not current_app.config.get("SICODE_REALTIME_ENABLED", True):
         return jsonify({"error": "Sincronización no habilitada"}), 503
 
+    canal = current_app.config.get("SICODE_REALTIME_CHANNEL", CANAL)
     conexion = redis.Redis.from_url(
         current_app.config["SICODE_REALTIME_REDIS_URL"],
         socket_connect_timeout=1,
@@ -49,7 +50,7 @@ def eventos():
     def transmision():
         pubsub = conexion.pubsub(ignore_subscribe_messages=True)
         try:
-            pubsub.subscribe(CANAL)
+            pubsub.subscribe(canal)
             yield "event: listo\ndata: {}\n\n"
             while True:
                 mensaje = pubsub.get_message(timeout=15)
