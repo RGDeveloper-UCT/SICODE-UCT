@@ -131,15 +131,16 @@
     setTimeout(() => { programado = false; refrescarVista(); }, 160);
   }
 
-  let conectoAntes = false, ultimoEvento = "";
+  let conectoAntes = false, huboError = false, ultimoEvento = "";
   const fuente = new EventSource("/sincronizacion/eventos", {withCredentials: true});
   fuente.addEventListener("listo", () => {
     marcar(true);
-    if (conectoAntes) {
+    if (conectoAntes || huboError) {
       window.dispatchEvent(new CustomEvent("sicode:reconexion"));
       solicitarRefresco();
     }
     conectoAntes = true;
+    huboError = false;
   });
   fuente.addEventListener("cambio", e => {
     if (e.lastEventId && ultimoEvento === e.lastEventId) return;
@@ -151,7 +152,7 @@
       solicitarRefresco();
     } catch (_) { /* El mensaje inválido no debe interrumpir la sesión. */ }
   });
-  fuente.onerror = () => marcar(false);
+  fuente.onerror = () => { huboError = true; marcar(false); };
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden && pendiente) solicitarRefresco();
   });
