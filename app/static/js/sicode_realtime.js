@@ -32,10 +32,7 @@
   };
   const protegido = n => n.nodeType === 1 && (
     n.matches(omitir + ',[data-sicode-no-sync],[contenteditable="true"]') ||
-    (document.activeElement && n !== document.body &&
-     n.contains(document.activeElement) && document.activeElement.matches(
-       "input,textarea,select,[contenteditable]"
-     ))
+    n === document.activeElement
   );
 
   // Reconciliación conservadora: conserva nodos existentes, eventos asociados,
