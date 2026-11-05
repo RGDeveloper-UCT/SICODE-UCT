@@ -50,11 +50,11 @@ def eventos():
         pubsub = conexion.pubsub(ignore_subscribe_messages=True)
         try:
             pubsub.subscribe(CANAL)
-            yield "event: listo\\ndata: {}\\n\\n"
+            yield "event: listo\ndata: {}\n\n"
             while True:
                 mensaje = pubsub.get_message(timeout=15)
                 if not mensaje:
-                    yield ": pulso\\n\\n"
+                    yield ": pulso\n\n"
                     continue
                 if mensaje.get("type") != "message":
                     continue
@@ -64,9 +64,9 @@ def eventos():
                         continue
                 except (TypeError, ValueError):
                     continue
-                yield "id: " + str(datos["id"]) + "\\nevent: cambio\\ndata: " + json.dumps(
+                yield "id: " + str(datos["id"]) + "\nevent: cambio\ndata: " + json.dumps(
                     datos, separators=(",", ":")
-                ) + "\\n\\n"
+                ) + "\n\n"
         except (GeneratorExit, ConnectionError):
             return
         except redis.RedisError:
