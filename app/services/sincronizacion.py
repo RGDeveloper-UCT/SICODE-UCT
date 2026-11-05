@@ -70,7 +70,7 @@ def _publicar_despues_de_commit(session):
             socket_connect_timeout=0.5,
             socket_timeout=0.5,
         )
-        conexion.publish(CANAL, mensaje)
+        conexion.publish(app.config.get("SICODE_REALTIME_CHANNEL", CANAL), mensaje)
         conexion.close()
     except redis.RedisError:
         # Un fallo de notificación nunca revierte un cambio confirmado.
