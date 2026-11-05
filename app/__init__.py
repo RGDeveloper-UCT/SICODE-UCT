@@ -53,8 +53,10 @@ def create_app():
     from app.models.mantenimiento_equipo import MantenimientoEquipo
     from app.services.anexos_integridad_service import AnexoDuplicadoError
     from app.services.integridad_events import registrar_eventos_integridad
+    from app.services.sincronizacion import registrar_eventos_sincronizacion
     from app.services.version_service import obtener_version
     registrar_eventos_integridad()
+    registrar_eventos_sincronizacion()
 
     @login_manager.user_loader
     def load_user(usuario_id):
@@ -86,6 +88,8 @@ def create_app():
     ):
         app.register_blueprint(blueprint)
 
+    from app.routes.sincronizacion import sincronizacion_bp
+    app.register_blueprint(sincronizacion_bp)
     app.register_blueprint(seguridad_bp)
     app.register_blueprint(mantenimientos_bp)
     instalar_registro_monitoreo(app)

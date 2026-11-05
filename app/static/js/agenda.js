@@ -186,9 +186,12 @@
     cont.innerHTML = nombres.map(d=>`<strong class="agenda-cal-dia-semana">${d}</strong>`).join("") + fechas.map(celda).join("");
     cont.style.gridTemplateColumns = `repeat(${nombres.length}, minmax(0,1fr))`;
   }
+  let ultimaConsulta = 0;
   async function refrescar() {
+    const consulta = ++ultimaConsulta;
     try {
       const [a,b,c,d]=await Promise.all([api("/api/actividades"), api("/api/cumpleanos"), api("/api/avisos"), editable ? api("/api/eliminadas") : Promise.resolve({actividades:[]})]);
+      if (consulta !== ultimaConsulta) return;
       items=a.actividades; cumpleanos=b.cumpleanos; avisos=c.avisos; eliminadas=d.actividades;
       cargarKpis(); pintarTablero(); pintarListas(); pintarCalendario(); pintarCumpleanos(); pintarAvisos(); pintarEliminadas();
     } catch(error) { notification(error.message); }
@@ -197,6 +200,7 @@
     const dlg=$("#agenda-form-dialog"); if(!dlg) return;
     const form=$("#agenda-actividad-form"); form.reset();
     form.elements.actividad_id.value = actividad?.id ?? "";
+    form.elements.actualizado_en.value = actividad?.actualizado_en ?? "";
     form.elements.padre_id.value = padre ?? "";
     form.elements.titulo.value = actividad?.titulo ?? "";
     form.elements.descripcion.value = actividad?.descripcion ?? "";
@@ -258,7 +262,8 @@
         ${data.asistencias.some(a=>a.usuario_id===currentId)?'<div class="agenda-acciones"><button type="button" class="agenda-boton" data-agenda-rsvp="aceptada">Asistiré</button><button type="button" class="agenda-boton" data-agenda-rsvp="rechazada">No asistiré</button></div>':""}` : ""}
         <h3>Comentarios</h3><div class="agenda-lista">${notas.map(n=>`<p class="agenda-texto-enlaces"><strong>${safe(n.usuario)}:</strong> ${conEnlaces(n.texto)} <small>${safe(fecha(n.fecha))}</small></p>`).join("") || '<p>Sin comentarios todavía.</p>'}</div>
         ${puede ? '<form id="agenda-form-comentario"><textarea name="texto" maxlength="2000" placeholder="Escriba una actualización…" required></textarea><button type="submit" class="agenda-boton">Agregar comentario</button></form>' : ""}`;
-      $("#agenda-detalle-dialog").showModal();
+      const dialogoDetalle = $("#agenda-detalle-dialog");
+      if (!dialogoDetalle.open) dialogoDetalle.showModal();
     } catch(error) { notification(error.message); }
   }
   document.addEventListener("click", async e => {
@@ -291,7 +296,7 @@
     if(editar && actual) { $("#agenda-detalle-dialog").close(); formulario(actual); return; }
     if(e.target.closest("[data-agenda-subtarea]") && actual) { $("#agenda-detalle-dialog").close(); formulario(null,null,actual.id); return; }
     if(e.target.closest("[data-agenda-guardar-estado]") && actual) {
-      try { await post(`/api/actividades/${actual.id}/estado`,{estado:$("#agenda-estado-nuevo").value}); $("#agenda-detalle-dialog").close(); await refrescar(); notification("Estado actualizado."); } catch(err){notification(err.message);} return;
+      try { await post(`/api/actividades/${actual.id}/estado`,{estado:$("#agenda-estado-nuevo").value,actualizado_en:actual.actualizado_en}); $("#agenda-detalle-dialog").close(); await refrescar(); notification("Estado actualizado."); } catch(err){notification(err.message);} return;
     }
     const asistencia=e.target.closest("[data-agenda-rsvp]");
     if(asistencia && actual) {try{await post(`/api/actividades/${actual.id}/asistencia`,{respuesta:asistencia.dataset.agendaRsvp});notification("Asistencia registrada.");await detalle(actual.id);}catch(err){notification(err.message);}return;}
@@ -311,6 +316,7 @@
     data.requiere_revision=f.elements.requiere_revision.checked;
     data.todo_el_dia=f.elements.todo_el_dia.checked;
     const id=data.actividad_id; delete data.actividad_id;
+    if (!id) delete data.actualizado_en;
     if (!data.padre_id) delete data.padre_id;
     try {
       if (id) await api("/api/actividades/"+id,{method:"PATCH",body:JSON.stringify(data)});
@@ -350,9 +356,20 @@
     if(!col||!arrastrada)return;
     e.preventDefault();
     const id=arrastrada;arrastrada=null;
-    try{await post(`/api/actividades/${id}/estado`,{estado:col.dataset.agendaEstado});await refrescar();notification("Actividad movida.");}
+    try{await post(`/api/actividades/${id}/estado`,{estado:col.dataset.agendaEstado,actualizado_en:items.find(x=>x.id===id)?.actualizado_en});await refrescar();notification("Actividad movida.");}
     catch(err){notification(err.message);}
   });
+  // Actualiza Tablón, Mi día, Calendario, tareas y avisos de otros usuarios.
+  // El formulario abierto no se reemplaza, por lo que no se pierde su contenido.
+  window.addEventListener("sicode:actualizacion", e => {
+    if (!e.detail?.modulos?.includes("agenda")) return;
+    refrescar();
+    const dlg = $("#agenda-detalle-dialog");
+    if (dlg?.open && actual?.id && !dlg.querySelector("textarea")?.value?.trim()) {
+      detalle(actual.id);
+    }
+  });
+  window.addEventListener("sicode:reconexion", refrescar);
   const initial = location.hash.replace("#","");
   abrirTab($$("[data-agenda-tab]",root).some(x=>x.dataset.agendaTab===initial)?initial:"hoy");
   refrescar();
