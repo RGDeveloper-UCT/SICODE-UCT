@@ -88,5 +88,9 @@
       catch(_){/* El sistema conserva el aviso pendiente para otro intento. */}
     },5000);
     setInterval(refrescarContador,60000);
+    window.addEventListener("sicode:actualizacion",e=>{
+      if(e.detail?.modulos?.includes("agenda"))refrescarContador();
+    });
+    window.addEventListener("sicode:reconexion",refrescarContador);
   });
 })();
