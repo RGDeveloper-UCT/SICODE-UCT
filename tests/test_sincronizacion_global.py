@@ -90,9 +90,8 @@ def test_publica_una_vez_despues_del_commit_y_no_tras_rollback(sistema):
         canal, mensaje = falso.publicados[0]
         assert canal == "sicode:sincronizacion:v1"
         assert {"agenda", "dashboard", "global"}.issubset(mensaje["modulos"])
-        db.session.add(AgendaCumpleanos(
-            usuario_id=usuario.id, dia=2, mes=1, visible=True,
-        ))
+        cumple = AgendaCumpleanos.query.filter_by(usuario_id=usuario.id).first()
+        cumple.dia = 2
         db.session.flush()
         db.session.rollback()
         assert len(falso.publicados) == 1
