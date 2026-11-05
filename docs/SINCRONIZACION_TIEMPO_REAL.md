@@ -161,3 +161,47 @@ SICODE_BRANCH=feature/bsi-medidas-prioritarias-temporales-20261103 bash scripts/
 No lanzar el script ahora: la rama integrada aún no está fusionada, y toda
 publicación de producción requiere ventana de mantenimiento y validación de
 control de concurrencia en pantallas dinámicas.
+
+
+### 8. Laboratorio multiusuario aislado en el mismo servidor
+
+Después de aprobar CI, probar dos sesiones mediante **SQLite nueva** (no PostgreSQL
+productiva), puerto loopback 8101 y canal Redis diferente al canal
+institucional. **Nunca** abrir el puerto 8101 en el firewall, copiar la base
+real o ejecutar el laboratorio como root.
+
+```bash
+cd ~/sicode-realtime-pruebas
+git fetch origin
+git switch integracion/sicode-realtime-bsi-20261105
+git pull --ff-only origin integracion/sicode-realtime-bsi-20261105
+bash scripts/qa_realtime_aislada.sh
+```
+
+El script verifica que no se ejecuta bajo `/opt/sicode/app`, crea
+`$HOME/sicode-realtime-qa/sicode-qa.sqlite3`, genera contraseñas de uso
+temporal para `qa_realtime_uno` y `qa_realtime_dos`, y arranca Gunicorn
+gthread únicamente en `127.0.0.1:8101`. Valkey es el del servidor local,
+pero los avisos de la demo se publican bajo
+`SICODE_REALTIME_CHANNEL=sicode:qa:<usuario>:uct`, separados de los avisos
+productivos. La URL interna `http://127.0.0.1:8101` únicamente se puede
+abrir desde el servidor o con un túnel SSH.
+
+Desde otra terminal del ordenador del técnico, conectar un túnel SSH (ajustar
+el host o la configuración SSH institucional autorizada):
+
+```bash
+ssh -N -L 8101:127.0.0.1:8101 ADSICODE@sicode-srv01
+```
+
+Abrir `http://127.0.0.1:8101/agenda/` en una ventana normal e incógnito,
+cada una con diferente usuario QA, crear una actividad y verificar estado,
+movimiento de columnas y actualización del calendario sin F5. Revisar el
+indicador de sincronización y la consola del navegador. Si el puerto 8101 ya
+está ocupado, detenerse antes de ejecutar el script. Para detener el
+laboratorio, presionar Ctrl+C en su consola. No interrumpir el servicio
+productivo `sicode.service`.
+
+La suite unitaria por sí sola no confirma que el proceso de despliegue real
+funcione en producción; el laboratorio es una comprobación adicional, no un
+reemplazo para la prueba funcional de formularios dinámicos.
