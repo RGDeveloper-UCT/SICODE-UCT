@@ -186,9 +186,12 @@
     cont.innerHTML = nombres.map(d=>`<strong class="agenda-cal-dia-semana">${d}</strong>`).join("") + fechas.map(celda).join("");
     cont.style.gridTemplateColumns = `repeat(${nombres.length}, minmax(0,1fr))`;
   }
+  let ultimaConsulta = 0;
   async function refrescar() {
+    const consulta = ++ultimaConsulta;
     try {
       const [a,b,c,d]=await Promise.all([api("/api/actividades"), api("/api/cumpleanos"), api("/api/avisos"), editable ? api("/api/eliminadas") : Promise.resolve({actividades:[]})]);
+      if (consulta !== ultimaConsulta) return;
       items=a.actividades; cumpleanos=b.cumpleanos; avisos=c.avisos; eliminadas=d.actividades;
       cargarKpis(); pintarTablero(); pintarListas(); pintarCalendario(); pintarCumpleanos(); pintarAvisos(); pintarEliminadas();
     } catch(error) { notification(error.message); }
@@ -353,6 +356,12 @@
     try{await post(`/api/actividades/${id}/estado`,{estado:col.dataset.agendaEstado});await refrescar();notification("Actividad movida.");}
     catch(err){notification(err.message);}
   });
+  // Actualiza Tablón, Mi día, Calendario, tareas y avisos de otros usuarios.
+  // El formulario abierto no se reemplaza, por lo que no se pierde su contenido.
+  window.addEventListener("sicode:actualizacion", e => {
+    if (e.detail?.modulos?.includes("agenda")) refrescar();
+  });
+  window.addEventListener("sicode:reconexion", refrescar);
   const initial = location.hash.replace("#","");
   abrirTab($$("[data-agenda-tab]",root).some(x=>x.dataset.agendaTab===initial)?initial:"hoy");
   refrescar();
