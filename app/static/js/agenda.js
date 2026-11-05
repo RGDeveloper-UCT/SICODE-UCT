@@ -200,6 +200,7 @@
     const dlg=$("#agenda-form-dialog"); if(!dlg) return;
     const form=$("#agenda-actividad-form"); form.reset();
     form.elements.actividad_id.value = actividad?.id ?? "";
+    form.elements.actualizado_en.value = actividad?.actualizado_en ?? "";
     form.elements.padre_id.value = padre ?? "";
     form.elements.titulo.value = actividad?.titulo ?? "";
     form.elements.descripcion.value = actividad?.descripcion ?? "";
@@ -294,7 +295,7 @@
     if(editar && actual) { $("#agenda-detalle-dialog").close(); formulario(actual); return; }
     if(e.target.closest("[data-agenda-subtarea]") && actual) { $("#agenda-detalle-dialog").close(); formulario(null,null,actual.id); return; }
     if(e.target.closest("[data-agenda-guardar-estado]") && actual) {
-      try { await post(`/api/actividades/${actual.id}/estado`,{estado:$("#agenda-estado-nuevo").value}); $("#agenda-detalle-dialog").close(); await refrescar(); notification("Estado actualizado."); } catch(err){notification(err.message);} return;
+      try { await post(`/api/actividades/${actual.id}/estado`,{estado:$("#agenda-estado-nuevo").value,actualizado_en:actual.actualizado_en}); $("#agenda-detalle-dialog").close(); await refrescar(); notification("Estado actualizado."); } catch(err){notification(err.message);} return;
     }
     const asistencia=e.target.closest("[data-agenda-rsvp]");
     if(asistencia && actual) {try{await post(`/api/actividades/${actual.id}/asistencia`,{respuesta:asistencia.dataset.agendaRsvp});notification("Asistencia registrada.");await detalle(actual.id);}catch(err){notification(err.message);}return;}
@@ -314,6 +315,7 @@
     data.requiere_revision=f.elements.requiere_revision.checked;
     data.todo_el_dia=f.elements.todo_el_dia.checked;
     const id=data.actividad_id; delete data.actividad_id;
+    if (!id) delete data.actualizado_en;
     if (!data.padre_id) delete data.padre_id;
     try {
       if (id) await api("/api/actividades/"+id,{method:"PATCH",body:JSON.stringify(data)});
@@ -353,7 +355,7 @@
     if(!col||!arrastrada)return;
     e.preventDefault();
     const id=arrastrada;arrastrada=null;
-    try{await post(`/api/actividades/${id}/estado`,{estado:col.dataset.agendaEstado});await refrescar();notification("Actividad movida.");}
+    try{await post(`/api/actividades/${id}/estado`,{estado:col.dataset.agendaEstado,actualizado_en:items.find(x=>x.id===id)?.actualizado_en});await refrescar();notification("Actividad movida.");}
     catch(err){notification(err.message);}
   });
   // Actualiza Tablón, Mi día, Calendario, tareas y avisos de otros usuarios.
