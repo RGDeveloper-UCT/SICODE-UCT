@@ -66,6 +66,11 @@ class Config:
 
     UO_ONLINE_TTL_SECONDS = int(os.getenv("UO_ONLINE_TTL_SECONDS", "75"))
 
+    # Redis/Valkey existente para avisos tras commit (SSE).
+    SICODE_REALTIME_ENABLED = os.getenv("SICODE_REALTIME_ENABLED", "true").lower() in {"1", "true", "yes", "si"}
+    SICODE_REALTIME_REDIS_URL = os.getenv("SICODE_REALTIME_REDIS_URL") or SICODE_REDIS_URL
+    SICODE_REALTIME_CHANNEL = os.getenv("SICODE_REALTIME_CHANNEL", "sicode:sincronizacion:v1")
+
     @classmethod
     def validar(cls):
         faltantes = []
