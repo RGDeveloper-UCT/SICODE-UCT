@@ -131,15 +131,30 @@ sesión iniciada y Redis operativo.
    `Reconectando…` y luego `En tiempo real`; la vista debe ponerse al día.
 9. Comprobar en bitácora que las modificaciones se registran una sola vez.
 
-### 7. Actualización en producción
+### 7. Integración con las migraciones productivas BSI
 
-Usar el procedimiento existente `scripts/actualizar_servidor_seguro.sh`,
-que comprueba árbol limpio, backup, fast-forward, migraciones, pruebas y health.
-**Primero revisar y fusionar el PR** de esta función en `main`. Después:
+La base de datos del servidor institucional actualmente registra la revisión
+`simpt20261103` de HashPass/Seguridad TI. La rama `main` aún no incluye
+esa cadena de cuatro migraciones. **No usar** `SICODE_BRANCH=main` en este
+servidor hasta reconciliar el historial y los módulos con `main`.
+
+Esta rama parte de
+`feature/bsi-medidas-prioritarias-temporales-20261103` y se revisa en un
+PR específico contra esa rama. Primero aprobar todas las pruebas en CI y la
+prueba de dos usuarios sobre un entorno aislado. Solo después, fusionar el PR
+a la rama BSI compatible, comprobar que el script sigue viendo
+`db current = db heads = simpt20261103`, y planificar mantenimiento.
+
+El procedimiento existente `scripts/actualizar_servidor_seguro.sh` verifica
+árbol limpio, genera backup PostgreSQL, actualiza por fast-forward, prueba,
+verifica migraciones y reinicia. Para un futuro despliegue aprobado desde la
+rama compatible (no ejecutar mientras el PR esté en borrador):
 
 ```bash
 cd /opt/sicode/app
-SICODE_BRANCH=main bash scripts/actualizar_servidor_seguro.sh
+SICODE_BRANCH=feature/bsi-medidas-prioritarias-temporales-20261103 bash scripts/actualizar_servidor_seguro.sh
 ```
 
-No ejecutar contra la base de producción mientras la rama esté en revisión.
+No lanzar el script ahora: la rama integrada aún no está fusionada, y toda
+publicación de producción requiere ventana de mantenimiento y validación de
+control de concurrencia en pantallas dinámicas.
