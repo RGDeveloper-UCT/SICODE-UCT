@@ -208,6 +208,21 @@ def confirmar():
                 if (fuerte and a.documento_expediente_id is None and
                         numeros[(r["expediente_id"], r["numero_anexo"])] == 1):
                     a.documento_expediente_id = doc.id
+            elif r["seccion"] == "ANEXO" and not r.get("anexo_coordinacion_id"):
+                # Un anexo creado en este mismo lote puede vincularse si
+                # es el único número del SP y tiene título/RC concordante.
+                candidatos = (AnexoCoordinacion.query.join(RegistroCoordinacion)
+                    .filter(RegistroCoordinacion.expediente_id == r["expediente_id"],
+                            AnexoCoordinacion.numero_anexo == str(r["numero_anexo"]),
+                            AnexoCoordinacion.documento_expediente_id.is_(None)).all())
+                if len(candidatos) == 1 and numeros[(r["expediente_id"], r["numero_anexo"])] == 1:
+                    a = candidatos[0]
+                    fuerte = ((r["titulo_anexo"] and a.titulo and
+                               normalizar(r["titulo_anexo"]) == normalizar(a.titulo))
+                              or (r["rc"] and a.registro.rc and
+                                  normalizar(r["rc"]) == normalizar(a.registro.rc)))
+                    if fuerte:
+                        a.documento_expediente_id = doc.id
 
         registrar_bitacora(
             accion="IMPORTMIA_V4_CONFIRMAR", modulo="ImportM.IA",
