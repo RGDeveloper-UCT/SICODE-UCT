@@ -129,7 +129,9 @@ def conciliar(datos):
             sheet = libro[hoja]
             cabecera = [_valor(c) for c in next(sheet.iter_rows(values_only=True))]
             filas_hoja = []
-            for indice, valores in enumerate(sheet.iter_rows(min_row=2, values_only=True)):\n                if indice >= MAX_FILAS:\n                    break
+            for indice, valores in enumerate(sheet.iter_rows(min_row=2, values_only=True)):
+                if indice >= MAX_FILAS:
+                    break
                 if not any(_valor(c) for c in valores):
                     continue
                 registro = dict(zip(cabecera, valores))
