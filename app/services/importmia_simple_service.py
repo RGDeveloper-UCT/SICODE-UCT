@@ -165,6 +165,7 @@ def conciliar(datos):
             })
     catalogo = catalogo_plano()
     vistos_anexos = set()
+    correlativos_lote = set()
     nuevos_ordenados = defaultdict(list)
     for r in hojas["ANEXOS"]:
         sp = normalizar_sp(r.get("sp"))
@@ -199,6 +200,8 @@ def conciliar(datos):
                 _estado(d, "REVISAR", "Falta fecha de recepción acreditada.")
             elif codigo == "ANALISIS_RIESGO" and not texto(r.get("correlativo_analisis"), 120):
                 _estado(d, "REVISAR", "Falta correlativo de análisis de riesgo.")
+            elif codigo == "ANALISIS_RIESGO" and texto(r.get("correlativo_analisis"), 120).casefold() in correlativos_lote:
+                _estado(d, "DUPLICADO_EXCEL", "Correlativo de análisis repetido en el lote.")
             elif codigo == "ANALISIS_RIESGO" and (db.session.query(AnalisisRiesgo.id)
                 .filter(db.func.lower(AnalisisRiesgo.correlativo) ==
                         texto(r.get("correlativo_analisis"), 120).lower()).first()):
@@ -206,6 +209,8 @@ def conciliar(datos):
             else:
                 _estado(d, "PENDIENTE_SECUENCIA", "Se revisará la secuencia del SP.")
                 nuevos_ordenados[sp].append(d)
+                if codigo == "ANALISIS_RIESGO":
+                    correlativos_lote.add(texto(r.get("correlativo_analisis"), 120).casefold())
         resultados["ANEXOS"].append(d)
     for sp, candidatos in nuevos_ordenados.items():
         e = expedientes[sp]
@@ -240,8 +245,9 @@ def conciliar(datos):
         if not e or not e.activo:
             _estado(d, "SP_NO_EXISTE", "SP inexistente o inactivo.")
         elif not (banco and boleta and monto and desde and hasta and hasta >= desde
-                  and referencia(r) and texto(r.get("providencia"), 120)):
-            _estado(d, "REVISAR", "Pago incompleto: banco, boleta, monto, período, referencia y providencia.")
+                  and referencia(r) and texto(r.get("providencia"), 120)
+                  and fecha(r.get("fecha_recepcion"))):
+            _estado(d, "REVISAR", "Pago incompleto: banco, boleta, monto, período, RC/RE, providencia o fecha de recepción.")
         elif clave in vistos_pago:
             _estado(d, "DUPLICADO_EXCEL", "Boleta y banco repetidos en Excel.")
         else:
