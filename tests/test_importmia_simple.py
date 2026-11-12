@@ -109,3 +109,41 @@ def test_ruta_y_control_de_login(app_importmia):
     reglas = {regla.endpoint: regla.rule for regla in app_importmia.url_map.iter_rules()}
     assert reglas["importmia.inicio"] == "/importmia/"
     assert reglas["importmia.confirmar"] == "/importmia/confirmar"
+
+def test_importacion_pago_supervisado_idempotente(app_importmia):
+    import re
+    datos = _excel({"PAGOS": [{
+        "sp": "95", "banco": "BANRURAL", "boleta": "B003",
+        "monto": 125.50, "periodo_desde": date(2026, 11, 1),
+        "periodo_hasta": date(2026, 11, 30),
+        "tipo_referencia": "RC", "numero_referencia": "555",
+        "providencia": "P-555", "fecha_recepcion": date(2026, 11, 2),
+    }]})
+    cliente = app_importmia.test_client()
+    respuesta = cliente.post("/login", data={
+        "usuario": "importmia-admin", "password": "Password123"
+    })
+    assert respuesta.status_code == 302
+
+    vista = cliente.post("/importmia/", data={
+        "accion": "previsualizar", "archivo": (BytesIO(datos), "carga.xlsx")
+    }, content_type="multipart/form-data")
+    assert vista.status_code == 200
+    assert b"NUEVO" in vista.data
+    token = re.search(rb'name="token" value="([^"]+)"', vista.data)
+    assert token is not None
+
+    confirmado = cliente.post("/importmia/confirmar", data={
+        "token": token.group(1).decode(),
+        "archivo": (BytesIO(datos), "carga.xlsx")
+    }, content_type="multipart/form-data")
+    assert confirmado.status_code == 302
+    with app_importmia.app_context():
+        assert PagoCoordinacion.query.count() == 1
+        assert Expediente.query.filter_by(no_sp="95").one().expediente_fisico_registrado is False
+
+    # Al repetir el Excel se diagnostica COINCIDE, no otro pago.
+    with app_importmia.app_context():
+        reanalisis = conciliar(datos)
+        assert reanalisis["grupos"]["PAGOS"][0]["estado"] == "COINCIDE"
+        assert PagoCoordinacion.query.count() == 1
