@@ -147,3 +147,29 @@ def test_importacion_pago_supervisado_idempotente(app_importmia):
         reanalisis = conciliar(datos)
         assert reanalisis["grupos"]["PAGOS"][0]["estado"] == "COINCIDE"
         assert PagoCoordinacion.query.count() == 1
+
+def test_boletas_repetidas_en_excel_bloquean_ambas(app_importmia):
+    pago = {
+        "sp": "95", "banco": "BANRURAL", "boleta": "B099",
+        "monto": 90, "periodo_desde": date(2026, 11, 1),
+        "periodo_hasta": date(2026, 11, 30),
+        "tipo_referencia": "RC", "numero_referencia": "099",
+        "providencia": "PROV-99", "fecha_recepcion": date(2026, 11, 2),
+    }
+    with app_importmia.app_context():
+        r = conciliar(_excel({"PAGOS": [pago, dict(pago)]}))
+        assert [x["estado"] for x in r["grupos"]["PAGOS"]] == [
+            "DUPLICADO_EXCEL", "DUPLICADO_EXCEL"
+        ]
+
+
+def test_anexos_repetidos_en_excel_bloquean_ambos(app_importmia):
+    anexo = {"sp": "95", "numero_anexo": 1,
+             "tipo_codigo": "REPORTE_MONITOREO",
+             "fecha_recepcion": date(2026, 11, 2),
+             "es_vencido": "NO"}
+    with app_importmia.app_context():
+        r = conciliar(_excel({"ANEXOS": [anexo, dict(anexo)]}))
+        assert [x["estado"] for x in r["grupos"]["ANEXOS"]] == [
+            "DUPLICADO_EXCEL", "DUPLICADO_EXCEL"
+        ]
