@@ -111,7 +111,7 @@ def confirmar():
             reg = RegistroCoordinacion(
                 tipo="PAGO", expediente_id=exp.id, no_sp_referencia=exp.no_sp,
                 rc=referencia(r), providencia=texto(r.get("providencia"), 120),
-                fecha_recepcion=fecha(r.get("fecha_recepcion")) or date.today(),
+                fecha_recepcion=fecha(r.get("fecha_recepcion")),
                 usuario_id=current_user.id, usuario_origen=current_user.nombre,
                 estado="Completo", origen_registro="MASIVO",
                 archivo_origen="ImportMIA-v4", lote_importacion=token["archivo"][:64],
