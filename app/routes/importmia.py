@@ -64,7 +64,10 @@ def confirmar_indice():
 
     archivo = request.files.get("archivo")
     datos = archivo.stream.read(8 * 1024 * 1024 + 1) if archivo else b""
-    if len(datos) > 8 * 1024 * 1024:\n        flash("El Excel excede el tamaño permitido.", "danger")\n        return __redirigir()\n    if (firmado.get("usuario") != current_user.id or
+    if len(datos) > 8 * 1024 * 1024:
+        flash("El Excel excede el tamaño permitido.", "danger")
+        return __redirigir()
+    if (firmado.get("usuario") != current_user.id or
             hashlib.sha256(datos).hexdigest() != firmado.get("sha256")):
         flash("Debe confirmar con el mismo Excel y el mismo usuario.", "danger")
         return __redirigir()
