@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}ImportM.IA — Importación documental{% endblock %}
+{% block content %}
+<section class="tarjeta" style="max-width:1100px;margin:auto;padding:24px">
+  <h1>ImportM.IA — Importación documental simple</h1>
+  <p>Sube el Excel de ChatGPT Work con cuatro hojas: <strong>EXPEDIENTES, Indice, ANEXOS y PAGOS</strong>. SICODE compara los datos existentes antes de escribir.</p>
+  <p class="alerta alerta-info"><strong>Protección:</strong> no se importan PDF, no se cambia la existencia del expediente físico, no se renumeran anexos y no se marca ningún documento como «Verificado». Un SP sin expediente físico conservará su indicador rojo hasta la recepción institucional.</p>
+  <form method="post" enctype="multipart/form-data" action="{{ url_for('importmia.inicio') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="accion" value="previsualizar">
+    <label for="archivo">Excel de Work (.xlsx, máximo 8 MB)</label>
+    <input type="file" id="archivo" name="archivo" accept=".xlsx" required style="display:block;margin:12px 0">
+    <button class="boton" type="submit">1. Comparar sin modificar SICODE</button>
+  </form>
+  {% if resultado %}
+  <hr style="margin:24px 0">
+  <h2>Resultado de conciliación</h2>
+  <p>Registros examinados: <strong>{{ resultado.total }}</strong>. Solo las filas <strong>NUEVO</strong> se proponen para importación. Los conflictos quedan fuera y deben rectificarse manualmente.</p>
+  <div style="display:flex;flex-wrap:wrap;gap:12px;margin:12px 0 20px">
+    {% for estado, cuenta in resultado.resumen|dictsort %}
+      <div style="padding:10px 14px;border:1px solid #566;border-radius:10px"><strong>{{ cuenta }}</strong> {{ estado }}</div>
+    {% endfor %}
+  </div>
+  {% for hoja in ['EXPEDIENTES', 'Indice', 'ANEXOS', 'PAGOS'] %}
+    <h3>{{ hoja }} ({{ resultado.grupos[hoja]|length }})</h3>
+    <div class="table-responsive" style="overflow:auto;max-height:380px;margin-bottom:24px">
+      <table class="tabla" style="width:100%">
+        <thead><tr><th>Fila Excel</th><th>SP</th><th>Resultado</th><th>Explicación</th></tr></thead>
+        <tbody>
+        {% for fila in resultado.grupos[hoja] %}
+          <tr>
+            <td>{{ fila.fila }}</td><td>{{ fila.sp }}</td>
+            <td><strong>{{ fila.estado }}</strong></td>
+            <td>{{ fila.detalle }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">Sin registros en esta hoja.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endfor %}
+  {% if resultado.resumen.get('NUEVO', 0) %}
+    <div style="border:1px solid #b8860b;border-radius:12px;padding:16px">
+      <h2>2. Confirmar nuevos registros</h2>
+      <p>Esta acción incorporará únicamente filas NUEVO de <strong>Indice, ANEXOS y PAGOS</strong>; no cambia el expediente físico. Requiere el mismo Excel, mismo usuario y comparación reciente. Si SICODE cambia, deberá volver a comparar.</p>
+      <form method="post" enctype="multipart/form-data" action="{{ url_for('importmia.confirmar') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="token" value="{{ token }}">
+        <label for="archivo-confirmar">Seleccionar el mismo archivo para confirmar</label>
+        <input type="file" id="archivo-confirmar" name="archivo" accept=".xlsx" required style="display:block;margin:10px 0">
+        <button class="boton" type="submit">Confirmar {{ resultado.resumen.get('NUEVO', 0) }} registros nuevos</button>
+      </form>
+    </div>
+  {% endif %}
+  {% endif %}
+</section>
+{% endblock %}
