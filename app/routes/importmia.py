@@ -16,7 +16,7 @@ from app.models.coordinacion import (
 from app.models.documento_expediente import DocumentoExpediente
 from app.models.expediente import Expediente
 from app.services.bitacora_service import registrar_bitacora
-from app.services.catalogo_anexos_service import catalogo_plano
+from app.services.catalogo_anexos_service import catalogo_plano, COMPONENTES_REEMPLAZO
 from app.services.importmia_simple_service import (
     conciliar, ImportMIAInvalido, fecha, importe, referencia, texto,
 )
@@ -155,6 +155,12 @@ def confirmar():
             db.session.add(reg)
             db.session.flush()
             titulo = texto(r.get("titulo"), 180) or catalogo[codigo]["titulo"]
+            if codigo == "REEMPLAZO_COMPONENTES":
+                permitidos = dict(COMPONENTES_REEMPLAZO)
+                codigos = [c.strip().upper() for c in texto(r.get("componentes"), 180).split(",") if c.strip()]
+                if not codigos or any(c not in permitidos for c in codigos):
+                    raise ImportMIAInvalido("Reemplazo sin componentes válidos: revisar hoja ANEXOS.")
+                titulo = ("Reemplazo de " + ", ".join(permitidos[c] for c in codigos))[:180]
             db.session.add(AnexoCoordinacion(
                 registro_id=reg.id, numero_anexo=str(d["numero"]),
                 tipo_anexo=catalogo[codigo]["titulo"][:120],
