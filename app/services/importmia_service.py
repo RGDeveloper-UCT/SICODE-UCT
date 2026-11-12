@@ -3,7 +3,6 @@
 ImportM.IA recibe metadatos de Work. No persiste archivos/documentos ni
 considera el Excel una autoridad para renumerar anexos o rectificar folios.
 """
-from collections import Counter
 from io import BytesIO
 from zipfile import ZipFile, BadZipFile
 from openpyxl import load_workbook
@@ -112,7 +111,10 @@ def conciliar(datos):
         filas = leer_excel(archivo)
         decisiones, resumen = planificar(filas)
     except Exception as exc:
-        raise ImportMIAInvalido(str(exc)) from exc
+        if "No hay registros en la hoja Indice" in str(exc):
+            filas, decisiones, resumen = [], [], {"NUEVO": 0, "COINCIDE": 0}
+        else:
+            raise ImportMIAInvalido(str(exc)) from exc
 
     libro = load_workbook(BytesIO(datos), read_only=True, data_only=True, keep_links=False)
     try:
@@ -122,7 +124,7 @@ def conciliar(datos):
             sheet = libro[hoja]
             cabecera = [_valor(c) for c in next(sheet.iter_rows(values_only=True))]
             filas_hoja = []
-            for valores in list(sheet.iter_rows(min_row=2, values_only=True))[:MAX_FILAS]:
+            for indice, valores in enumerate(sheet.iter_rows(min_row=2, values_only=True)):\n                if indice >= MAX_FILAS:\n                    break
                 if not any(_valor(c) for c in valores):
                     continue
                 registro = dict(zip(cabecera, valores))
