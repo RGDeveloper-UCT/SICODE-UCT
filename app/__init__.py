@@ -88,6 +88,8 @@ def create_app():
 
     app.register_blueprint(seguridad_bp)
     app.register_blueprint(mantenimientos_bp)
+    from app.routes.importmia import importmia_bp
+    app.register_blueprint(importmia_bp)
     instalar_registro_monitoreo(app)
 
     @click.command("nexo-revisar")
