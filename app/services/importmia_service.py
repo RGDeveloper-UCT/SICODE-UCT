@@ -36,6 +36,11 @@ HOJAS = {
     "FUENTES_CAMPOS": {"documento_id", "campo_destino", "fuente_primaria"},
     "CONFLICTOS_NUMERACION": {"documento_id", "sp"},
     "ESTADO_POR_SP": {"sp"},
+    "CATALOGOS": {"catalogo", "codigo"},
+    "MAPEO_SICODE": {"hoja", "columna"},
+    "MATRIZ_VALIDACION": {"area", "campo"},
+    "CONTROL_VERSION": {"elemento", "valor"},
+    "INSTRUCCIONES": {"paso", "instruccion"},
 }
 
 class ImportMIAInvalido(ValueError):
