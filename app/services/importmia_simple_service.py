@@ -159,9 +159,15 @@ def conciliar(datos):
         except Exception as exc:
             raise ImportMIAInvalido(f"Hoja Indice: {exc}") from exc
         for d in decisiones:
+            estado = d["estado"]
+            detalle = d.get("detalle", "")
+            if (estado == "NUEVO" and d["seccion"] == "ANEXO"
+                    and d["es_vencido"] == "DESCONOCIDO"):
+                estado = "REVISAR_VIGENCIA"
+                detalle = "Anexo sin vigencia acreditada: confirmar antes de indexar."
             resultados["Indice"].append({
-                "fila": d["fila"], "sp": d["sp"], "estado": d["estado"],
-                "detalle": d.get("detalle", ""), "original": d,
+                "fila": d["fila"], "sp": d["sp"], "estado": estado,
+                "detalle": detalle, "original": d,
             })
     catalogo = catalogo_plano()
     vistos_anexos = {}
