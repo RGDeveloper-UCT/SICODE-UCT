@@ -164,7 +164,7 @@ def conciliar(datos):
                 "detalle": d.get("detalle", ""), "original": d,
             })
     catalogo = catalogo_plano()
-    vistos_anexos = set()
+    vistos_anexos = {}
     correlativos_lote = set()
     nuevos_ordenados = defaultdict(list)
     for r in hojas["ANEXOS"]:
@@ -183,8 +183,9 @@ def conciliar(datos):
             _estado(d, "REVISAR", "Debe confirmarse si el anexo está vencido.")
         elif key in vistos_anexos:
             _estado(d, "DUPLICADO_EXCEL", "Número repetido en el mismo lote.")
+            _estado(vistos_anexos[key], "DUPLICADO_EXCEL", "Número repetido en el mismo lote.")
         else:
-            vistos_anexos.add(key)
+            vistos_anexos[key] = d
             existente = (AnexoCoordinacion.query.join(RegistroCoordinacion)
                 .filter(RegistroCoordinacion.expediente_id == e.id).all())
             numeros = [a for a in existente if numero(a.numero_anexo) == n]
@@ -217,6 +218,8 @@ def conciliar(datos):
         estado = _estado_anexos(e)
         esperable = estado.get("siguiente_anexo")
         for d in sorted(candidatos, key=lambda x: x["numero"]):
+            if d["estado"] == "DUPLICADO_EXCEL":
+                continue
             venc = texto(d["original"].get("es_vencido"), 20).upper() == "SI"
             if estado["requiere_rectificacion"]:
                 _estado(d, "REVISAR_RECTIFICACION", "Rectificar anexos del SP antes de importar.")
@@ -229,7 +232,7 @@ def conciliar(datos):
             else:
                 _estado(d, "REVISAR_SECUENCIA",
                         f"Anexo fuera de secuencia. Siguiente esperado: {esperable}.")
-    vistos_pago = set()
+    vistos_pago = {}
     for r in hojas["PAGOS"]:
         sp = normalizar_sp(r.get("sp"))
         e = expedientes.get(sp)
@@ -250,8 +253,9 @@ def conciliar(datos):
             _estado(d, "REVISAR", "Pago incompleto: banco, boleta, monto, período, RC/RE, providencia o fecha de recepción.")
         elif clave in vistos_pago:
             _estado(d, "DUPLICADO_EXCEL", "Boleta y banco repetidos en Excel.")
+            _estado(vistos_pago[clave], "DUPLICADO_EXCEL", "Boleta y banco repetidos en Excel.")
         else:
-            vistos_pago.add(clave)
+            vistos_pago[clave] = d
             registro = (PagoCoordinacion.query.join(RegistroCoordinacion)
                 .filter(db.func.lower(PagoCoordinacion.banco) == banco.lower(),
                         db.func.lower(PagoCoordinacion.boleta) == boleta.lower()).first())
