@@ -1,6 +1,5 @@
 """ImportM.IA: carga, revisión y conciliación segura del Excel maestro v3."""
 import hashlib
-import io
 import json
 
 from flask import Blueprint, abort, flash, render_template, request, current_app
@@ -17,11 +16,7 @@ def _firmador():
 
 def _huella(resultado):
     """Vincula la vista previa a los resultados que existían al validar."""
-    datos = [
-        [r.get("fila"), r.get("sp"), r.get("estado"), r.get("expediente_id"),
-         r.get("numero_anexo"), r.get("folio_inicial"), r.get("folio_final")]
-        for r in resultado["decisiones"]
-    ]
+    datos = resultado["decisiones"]
     return hashlib.sha256(json.dumps(datos, ensure_ascii=False, default=str).encode()).hexdigest()
 
 @importmia_bp.route("/", methods=["GET", "POST"])
@@ -69,7 +64,7 @@ def confirmar_indice():
 
     archivo = request.files.get("archivo")
     datos = archivo.stream.read(8 * 1024 * 1024 + 1) if archivo else b""
-    if (firmado.get("usuario") != current_user.id or
+    if len(datos) > 8 * 1024 * 1024:\n        flash("El Excel excede el tamaño permitido.", "danger")\n        return __redirigir()\n    if (firmado.get("usuario") != current_user.id or
             hashlib.sha256(datos).hexdigest() != firmado.get("sha256")):
         flash("Debe confirmar con el mismo Excel y el mismo usuario.", "danger")
         return __redirigir()
