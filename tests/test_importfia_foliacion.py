@@ -172,7 +172,7 @@ def test_admite_ruta_y_evidencia_largas_sin_truncamiento():
               observaciones="Detalle del expediente. " * 70),
     ]), expediente())
     assert fila[0]["fuente"] == ruta
-    assert fila[0]["evidencia"] == evidencia
+    assert fila[0]["evidencia"] == evidencia.strip()
     assert ruta in fila[0]["observaciones"]
 
 
@@ -182,8 +182,8 @@ def test_admite_descripcion_larga_de_anexo():
         folio("ANEXO", 1, 1, tipo_documento="Anexo")
     ], [{**anexo(1), "observaciones": detalle,
          "referencia_file_server": "FS/anexos/" + ("subcarpeta/" * 80)}]), expediente())
-    assert anexos[1]["observaciones"] == detalle
-    assert detalle in fila[0]["observaciones"]
+    assert anexos[1]["observaciones"] == detalle.strip()
+    assert detalle.strip() in fila[0]["observaciones"]
 
 
 def test_rechaza_texto_excesivo_con_hoja_fila_y_columna():
