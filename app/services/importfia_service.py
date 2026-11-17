@@ -134,8 +134,23 @@ def leer_importfia(archivo, expediente):
             fuente = texto(r.get("referencia_file_server"), 8192, hoja="FOLIOS", fila=fila, campo="referencia_file_server")
             evidencia = texto(r.get("evidencia_folio"), 8192, hoja="FOLIOS", fila=fila, campo="evidencia_folio")
             confianza = texto(r.get("confianza_lectura"), 20).upper()
-            if not nombre or tipo not in TIPOS or not fuente or not evidencia:
-                raise ImportFIAInvalido(f"FOLIOS fila {fila}: faltan tipo/nombre/fuente/evidencia.")
+            faltantes = []
+            if not nombre:
+                faltantes.append("nombre_documento")
+            if not tipo:
+                faltantes.append("tipo_documento")
+            elif tipo not in TIPOS:
+                raise ImportFIAInvalido(
+                    f"FOLIOS fila {fila}: tipo_documento '{tipo}' no pertenece al catálogo."
+                )
+            if not fuente:
+                faltantes.append("referencia_file_server")
+            if not evidencia:
+                faltantes.append("evidencia_folio")
+            if faltantes:
+                raise ImportFIAInvalido(
+                    f"FOLIOS fila {fila}: campos obligatorios vacíos: {', '.join(faltantes)}."
+                )
             if confianza not in {"ALTA", "MEDIA"}:
                 raise ImportFIAInvalido(
                     f"FOLIOS fila {fila}: lectura BAJA o sin confianza; requiere revisión antes de importar.")
