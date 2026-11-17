@@ -46,7 +46,7 @@ def texto(valor, maximo=2000):
 
 def entero(valor, campo, fila):
     dato = texto(valor)
-    if not re.fullmatch(r"[0-9]+(?:\\.0)?", dato):
+    if not re.fullmatch(r"[0-9]+(?:\.0)?", dato):
         raise ImportFIAInvalido(f"Fila {fila}: {campo} debe ser entero positivo.")
     n = int(float(dato))
     if n < 1:
