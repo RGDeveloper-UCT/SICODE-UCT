@@ -1,5 +1,8 @@
 """IMPORTF.IA: reemplaza la antigua carga inicial sin tocar otros importadores."""
 from collections import defaultdict
+import re
+import unicodedata
+from datetime import date, datetime
 
 from flask import abort, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -77,6 +80,30 @@ def _cotejar(expediente, filas):
     return decisiones, avisos
 
 
+def _normalizar_comparacion(valor, campo):
+    """Compara el valor completo sin confundir referencias de distinto número.
+
+    Se omiten solo separadores visuales en RC/RE, conservando todas las
+    letras y dígitos (incluido RC frente a RE).
+    """
+    if valor is None:
+        return ""
+    if isinstance(valor, (date, datetime)):
+        return valor.date().isoformat() if isinstance(valor, datetime) else valor.isoformat()
+    texto = str(valor).strip()
+    if campo == "fecha de recepción":
+        for formato in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+            try:
+                return datetime.strptime(texto, formato).date().isoformat()
+            except ValueError:
+                pass
+    texto = unicodedata.normalize("NFKD", texto)
+    texto = "".join(c for c in texto if not unicodedata.combining(c)).upper()
+    if campo == "RC/RE":
+        return re.sub(r"[^A-Z0-9]", "", texto)
+    return " ".join(texto.split())
+
+
 def _validar_anexos_coordinacion(expediente, anexos):
     """Rechaza contradicciones con recepciones existentes; no crea recepciones."""
     existentes = (AnexoCoordinacion.query.join(RegistroCoordinacion)
@@ -97,7 +124,7 @@ def _validar_anexos_coordinacion(expediente, anexos):
              recepcion.fecha_recepcion.isoformat() if recepcion.fecha_recepcion else None),
         ]
         for nombre, entrante, vigente in comparaciones:
-            if entrante and vigente and str(entrante).strip().split(" ")[0].casefold() != str(vigente).strip().split(" ")[0].casefold():
+            if entrante and vigente and _normalizar_comparacion(entrante, nombre) != _normalizar_comparacion(vigente, nombre):
                 raise ImportFIAInvalido(
                     f"Anexo {numero}: {nombre} difiere de Coordinación. No se sobrescribirá.")
         if datos.get("es_vencido") in ("SI", "NO") and bool(anexo.es_vencido) != (datos["es_vencido"] == "SI"):
