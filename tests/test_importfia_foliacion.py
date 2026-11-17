@@ -6,10 +6,21 @@ import pytest
 from openpyxl import Workbook
 from werkzeug.datastructures import FileStorage
 
+from app import create_app
+
 from app.services.importfia_service import (
     ANEXOS_OBLIGATORIAS, FOLIOS_OBLIGATORIAS, ImportFIAInvalido,
     leer_importfia,
 )
+
+
+@pytest.fixture
+def contexto_app():
+    """Flask-SQLAlchemy resuelve Model.query dentro del contexto de aplicación."""
+    app = create_app()
+    app.config["TESTING"] = True
+    with app.app_context():
+        yield
 
 
 def excel(folios, anexos=None):
@@ -100,6 +111,7 @@ def test_no_toma_verificacion_del_excel():
     assert "estado_revision" not in fila[0]
 
 
+@pytest.mark.usefixtures("contexto_app")
 def test_cotejo_no_sobrescribe_folio_54_ya_verificado(monkeypatch):
     from app.routes.indice_documental_importacion import _cotejar
     from app.models.documento_expediente import DocumentoExpediente
@@ -128,6 +140,7 @@ def test_cotejo_no_sobrescribe_folio_54_ya_verificado(monkeypatch):
     assert existente.estado_revision == "Verificado"
 
 
+@pytest.mark.usefixtures("contexto_app")
 def test_cotejo_bloquea_nombres_distintos_en_folio_existente(monkeypatch):
     from app.routes.indice_documental_importacion import _cotejar
     from app.models.documento_expediente import DocumentoExpediente
