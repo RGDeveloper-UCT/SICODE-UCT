@@ -191,3 +191,28 @@ def test_rechaza_texto_excesivo_con_hoja_fila_y_columna():
         leer_importfia(excel([
             folio(evidencia_folio="X" * 8193)
         ]), expediente())
+
+
+def test_folio_informa_campo_vacio_con_precision():
+    with pytest.raises(ImportFIAInvalido, match="FOLIOS fila 2: campos obligatorios vacíos: evidencia_folio"):
+        leer_importfia(excel([folio(evidencia_folio="")]), expediente())
+
+
+def test_folio_informa_tipo_fuera_de_catalogo():
+    with pytest.raises(ImportFIAInvalido, match="tipo_documento"):
+        leer_importfia(excel([folio(tipo_documento="Tipo inventado")]), expediente())
+
+
+def test_comparacion_rc_re_toma_numero_completo():
+    from app.routes.indice_documental_importacion import _normalizar_comparacion
+    a = _normalizar_comparacion
+    assert a("RC 123-2026", "RC/RE") == a("RC-123/2026", "RC/RE")
+    assert a("RC 123-2026", "RC/RE") != a("RC 124-2026", "RC/RE")
+    assert a("RC 123-2026", "RC/RE") != a("RE 123-2026", "RC/RE")
+
+
+def test_comparacion_fecha_admite_formato_visual_equivalente():
+    from datetime import date
+    from app.routes.indice_documental_importacion import _normalizar_comparacion
+    assert _normalizar_comparacion("17/11/2026", "fecha de recepción") == _normalizar_comparacion(
+        date(2026, 11, 17), "fecha de recepción")
