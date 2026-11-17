@@ -7,6 +7,7 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from app import db
 from app.models.documento_expediente import DocumentoExpediente
+from app.models.coordinacion import AnexoCoordinacion, RegistroCoordinacion
 from app.models.expediente import Expediente
 from app.routes.indice_documental import indice_documental_bp, _exigir_modificacion
 from app.services.bitacora_service import registrar_bitacora
@@ -76,6 +77,32 @@ def _cotejar(expediente, filas):
     return decisiones, avisos
 
 
+def _validar_anexos_coordinacion(expediente, anexos):
+    """Rechaza contradicciones con recepciones existentes; no crea recepciones."""
+    existentes = (AnexoCoordinacion.query.join(RegistroCoordinacion)
+                  .filter(RegistroCoordinacion.expediente_id == expediente.id).all())
+    for numero, datos in anexos.items():
+        coincidencias = [a for a in existentes if str(a.numero_anexo or "").strip() == str(numero)]
+        if len(coincidencias) > 1:
+            raise ImportFIAInvalido(f"Anexo {numero}: hay varias recepciones con ese número; revise manualmente.")
+        if not coincidencias:
+            continue
+        anexo = coincidencias[0]
+        recepcion = anexo.registro
+        comparaciones = [
+            ("título", datos.get("titulo"), anexo.titulo),
+            ("RC/RE", datos.get("numero_referencia"), recepcion.rc),
+            ("providencia", datos.get("providencia"), recepcion.providencia),
+            ("fecha de recepción", datos.get("fecha_recepcion"),
+             recepcion.fecha_recepcion.isoformat() if recepcion.fecha_recepcion else None),
+        ]
+        for nombre, entrante, vigente in comparaciones:
+            if entrante and vigente and str(entrante).strip().casefold() != str(vigente).strip().casefold():
+                raise ImportFIAInvalido(
+                    f"Anexo {numero}: {nombre} difiere de Coordinación. No se sobrescribirá.")
+        if datos.get("es_vencido") in ("SI", "NO") and bool(anexo.es_vencido) != (datos["es_vencido"] == "SI"):
+            raise ImportFIAInvalido(f"Anexo {numero}: vigencia contradice el registro de Coordinación.")
+
 @indice_documental_bp.route("/expedientes/<int:expediente_id>/indice-documental/importar", methods=["GET", "POST"])
 @login_required
 def importar_indice(expediente_id):
@@ -94,6 +121,7 @@ def importar_indice(expediente_id):
                 if paquete.get("expediente_id") != expediente.id or paquete.get("usuario_id") != current_user.id:
                     abort(403)
                 # Reconsultar la base antes de escribir. Si cambió el cotejo, abortar.
+                _validar_anexos_coordinacion(expediente, paquete["anexos"])
                 decisiones, avisos = _cotejar(expediente, paquete["folios"])
                 resumen = [(r["numero"], r["folio"], r["estado"]) for r in decisiones]
                 if resumen != [tuple(x) for x in paquete["resumen"]]:
@@ -134,11 +162,13 @@ def importar_indice(expediente_id):
             if not archivo:
                 raise ImportFIAInvalido("Seleccione el Excel IMPORTF.IA.")
             folios, _anexos, _ambitos = leer_importfia(archivo, expediente)
+            _validar_anexos_coordinacion(expediente, _anexos)
             decisiones, avisos = _cotejar(expediente, folios)
             token = _firmador().dumps({
                 "expediente_id": expediente.id,
                 "usuario_id": current_user.id,
                 "folios": folios,
+                "anexos": _anexos,
                 "resumen": [(r["numero"], r["folio"], r["estado"]) for r in decisiones],
             })
         except ImportFIAInvalido as exc:
