@@ -35,12 +35,16 @@ class ImportFIAInvalido(ValueError):
     pass
 
 
-def texto(valor, maximo=2000):
+def texto(valor, maximo=8192, *, hoja=None, fila=None, campo=None):
     if valor is None:
         return ""
     dato = str(valor).strip()
     if len(dato) > maximo:
-        raise ImportFIAInvalido("Hay un texto demasiado largo en el Excel.")
+        ubicacion = f"{hoja} fila {fila}, columna {campo}" if hoja and fila and campo else "Excel"
+        raise ImportFIAInvalido(
+            f"{ubicacion}: texto de {len(dato)} caracteres supera el máximo de {maximo}. "
+            "Revise la celda; no se truncará evidencia automáticamente."
+        )
     return dato
 
 
@@ -99,7 +103,7 @@ def leer_importfia(archivo, expediente):
             codigo = texto(r.get("tipo_codigo"), 120)
             if codigo not in catalogo:
                 raise ImportFIAInvalido(f"ANEXOS fila {fila}: tipo_codigo no existe en catálogo.")
-            datos = {campo: texto(r.get(campo), 400) for campo in ANEXOS_OBLIGATORIAS
+            datos = {campo: texto(r.get(campo), 8192, hoja="ANEXOS", fila=fila, campo=campo) for campo in ANEXOS_OBLIGATORIAS
                      if campo not in {"sp", "numero_anexo"}}
             if datos["es_vencido"].upper() not in {"SI", "NO", "DESCONOCIDO"}:
                 raise ImportFIAInvalido(f"ANEXOS fila {fila}: es_vencido inválido.")
@@ -127,8 +131,8 @@ def leer_importfia(archivo, expediente):
             orden = entero(r.get("orden"), "orden", fila)
             nombre = texto(r.get("nombre_documento"), 180)
             tipo = texto(r.get("tipo_documento"), 80)
-            fuente = texto(r.get("referencia_file_server"), 400)
-            evidencia = texto(r.get("evidencia_folio"), 300)
+            fuente = texto(r.get("referencia_file_server"), 8192, hoja="FOLIOS", fila=fila, campo="referencia_file_server")
+            evidencia = texto(r.get("evidencia_folio"), 8192, hoja="FOLIOS", fila=fila, campo="evidencia_folio")
             confianza = texto(r.get("confianza_lectura"), 20).upper()
             if not nombre or tipo not in TIPOS or not fuente or not evidencia:
                 raise ImportFIAInvalido(f"FOLIOS fila {fila}: faltan tipo/nombre/fuente/evidencia.")
@@ -143,14 +147,14 @@ def leer_importfia(archivo, expediente):
             extras = []
             for campo in ("identificador_documento", "pagina_pdf", "fecha_documento",
                           "fecha_recepcion", "tipo_referencia", "numero_referencia", "providencia"):
-                valor = texto(r.get(campo), 160)
+                valor = texto(r.get(campo), 8192, hoja="FOLIOS", fila=fila, campo=campo)
                 if valor:
                     extras.append(f"{campo}: {valor}")
             if numero:
                 a = anexos[numero]
                 extras += [f"anexo.{campo}: {valor}" for campo, valor in a.items()
                            if valor and campo != "observaciones"]
-            observacion = texto(r.get("observaciones"), 500)
+            observacion = texto(r.get("observaciones"), 8192, hoja="FOLIOS", fila=fila, campo="observaciones")
             if numero and anexos[numero].get("observaciones"):
                 extras.append("anexo.observaciones: " + anexos[numero]["observaciones"])
             extras.append("File Server: " + fuente)
