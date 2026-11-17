@@ -91,7 +91,7 @@ def leer_importfia(archivo, expediente):
         catalogo = catalogo_plano()
         anexos = {}
         for fila, r in anexos_crudos:
-            if entero(r.get("sp"), "sp", fila) != expediente.no_sp:
+            if entero(r.get("sp"), "sp", fila) != int(expediente.no_sp):
                 raise ImportFIAInvalido(f"ANEXOS fila {fila}: SP distinto del expediente.")
             numero = entero(r.get("numero_anexo"), "numero_anexo", fila)
             if numero > 200 or numero in anexos:
@@ -110,7 +110,7 @@ def leer_importfia(archivo, expediente):
         vistos = set()
         por_ambito = defaultdict(list)
         for fila, r in folios_crudos:
-            if entero(r.get("sp"), "sp", fila) != expediente.no_sp:
+            if entero(r.get("sp"), "sp", fila) != int(expediente.no_sp):
                 raise ImportFIAInvalido(f"FOLIOS fila {fila}: SP distinto del expediente.")
             codigo = texto(r.get("codigo_expediente"), 50)
             if codigo != expediente.codigo_interno:
