@@ -98,7 +98,7 @@
             {% for documento in documentos_principales %}
                 <tr>
                     <td>{{ loop.index }}</td>
-                    <td>{{ documento.nombre_documento }}</td>
+                    <td>{{ documento.nombre_documento }}{% if documento.observaciones and "File Server:" in documento.observaciones %}<details><summary>Ver metadatos y evidencia IMPORTF.IA</summary><small style="white-space:pre-wrap;overflow-wrap:anywhere">{{ documento.observaciones }}</small></details>{% endif %}</td>
                     <td>{{ documento.tipo_documento }}</td>
                     <td>{{ documento.folio_inicio }}–{{ documento.folio_fin }}</td>
                     <td>{{ documento.total_folios }}</td>
@@ -149,7 +149,7 @@
                         Anexo manual
                         {% endif %}
                     </td>
-                    <td>{{ documento.nombre_documento }}</td>
+                    <td>{{ documento.nombre_documento }}{% if documento.observaciones and "File Server:" in documento.observaciones %}<details><summary>Ver metadatos y evidencia IMPORTF.IA</summary><small style="white-space:pre-wrap;overflow-wrap:anywhere">{{ documento.observaciones }}</small></details>{% endif %}</td>
                     <td>{{ documento.folio_inicio }}–{{ documento.folio_fin }}</td>
                     <td>{{ documento.total_folios }}</td>
                     <td>{{ documento.estado_revision }}</td>
@@ -163,7 +163,7 @@
 
     {% if documentos_inactivos %}
     <h2>Registros anulados</h2>
-    <div class="tabla-contenedor"><table><thead><tr><th>Documento</th><th>Ámbito</th><th>Tipo</th><th>Folios</th><th>Estado</th></tr></thead><tbody>{% for documento in documentos_inactivos %}<tr><td>{{ documento.nombre_documento }}</td><td>{{ 'Anexo independiente' if documento.es_anexo else 'Expediente principal' }}</td><td>{{ documento.tipo_documento }}</td><td>{{ documento.folio_inicio }}–{{ documento.folio_fin }}</td><td>{{ documento.estado_revision }}</td></tr>{% endfor %}</tbody></table></div>
+    <div class="tabla-contenedor"><table><thead><tr><th>Documento</th><th>Ámbito</th><th>Tipo</th><th>Folios</th><th>Estado</th></tr></thead><tbody>{% for documento in documentos_inactivos %}<tr><td>{{ documento.nombre_documento }}{% if documento.observaciones and "File Server:" in documento.observaciones %}<details><summary>Ver metadatos y evidencia IMPORTF.IA</summary><small style="white-space:pre-wrap;overflow-wrap:anywhere">{{ documento.observaciones }}</small></details>{% endif %}</td><td>{{ 'Anexo independiente' if documento.es_anexo else 'Expediente principal' }}</td><td>{{ documento.tipo_documento }}</td><td>{{ documento.folio_inicio }}–{{ documento.folio_fin }}</td><td>{{ documento.estado_revision }}</td></tr>{% endfor %}</tbody></table></div>
     {% endif %}
 </section>
 
