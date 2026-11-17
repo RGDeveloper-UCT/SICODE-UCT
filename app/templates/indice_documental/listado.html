@@ -31,7 +31,7 @@
 <section class="panel panel-ancho">
     <div class="encabezado-modulo">
         <div><h1>Índice documental y foliación</h1><p>SP <strong>{{ expediente.no_sp }}</strong> · {{ expediente.codigo_interno }}</p></div>
-        <div class="acciones"><a class="boton" href="{{ url_for('indice_documental.importar_indice', expediente_id=expediente.id) }}">Importar índice documental</a> {% if current_user.puede_modificar %}<a class="boton" href="{{ url_for('indice_documental.importar_indice_fileserver') }}">Importar índice masivo File Server</a>{% endif %}<a class="boton-cancelar" href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Volver al expediente</a></div>
+        <div class="acciones"><a class="boton" href="{{ url_for('indice_documental.importar_indice', expediente_id=expediente.id) }}">IMPORTF.IA · Importar foliación</a> {% if current_user.puede_modificar %}<a class="boton" href="{{ url_for('indice_documental.importar_indice_fileserver') }}">Importar índice masivo File Server</a>{% endif %}<a class="boton-cancelar" href="{{ url_for('expedientes.detalle', expediente_id=expediente.id) }}">Volver al expediente</a></div>
     </div>
 
     <div class="aviso"><strong>Regla institucional:</strong> registre únicamente metadatos, rangos de folios y observaciones. No cargue documentos sensibles ni copias completas.</div>
@@ -98,12 +98,12 @@
             {% for documento in documentos_principales %}
                 <tr>
                     <td>{{ loop.index }}</td>
-                    <td>{{ documento.nombre_documento }}</td>
+                    <td>{{ documento.nombre_documento }}{% if documento.observaciones and "File Server:" in documento.observaciones %}<details><summary>Ver metadatos y evidencia IMPORTF.IA</summary><small style="white-space:pre-wrap;overflow-wrap:anywhere">{{ documento.observaciones }}</small></details>{% endif %}</td>
                     <td>{{ documento.tipo_documento }}</td>
                     <td>{{ documento.folio_inicio }}–{{ documento.folio_fin }}</td>
                     <td>{{ documento.total_folios }}</td>
                     <td>{{ documento.estado_revision }}</td>
-                    <td>{% if documento.anexo_recepcion %}<a href="{{ url_for('coordinacion.detalle', registro_id=documento.anexo_recepcion.registro.id) }}">Coordinación</a>{% else %}Manual{% endif %}</td>
+                    <td>{% if documento.anexo_recepcion %}<a href="{{ url_for('coordinacion.detalle', registro_id=documento.anexo_recepcion.registro.id) }}">Coordinación</a>{% elif documento.observaciones and "File Server:" in documento.observaciones %}IMPORTF.IA · fuente documental{% else %}Manual{% endif %}</td>
                     <td>{{ acciones_documento(documento, False) }}</td>
                 </tr>
             {% else %}<tr><td colspan="8">No hay documentos registrados en la foliación general del expediente.</td></tr>{% endfor %}
@@ -149,11 +149,11 @@
                         Anexo manual
                         {% endif %}
                     </td>
-                    <td>{{ documento.nombre_documento }}</td>
+                    <td>{{ documento.nombre_documento }}{% if documento.observaciones and "File Server:" in documento.observaciones %}<details><summary>Ver metadatos y evidencia IMPORTF.IA</summary><small style="white-space:pre-wrap;overflow-wrap:anywhere">{{ documento.observaciones }}</small></details>{% endif %}</td>
                     <td>{{ documento.folio_inicio }}–{{ documento.folio_fin }}</td>
                     <td>{{ documento.total_folios }}</td>
                     <td>{{ documento.estado_revision }}</td>
-                    <td>{% if documento.anexo_recepcion %}<a href="{{ url_for('coordinacion.detalle', registro_id=documento.anexo_recepcion.registro.id) }}">Coordinación</a>{% else %}Manual{% endif %}</td>
+                    <td>{% if documento.anexo_recepcion %}<a href="{{ url_for('coordinacion.detalle', registro_id=documento.anexo_recepcion.registro.id) }}">Coordinación</a>{% elif documento.observaciones and "File Server:" in documento.observaciones %}IMPORTF.IA · fuente documental{% else %}Manual{% endif %}</td>
                     <td>{{ acciones_documento(documento, True) }}</td>
                 </tr>
             {% else %}<tr><td colspan="8">No hay anexos incorporados al índice documental.</td></tr>{% endfor %}
@@ -163,7 +163,7 @@
 
     {% if documentos_inactivos %}
     <h2>Registros anulados</h2>
-    <div class="tabla-contenedor"><table><thead><tr><th>Documento</th><th>Ámbito</th><th>Tipo</th><th>Folios</th><th>Estado</th></tr></thead><tbody>{% for documento in documentos_inactivos %}<tr><td>{{ documento.nombre_documento }}</td><td>{{ 'Anexo independiente' if documento.es_anexo else 'Expediente principal' }}</td><td>{{ documento.tipo_documento }}</td><td>{{ documento.folio_inicio }}–{{ documento.folio_fin }}</td><td>{{ documento.estado_revision }}</td></tr>{% endfor %}</tbody></table></div>
+    <div class="tabla-contenedor"><table><thead><tr><th>Documento</th><th>Ámbito</th><th>Tipo</th><th>Folios</th><th>Estado</th></tr></thead><tbody>{% for documento in documentos_inactivos %}<tr><td>{{ documento.nombre_documento }}{% if documento.observaciones and "File Server:" in documento.observaciones %}<details><summary>Ver metadatos y evidencia IMPORTF.IA</summary><small style="white-space:pre-wrap;overflow-wrap:anywhere">{{ documento.observaciones }}</small></details>{% endif %}</td><td>{{ 'Anexo independiente' if documento.es_anexo else 'Expediente principal' }}</td><td>{{ documento.tipo_documento }}</td><td>{{ documento.folio_inicio }}–{{ documento.folio_fin }}</td><td>{{ documento.estado_revision }}</td></tr>{% endfor %}</tbody></table></div>
     {% endif %}
 </section>
 

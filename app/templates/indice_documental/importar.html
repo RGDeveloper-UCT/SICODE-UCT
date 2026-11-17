@@ -1,40 +1,54 @@
 {% extends "base.html" %}
-{% block title %}Importar índice documental — SICODE-UCT{% endblock %}
+{% block title %}IMPORTF.IA — SICODE-UCT{% endblock %}
 {% block content %}
 <section class="panel panel-ancho">
   <div class="encabezado-modulo">
-    <div><h1>Importar índice documental</h1><p>SP {{ expediente.no_sp }} · {{ expediente.codigo_interno }}</p></div>
+    <div><h1>IMPORTF.IA — Importar foliación individual</h1>
+    <p>SP {{ expediente.no_sp }} · {{ expediente.codigo_interno }} · Expediente principal y anexos independientes</p></div>
     <a class="boton-cancelar" href="{{ url_for('indice_documental.listado', expediente_id=expediente.id) }}">Volver al índice</a>
   </div>
-  <div class="aviso">Solo metadatos. Adjunte el Excel generado para el SP, hoja <strong>Indice</strong>. Cada anexo conserva su foliación independiente. La importación no reemplaza documentos existentes.</div>
+  <div class="aviso"><strong>Archivo IMPORTF.IA:</strong> Excel con hojas CONTROL, FOLIOS, ANEXOS, INCIDENCIAS y CATALOGO. Cada fila de FOLIOS representa exactamente un folio físico acreditado. No se almacenan PDFs. El OCR no equivale a verificación institucional.</div>
+  <div class="aviso"><strong>Protección:</strong> No se modifican ni anulan folios existentes, contadores, pagos, datos rectificados ni recepciones de Coordinación. Se crean únicamente metadatos de folios nuevos; el anexo no se considera recibido en Coordinación por figurar en el Excel.</div>
   <form method="post" enctype="multipart/form-data" class="formulario">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="accion" value="previsualizar">
-    <div class="campo"><label for="archivo">Archivo .xlsx o .csv (máximo 1 MB)</label>
-    <input id="archivo" type="file" name="archivo" accept=".xlsx,.csv" required></div>
-    <div class="acciones"><button type="submit" class="boton">Validar y previsualizar</button></div>
+    <div class="campo"><label for="archivo">Excel IMPORTF.IA (.xlsx, máximo 5 MB, 1,500 folios por lote)</label>
+    <input id="archivo" type="file" name="archivo" accept=".xlsx" required></div>
+    <div class="acciones"><button type="submit" class="boton">Cotejar y previsualizar folios</button></div>
   </form>
-  {% if registros %}
-    <h2>Vista previa — {{ registros|length }} registros</h2>
-    {% if alertas %}
-      <div class="aviso"><strong>Importación bloqueada:</strong><ul>{% for alerta in alertas %}<li>{{ alerta }}</li>{% endfor %}</ul></div>
-    {% else %}
-      <div class="aviso">Los rangos son consecutivos y no se detectaron traslapes internos. Los documentos quedarán <strong>pendientes de revisión</strong> según el Excel; confirme únicamente tras revisar los datos.</div>
+  {% if decisiones %}
+    {% set nuevos = decisiones | selectattr('estado', 'equalto', 'NUEVO') | list %}
+    {% set conflictos = decisiones | selectattr('estado', 'equalto', 'CONFLICTO') | list %}
+    {% set coincidentes = decisiones | selectattr('estado', 'equalto', 'COINCIDE') | list %}
+    <h2>Previsualización por ámbito — {{ decisiones|length }} folios</h2>
+    <p>Folios nuevos: <strong>{{ nuevos|length }}</strong> · Coincidentes: <strong>{{ coincidentes|length }}</strong> · Conflictos: <strong>{{ conflictos|length }}</strong></p>
+    {% if avisos %}
+    <div class="aviso"><strong>Discontinuidades detectadas (no se completan automáticamente):</strong>
+      <ul>{% for aviso in avisos %}<li>{{ aviso }}</li>{% endfor %}</ul>
+    </div>
     {% endif %}
-    <div class="tabla-contenedor" style="max-height:420px;overflow:auto"><table>
-      <thead><tr><th>Ámbito</th><th>Orden</th><th>Documento</th><th>Folios</th><th>Estado</th></tr></thead>
-      <tbody>{% for r in registros %}
-        <tr><td>{{ ('Anexo ' ~ r.numero ~ ' — ' ~ r.titulo) if r.numero else 'Principal' }}</td>
-        <td>{{ r.orden }}</td><td>{{ r.nombre }}</td><td>{{ r.inicio }}–{{ r.fin }}</td><td>{{ r.estado }}</td></tr>
-      {% endfor %}</tbody>
-    </table></div>
-    {% if not alertas %}
-      <form method="post" onsubmit="return confirm('¿Confirma importar todos los metadatos al SP {{ expediente.no_sp }}?');">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="accion" value="confirmar">
-        <input type="hidden" name="token" value="{{ token }}">
-        <div class="acciones"><button type="submit" class="boton">Confirmar importación de {{ registros|length }} registros</button></div>
-      </form>
+    {% if conflictos %}
+    <div class="aviso"><strong>Importación bloqueada:</strong> existen folios ocupados o ambiguos. Ninguna fila será importada hasta resolver el conflicto.</div>
+    {% endif %}
+    <div class="tabla-contenedor" style="max-height:560px;overflow:auto">
+      <table>
+        <thead><tr><th>Ámbito</th><th>Folio</th><th>Orden</th><th>Documento</th><th>Tipo</th><th>Lectura</th><th>Cotejo</th><th>Detalle</th></tr></thead>
+        <tbody>{% for r in decisiones %}
+          <tr>
+            <td>{{ ('Anexo ' ~ r.numero ~ ' · ' ~ r.titulo) if r.numero else 'Expediente principal' }}</td>
+            <td>{{ r.folio }}</td><td>{{ r.orden }}</td><td>{{ r.nombre }}</td>
+            <td>{{ r.tipo }}</td><td>{{ r.confianza }}</td><td>{{ r.estado }}</td><td>{{ r.detalle }}</td>
+          </tr>
+        {% endfor %}</tbody>
+      </table>
+    </div>
+    {% if not conflictos and nuevos %}
+    <form method="post" onsubmit="return confirm('¿Confirma incorporar únicamente los folios NUEVOS al SP {{ expediente.no_sp }}? Quedarán pendientes de verificación institucional.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="accion" value="confirmar">
+      <input type="hidden" name="token" value="{{ token }}">
+      <div class="acciones"><button type="submit" class="boton">Confirmar {{ nuevos|length }} folios nuevos (pendientes de revisión)</button></div>
+    </form>
     {% endif %}
   {% endif %}
 </section>
