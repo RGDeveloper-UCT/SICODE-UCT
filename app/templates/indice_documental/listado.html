@@ -103,7 +103,7 @@
                     <td>{{ documento.folio_inicio }}–{{ documento.folio_fin }}</td>
                     <td>{{ documento.total_folios }}</td>
                     <td>{{ documento.estado_revision }}</td>
-                    <td>{% if documento.anexo_recepcion %}<a href="{{ url_for('coordinacion.detalle', registro_id=documento.anexo_recepcion.registro.id) }}">Coordinación</a>{% else %}Manual{% endif %}</td>
+                    <td>{% if documento.anexo_recepcion %}<a href="{{ url_for('coordinacion.detalle', registro_id=documento.anexo_recepcion.registro.id) }}">Coordinación</a>{% elif documento.observaciones and "File Server:" in documento.observaciones %}IMPORTF.IA · fuente documental{% else %}Manual{% endif %}</td>
                     <td>{{ acciones_documento(documento, False) }}</td>
                 </tr>
             {% else %}<tr><td colspan="8">No hay documentos registrados en la foliación general del expediente.</td></tr>{% endfor %}
@@ -153,7 +153,7 @@
                     <td>{{ documento.folio_inicio }}–{{ documento.folio_fin }}</td>
                     <td>{{ documento.total_folios }}</td>
                     <td>{{ documento.estado_revision }}</td>
-                    <td>{% if documento.anexo_recepcion %}<a href="{{ url_for('coordinacion.detalle', registro_id=documento.anexo_recepcion.registro.id) }}">Coordinación</a>{% else %}Manual{% endif %}</td>
+                    <td>{% if documento.anexo_recepcion %}<a href="{{ url_for('coordinacion.detalle', registro_id=documento.anexo_recepcion.registro.id) }}">Coordinación</a>{% elif documento.observaciones and "File Server:" in documento.observaciones %}IMPORTF.IA · fuente documental{% else %}Manual{% endif %}</td>
                     <td>{{ acciones_documento(documento, True) }}</td>
                 </tr>
             {% else %}<tr><td colspan="8">No hay anexos incorporados al índice documental.</td></tr>{% endfor %}
