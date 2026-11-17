@@ -1,119 +1,77 @@
-"""Carga masiva con previsualización firmada y transacción única."""
-import csv
-import io
-import re
+"""IMPORTF.IA: reemplaza la antigua carga inicial sin tocar otros importadores."""
 from collections import defaultdict
 
 from flask import abort, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
-from openpyxl import load_workbook
 
 from app import db
 from app.models.documento_expediente import DocumentoExpediente
 from app.models.expediente import Expediente
 from app.routes.indice_documental import indice_documental_bp, _exigir_modificacion
 from app.services.bitacora_service import registrar_bitacora
-
-COLUMNAS = {"sp", "codigo_expediente", "seccion", "numero_anexo", "titulo_anexo",
-            "orden", "nombre_documento", "folio_inicial", "folio_final", "estado_revision", "observaciones"}
-ESTADOS = {"Pendiente de revisión", "Con observaciones", "Mal foliado", "Anexo pendiente"}
-MAX_FILAS = 1500
-
-
-class ImportacionInvalida(ValueError):
-    pass
-
-
-def _texto(v):
-    return str(v).strip() if v is not None else ""
-
-
-def _entero(v, campo, fila):
-    valor = _texto(v)
-    if not re.fullmatch(r"[0-9]+(?:\.0)?", valor):
-        raise ImportacionInvalida(f"Fila {fila}: {campo} no es entero válido.")
-    return int(float(valor))
-
-
-def _leer(archivo, expediente):
-    nombre = (archivo.filename or "").lower()
-    contenido = archivo.read(1024 * 1024 + 1)
-    if len(contenido) > 1024 * 1024:
-        raise ImportacionInvalida("Máximo permitido: 1 MB.")
-    if nombre.endswith(".csv"):
-        try:
-            filas = list(csv.DictReader(io.StringIO(contenido.decode("utf-8-sig"))))
-        except (UnicodeError, csv.Error) as error:
-            raise ImportacionInvalida("CSV inválido; utilice UTF-8.") from error
-    elif nombre.endswith(".xlsx"):
-        try:
-            libro = load_workbook(io.BytesIO(contenido), read_only=True, data_only=True)
-            hoja = libro["Indice"] if "Indice" in libro.sheetnames else libro.active
-            valores = hoja.iter_rows(values_only=True)
-            columnas = [_texto(x).lower() for x in next(valores)]
-            filas = [dict(zip(columnas, valores_fila)) for valores_fila in valores if any(v is not None for v in valores_fila)]
-            libro.close()
-        except Exception as error:
-            raise ImportacionInvalida("Excel inválido o sin hoja Indice.") from error
-    else:
-        raise ImportacionInvalida("Formato no permitido: utilice .xlsx o .csv.")
-    if not filas or len(filas) > MAX_FILAS:
-        raise ImportacionInvalida("Se requieren entre 1 y 1500 registros.")
-    if not COLUMNAS.issubset(set(filas[0])):
-        raise ImportacionInvalida("Columnas faltantes: " + ", ".join(sorted(COLUMNAS - set(filas[0]))))
-    registros = []
-    grupos = defaultdict(list)
-    for fila, item in enumerate(filas, 2):
-        sp = _entero(item.get("sp"), "sp", fila)
-        if str(sp) != str(expediente.no_sp):
-            raise ImportacionInvalida(f"Fila {fila}: SP {sp} distinto del expediente abierto.")
-        codigo = _texto(item.get("codigo_expediente"))
-        if codigo and codigo != expediente.codigo_interno:
-            raise ImportacionInvalida(f"Fila {fila}: código interno no coincide.")
-        seccion = _texto(item.get("seccion")).upper()
-        if seccion not in ("PRINCIPAL", "ANEXO"):
-            raise ImportacionInvalida(f"Fila {fila}: sección debe ser PRINCIPAL o ANEXO.")
-        numero = _entero(item.get("numero_anexo"), "numero_anexo", fila) if seccion == "ANEXO" else None
-        if numero is not None and not 1 <= numero <= 200:
-            raise ImportacionInvalida(f"Fila {fila}: anexo fuera del rango 1-200.")
-        if seccion == "PRINCIPAL" and _texto(item.get("numero_anexo")):
-            raise ImportacionInvalida(f"Fila {fila}: sección principal no debe tener número de anexo.")
-        inicio = _entero(item.get("folio_inicial"), "folio_inicial", fila)
-        fin = _entero(item.get("folio_final"), "folio_final", fila)
-        orden = _entero(item.get("orden"), "orden", fila)
-        if inicio < 1 or fin < inicio or orden < 1:
-            raise ImportacionInvalida(f"Fila {fila}: rango u orden incorrecto.")
-        titulo = _texto(item.get("titulo_anexo")) if numero else ""
-        nombre = _texto(item.get("nombre_documento"))
-        estado = _texto(item.get("estado_revision")) or "Pendiente de revisión"
-        observaciones = _texto(item.get("observaciones"))
-        if not nombre or len(nombre) > 180 or len(titulo) > 180 or len(observaciones) > 1000:
-            raise ImportacionInvalida(f"Fila {fila}: título, nombre u observaciones inválidos.")
-        if estado not in ESTADOS:
-            raise ImportacionInvalida(f"Fila {fila}: estado no admitido ({estado}).")
-        registro = dict(seccion=seccion, numero=numero, titulo=titulo, orden=orden,
-                        nombre=nombre, inicio=inicio, fin=fin, estado=estado, observaciones=observaciones)
-        registros.append(registro)
-        grupos[numero or 0].append(registro)
-    alertas = []
-    for numero, registros_grupo in grupos.items():
-        vistos = set()
-        titulo_anexo = {r["titulo"] for r in registros_grupo} if numero else set()
-        if len(titulo_anexo) > 1:
-            raise ImportacionInvalida(f"Anexo {numero}: títulos inconsistentes.")
-        for r in sorted(registros_grupo, key=lambda x: (x["inicio"], x["fin"])):
-            for folio in range(r["inicio"], r["fin"] + 1):
-                if folio in vistos:
-                    raise ImportacionInvalida(f"{'Principal' if numero == 0 else 'Anexo '+str(numero)}: traslape en folio {folio}.")
-                vistos.add(folio)
-        if vistos and (min(vistos) != 1 or len(vistos) != max(vistos)):
-            alertas.append(f"{'Principal' if numero == 0 else 'Anexo '+str(numero)}: faltan folios en la secuencia.")
-    return registros, alertas
+from app.services.importfia_service import ImportFIAInvalido, leer_importfia
 
 
 def _firmador():
-    return URLSafeTimedSerializer(current_app.secret_key, salt="indice-documental-masivo-v1")
+    return URLSafeTimedSerializer(current_app.secret_key, salt="importfia-folios-v1")
+
+
+def _ambito(documento):
+    if not documento.es_anexo:
+        return 0
+    if documento.indice_numero_anexo is not None:
+        return int(documento.indice_numero_anexo)
+    recepcion = documento.anexo_recepcion
+    if recepcion and str(recepcion.numero_anexo or "").isdigit():
+        return int(recepcion.numero_anexo)
+    return None
+
+
+def _cotejar(expediente, filas):
+    """No reemplaza verificaciones ni rectificaciones: solo crea folios nuevos sin conflicto."""
+    existentes = DocumentoExpediente.query.filter_by(
+        expediente_id=expediente.id, activo=True
+    ).all()
+    decisiones = []
+    nuevos = defaultdict(set)
+    for r in filas:
+        ambito = r["numero"] or 0
+        ocupantes = [d for d in existentes if
+                     _ambito(d) == ambito and d.folio_inicio <= r["folio"] <= d.folio_fin]
+        ambiguos = [d for d in existentes if d.es_anexo and _ambito(d) is None]
+        if ambito and ambiguos:
+            estado = "CONFLICTO"
+            detalle = "Existe anexo activo sin número y no se puede excluir coincidencia."
+        elif not expediente.expediente_fisico_registrado:
+            estado = "CONFLICTO"
+            detalle = "No consta expediente físico registrado en SICODE."
+        elif len(ocupantes) == 1 and ocupantes[0].folio_inicio == ocupantes[0].folio_fin == r["folio"] and ocupantes[0].nombre_documento == r["nombre"]:
+            estado = "COINCIDE"
+            detalle = "Folio ya registrado. Sin cambios."
+        elif ocupantes:
+            estado = "CONFLICTO"
+            detalle = "Folio ocupado por otro registro o rango existente."
+        else:
+            estado = "NUEVO"
+            detalle = "Nuevo metadato; pendiente de verificación institucional."
+            nuevos[ambito].add(r["folio"])
+        decisiones.append({**r, "estado": estado, "detalle": detalle})
+    # No fabricar supuestos folios de un expediente incompleto. Advertencia,
+    # sin rellenar ni impedir que un usuario incorpore evidencia parcial.
+    avisos = []
+    por_ambito = defaultdict(set)
+    for d in existentes:
+        ambito = _ambito(d)
+        if ambito is not None:
+            por_ambito[ambito].update(range(d.folio_inicio, d.folio_fin + 1))
+    for numero, folios in nuevos.items():
+        total = folios | por_ambito[numero]
+        if total and min(total) > 1:
+            avisos.append(f"{'Principal' if numero == 0 else 'Anexo '+str(numero)}: inicia en folio {min(total)}.")
+        if total and len(total) < max(total):
+            avisos.append(f"{'Principal' if numero == 0 else 'Anexo '+str(numero)}: hay saltos de foliación; no se completan artificialmente.")
+    return decisiones, avisos
 
 
 @indice_documental_bp.route("/expedientes/<int:expediente_id>/indice-documental/importar", methods=["GET", "POST"])
@@ -123,55 +81,68 @@ def importar_indice(expediente_id):
     expediente = Expediente.query.get_or_404(expediente_id)
     if not expediente.expediente_fisico_registrado:
         abort(403)
-    registros, alertas, token = [], [], None
+    decisiones, avisos, token = [], [], None
     if request.method == "POST":
         try:
             if request.form.get("accion") == "confirmar":
                 try:
                     paquete = _firmador().loads(request.form.get("token", ""), max_age=1800)
-                except (BadSignature, SignatureExpired) as error:
-                    raise ImportacionInvalida("La previsualización expiró o fue alterada. Suba el archivo nuevamente.") from error
+                except (BadSignature, SignatureExpired) as exc:
+                    raise ImportFIAInvalido("La previsualización caducó o fue alterada.") from exc
                 if paquete.get("expediente_id") != expediente.id or paquete.get("usuario_id") != current_user.id:
                     abort(403)
-                registros = paquete["registros"]
-                alertas = paquete["alertas"]
-                if alertas:
-                    raise ImportacionInvalida("Hay saltos de foliación. Corrija el archivo y vuelva a cargarlo.")
-                # No modificar índices existentes. Evita duplicados, relaciones ambiguas e importaciones repetidas.
-                if DocumentoExpediente.query.filter_by(expediente_id=expediente.id, activo=True).first():
-                    raise ImportacionInvalida("Este SP ya tiene índice activo. La carga inicial no sobrescribe registros: revise el índice antes de continuar.")
-                for r in registros:
-                    documento = DocumentoExpediente(
-                        expediente_id=expediente.id, nombre_documento=r["nombre"],
-                        tipo_documento="Anexo" if r["numero"] else "Documento",
-                        folio_inicio=r["inicio"], folio_fin=r["fin"],
-                        total_folios=r["fin"] - r["inicio"] + 1,
-                        estado_revision=r["estado"], es_anexo=bool(r["numero"]),
-                        indice_numero_anexo=r["numero"], indice_titulo_anexo=r["titulo"] or None,
-                        indice_orden=r["orden"], observaciones=r["observaciones"] or None, activo=True)
-                    db.session.add(documento)
+                # Reconsultar la base antes de escribir. Si cambió el cotejo, abortar.
+                decisiones, avisos = _cotejar(expediente, paquete["folios"])
+                resumen = [(r["numero"], r["folio"], r["estado"]) for r in decisiones]
+                if resumen != [tuple(x) for x in paquete["resumen"]]:
+                    raise ImportFIAInvalido("El índice cambió desde la previsualización. Vuelva a cargar el Excel.")
+                if any(r["estado"] == "CONFLICTO" for r in decisiones):
+                    raise ImportFIAInvalido("Hay folios en conflicto; no se importará parcialmente.")
+                nuevos = [r for r in decisiones if r["estado"] == "NUEVO"]
+                if not nuevos:
+                    flash("Todos los folios ya coincidían; no hubo cambios.", "info")
+                    return redirect(url_for("indice_documental.listado", expediente_id=expediente.id))
+                for r in nuevos:
+                    db.session.add(DocumentoExpediente(
+                        expediente_id=expediente.id,
+                        nombre_documento=r["nombre"], tipo_documento=r["tipo"],
+                        folio_inicio=r["folio"], folio_fin=r["folio"], total_folios=1,
+                        estado_revision="Pendiente de revisión",
+                        es_anexo=bool(r["numero"]),
+                        indice_numero_anexo=r["numero"],
+                        indice_titulo_anexo=r["titulo"] or None,
+                        indice_orden=r["orden"],
+                        observaciones=r["observaciones"], activo=True,
+                    ))
                 registrar_bitacora(
-                    accion="IMPORTAR_INDICE_DOCUMENTAL", modulo="Índice documental",
-                    descripcion=f"Importación inicial de {len(registros)} documentos para SP {expediente.no_sp}.",
+                    accion="IMPORTFIA_FOLIOS", modulo="Índice documental",
+                    descripcion=f"IMPORTF.IA añadió {len(nuevos)} folios al SP {expediente.no_sp}; sin modificar existentes.",
                     usuario_id=current_user.id, expediente_id=expediente.id,
                     entidad="Expediente", entidad_id=expediente.id,
-                    datos_posteriores={"total": len(registros), "anexos": sorted(set(r["numero"] for r in registros if r["numero"]))},
-                    commit=False)
+                    datos_posteriores={
+                        "filas_nuevas": len(nuevos),
+                        "coincidentes": sum(x["estado"] == "COINCIDE" for x in decisiones),
+                        "verificacion": "PENDIENTE_INSTITUCIONAL",
+                        "anexos": sorted({x["numero"] for x in nuevos if x["numero"]}),
+                    }, commit=False)
                 db.session.commit()
-                flash(f"Índice importado: {len(registros)} registros. Pendientes de revisión física.", "success")
+                flash(f"IMPORTF.IA incorporó {len(nuevos)} folios nuevos; permanecen pendientes de verificación institucional.", "success")
                 return redirect(url_for("indice_documental.listado", expediente_id=expediente.id))
             archivo = request.files.get("archivo")
             if not archivo:
-                raise ImportacionInvalida("Seleccione un Excel o CSV.")
-            registros, alertas = _leer(archivo, expediente)
-            if DocumentoExpediente.query.filter_by(expediente_id=expediente.id, activo=True).first():
-                alertas.append("El SP ya tiene documentos activos. No se permite la importación inicial.")
-            token = _firmador().dumps(dict(expediente_id=expediente.id, usuario_id=current_user.id,
-                                          registros=registros, alertas=alertas))
-        except ImportacionInvalida as error:
-            flash(str(error), "danger")
+                raise ImportFIAInvalido("Seleccione el Excel IMPORTF.IA.")
+            folios, _anexos, _ambitos = leer_importfia(archivo, expediente)
+            decisiones, avisos = _cotejar(expediente, folios)
+            token = _firmador().dumps({
+                "expediente_id": expediente.id,
+                "usuario_id": current_user.id,
+                "folios": folios,
+                "resumen": [(r["numero"], r["folio"], r["estado"]) for r in decisiones],
+            })
+        except ImportFIAInvalido as exc:
+            flash(str(exc), "danger")
         except Exception:
             db.session.rollback()
             raise
     return render_template("indice_documental/importar.html", expediente=expediente,
-                           registros=registros, alertas=alertas, token=token)
+                           decisiones=decisiones, avisos=avisos, token=token)
