@@ -1,4 +1,14 @@
-"""Lector histórico del Excel Indice. Conservado para compatibilidad y pruebas.\n\nLa interfaz IMPORTF.IA nueva usa exclusivamente importfia_service.\n"""\nimport csv\nimport io\nimport re\nfrom collections import defaultdict\nfrom openpyxl import load_workbook\n\nCOLUMNAS = {"sp", "codigo_expediente", "seccion", "numero_anexo", "titulo_anexo",
+"""Lector histórico del Excel Indice. Conservado para compatibilidad y pruebas.
+
+La interfaz IMPORTF.IA nueva usa exclusivamente importfia_service.
+"""
+import csv
+import io
+import re
+from collections import defaultdict
+from openpyxl import load_workbook
+
+COLUMNAS = {"sp", "codigo_expediente", "seccion", "numero_anexo", "titulo_anexo",
             "orden", "nombre_documento", "folio_inicial", "folio_final", "estado_revision", "observaciones"}
 ESTADOS = {"Pendiente de revisión", "Con observaciones", "Mal foliado", "Anexo pendiente"}
 MAX_FILAS = 1500
