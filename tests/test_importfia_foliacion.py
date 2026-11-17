@@ -98,3 +98,54 @@ def test_no_toma_verificacion_del_excel():
         folio(estado_revision="Verificado")
     ]), expediente())
     assert "estado_revision" not in fila[0]
+
+
+def test_cotejo_no_sobrescribe_folio_54_ya_verificado(monkeypatch):
+    from app.routes.indice_documental_importacion import _cotejar
+    from app.models.documento_expediente import DocumentoExpediente
+
+    existente = DocumentoExpediente(
+        expediente_id=8, nombre_documento="54- Razón de folio.pdf",
+        tipo_documento="Otro", folio_inicio=54, folio_fin=54,
+        total_folios=1, estado_revision="Verificado", es_anexo=False,
+        activo=True,
+    )
+
+    class Consulta:
+        def filter_by(self, **_kwargs):
+            return self
+        def all(self):
+            return [existente]
+
+    monkeypatch.setattr(DocumentoExpediente, "query", Consulta())
+    exp = SimpleNamespace(id=8, expediente_fisico_registrado=True)
+    filas = [
+        {"numero": None, "folio": 53, "nombre": "Oficio", "tipo": "Oficio"},
+        {"numero": None, "folio": 54, "nombre": "54- Razón de folio.pdf", "tipo": "Otro"},
+    ]
+    decisiones, _avisos = _cotejar(exp, filas)
+    assert [d["estado"] for d in decisiones] == ["NUEVO", "COINCIDE"]
+    assert existente.estado_revision == "Verificado"
+
+
+def test_cotejo_bloquea_nombres_distintos_en_folio_existente(monkeypatch):
+    from app.routes.indice_documental_importacion import _cotejar
+    from app.models.documento_expediente import DocumentoExpediente
+    existente = DocumentoExpediente(
+        expediente_id=8, nombre_documento="Razón de folio", tipo_documento="Otro",
+        folio_inicio=54, folio_fin=54, total_folios=1,
+        estado_revision="Verificado", es_anexo=False, activo=True,
+    )
+
+    class Consulta:
+        def filter_by(self, **_kwargs):
+            return self
+        def all(self):
+            return [existente]
+
+    monkeypatch.setattr(DocumentoExpediente, "query", Consulta())
+    exp = SimpleNamespace(id=8, expediente_fisico_registrado=True)
+    decisiones, _ = _cotejar(exp, [{
+        "numero": None, "folio": 54, "nombre": "Documento diferente"
+    }])
+    assert decisiones[0]["estado"] == "CONFLICTO"
