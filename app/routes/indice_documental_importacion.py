@@ -97,7 +97,7 @@ def _validar_anexos_coordinacion(expediente, anexos):
              recepcion.fecha_recepcion.isoformat() if recepcion.fecha_recepcion else None),
         ]
         for nombre, entrante, vigente in comparaciones:
-            if entrante and vigente and str(entrante).strip().casefold() != str(vigente).strip().casefold():
+            if entrante and vigente and str(entrante).strip().split(" ")[0].casefold() != str(vigente).strip().split(" ")[0].casefold():
                 raise ImportFIAInvalido(
                     f"Anexo {numero}: {nombre} difiere de Coordinación. No se sobrescribirá.")
         if datos.get("es_vencido") in ("SI", "NO") and bool(anexo.es_vencido) != (datos["es_vencido"] == "SI"):
