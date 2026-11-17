@@ -251,6 +251,15 @@ def listado(expediente_id):
 
     documentos_principales = [documento for documento in documentos if es_foliacion_principal(documento)]
     anexos_documentales = [documento for documento in documentos if documento.es_anexo]
+    # Mantener junta la foliación independiente de cada anexo, aun cuando todos
+    # comiencen en folio 1. Los anexos sin número se muestran al final.
+    def _orden_anexo(doc):
+        numero = doc.indice_numero_anexo
+        if numero is None and doc.anexo_recepcion:
+            valor = str(doc.anexo_recepcion.numero_anexo or "")
+            numero = int(valor) if valor.isdigit() else None
+        return (numero if numero is not None else 999999, doc.folio_inicio, doc.id)
+    anexos_documentales.sort(key=_orden_anexo)
 
     return render_template(
         "indice_documental/listado.html",
