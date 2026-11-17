@@ -11,6 +11,8 @@ from app.models.expediente import Expediente
 from app.routes.indice_documental import indice_documental_bp, _exigir_modificacion
 from app.services.bitacora_service import registrar_bitacora
 from app.services.importfia_service import ImportFIAInvalido, leer_importfia
+# Contrato anterior conservado para consumidores y pruebas existentes.
+from app.services.indice_importacion_legacy_parser import _leer, ImportacionInvalida
 
 
 def _firmador():
