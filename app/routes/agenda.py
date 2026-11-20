@@ -54,6 +54,27 @@ def editable(id_):
     return actividad
 
 
+def editable_bloqueada(id_):
+    """Serializa modificaciones al mismo registro en PostgreSQL."""
+    actividad = AgendaActividad.query.filter_by(id=id_).with_for_update().first()
+    if not actividad or actividad.eliminado_en is not None:
+        abort(404)
+    if not puede_editar(current_user, actividad):
+        abort(403)
+    return actividad
+
+
+def conflicto_revision(actividad, datos):
+    """Evita sobrescribir una actividad editada desde otra sesión."""
+    esperado = datos.get("actualizado_en")
+    if esperado is None:  # Compatibilidad con clientes antiguos.
+        return None
+    vigente = actividad.actualizado_en.isoformat() if actividad.actualizado_en else None
+    if not isinstance(esperado, str) or esperado != vigente:
+        return json_error("La actividad cambió en otra sesión. Cierre el formulario, revise los datos actuales y vuelva a editar.", 409)
+    return None
+
+
 def usuario_autorizado(id_):
     try:
         usuario = db.session.get(Usuario, int(id_))
@@ -286,8 +307,11 @@ def crear():
 @agenda_bp.patch("/api/actividades/<int:id_>")
 @login_required
 def modificar(id_):
-    actividad = editable(id_)
+    actividad = editable_bloqueada(id_)
     datos = datos_json() or {}
+    conflicto = conflicto_revision(actividad, datos)
+    if conflicto:
+        return conflicto
     original = actividad.responsable_id
     fechas_anteriores = (actividad.inicio, actividad.vencimiento)
     titulo_anterior = actividad.titulo
@@ -329,8 +353,11 @@ def modificar(id_):
 @agenda_bp.post("/api/actividades/<int:id_>/estado")
 @login_required
 def cambiar_estado(id_):
-    actividad = editable(id_)
+    actividad = editable_bloqueada(id_)
     datos = datos_json() or {}
+    conflicto = conflicto_revision(actividad, datos)
+    if conflicto:
+        return conflicto
     estado = datos.get("estado")
     if estado not in ESTADOS:
         return json_error("Estado inválido.")

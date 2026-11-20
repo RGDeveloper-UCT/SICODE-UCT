@@ -1,0 +1,13 @@
+.sicode-sincronizacion-estado {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    color: #137b45;
+    font-size: .72rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.sicode-sincronizacion-estado.desconectado { color: #a7591a; }
+@media (max-width: 750px) {
+    .sicode-sincronizacion-estado { font-size: .67rem; }
+}
